@@ -17,9 +17,6 @@ var SH_PEOPLE = 'People';
 function cors(data) {
   var output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
-  output.addHeader('Access-Control-Allow-Origin', '*');
-  output.addHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
   return output;
 }
 
@@ -61,11 +58,9 @@ function doGet(e) {
     // JSONP response
     var json = JSON.stringify(result);
     if (callback) {
-      var resp = ContentService
+      return ContentService
         .createTextOutput(callback + '(' + json + ')')
         .setMimeType(ContentService.MimeType.JAVASCRIPT);
-      resp.addHeader('Access-Control-Allow-Origin', '*');
-      return resp;
     }
     return cors(result);
 
@@ -73,11 +68,9 @@ function doGet(e) {
     var errJson = JSON.stringify({ok:false, error: err.message});
     var cb = e.parameter.callback || '';
     if (cb) {
-      var resp = ContentService
+      return ContentService
         .createTextOutput(cb + '(' + errJson + ')')
         .setMimeType(ContentService.MimeType.JAVASCRIPT);
-      resp.addHeader('Access-Control-Allow-Origin', '*');
-      return resp;
     }
     return cors({ok:false, error: err.message});
   }
@@ -102,15 +95,6 @@ function doPost(e) {
   } catch(err) {
     return cors({ok:false, error: err.message});
   }
-}
-
-// ── OPTIONS HANDLER (for preflight requests) ──
-function doOptions(e) {
-  var output = ContentService.createTextOutput('');
-  output.addHeader('Access-Control-Allow-Origin', '*');
-  output.addHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
-  return output;
 }
 
 function getItems() {
