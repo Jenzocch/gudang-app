@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>倉庫管理系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{--p:#0D9488;--s:#0F766E;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#0F172A;--border:#CBD5E1}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -159,6 +160,14 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
+.cat-bar{display:flex;gap:.4rem;padding:.5rem .7rem;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border)}
+.cat-chip{padding:.3rem .75rem;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap;color:#64748B;flex-shrink:0}
+.cat-chip.active{background:var(--p);color:#fff;border-color:var(--p)}
+.scan-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:998;flex-direction:column;align-items:center;justify-content:center}
+.scan-ov.open{display:flex}
+#scan-box{width:280px;height:280px;border-radius:16px;overflow:hidden}
+.scan-hint{color:#fff;font-size:.85rem;margin-top:1rem;opacity:.8}
+.scan-close{margin-top:1.2rem;background:rgba(255,255,255,.2);color:#fff;border:none;padding:.6rem 1.5rem;border-radius:20px;cursor:pointer;font-size:.9rem}
 </style>
 </head>
 <body>
@@ -182,9 +191,15 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
     <button class="tb" onclick="goTab('ambil',this)"><span class="tb-icon">📤</span><span id="tl-a"></span></button>
     <button class="tb" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
     <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r"></span></button>
-    <button class="tb" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
+    <button class="tb" id="tb-riwayat" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
     <button class="tb" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
   </div>
+</div>
+
+<div class="scan-ov" id="scan-ov">
+  <div id="scan-box"></div>
+  <div class="scan-hint" id="scan-hint">對準條碼 / Arahkan ke barcode</div>
+  <button class="scan-close" onclick="stopScan()">✕ 關閉</button>
 </div>
 
 <div class="low-ov" id="low-ov">
@@ -229,7 +244,8 @@ var T = {
     selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
     stockVal:'總庫存價值',avgCost:'平均成本',
     out:'取出',in:'入庫',purchases:'採購',catg:'分類',
-    newName:'輸入新名字',selItem2:'選擇現有商品',newItem:'新品/其他',itemDesc:'品項內容'},
+    newName:'輸入新名字',selItem2:'選擇現有商品',newItem:'新品/其他',itemDesc:'品項內容',
+    scanBarcode:'掃條碼',allCat:'全部',barcode:'條碼',category:'分類',noAccess:'無權限查看'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -251,7 +267,8 @@ var T = {
     selBoth:'⚠ Pilih barang dan orang',fillAll:'⚠ Isi nama dan barang',
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
     out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',
-    newName:'Masukkan nama baru',selItem2:'Pilih barang yang ada',newItem:'Barang baru/lainnya',itemDesc:'Deskripsi item'}
+    newName:'Masukkan nama baru',selItem2:'Pilih barang yang ada',newItem:'Barang baru/lainnya',itemDesc:'Deskripsi item',
+    scanBarcode:'Scan Barcode',allCat:'Semua',barcode:'Barcode',category:'Kategori',noAccess:'Tidak ada akses'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();}
@@ -416,6 +433,8 @@ function renderAll(){
     '<div id="permintaan" class="sec"></div>'+
     '<div id="riwayat" class="sec"></div>'+
     '<div id="admin" class="sec"></div>';
+  var tbR=document.getElementById('tb-riwayat');
+  if(tbR)tbR.style.display=IS_ADMIN?'flex':'none';
   renderHome();renderAmbil();renderMasuk();renderPermintaan();renderRiwayat();renderAdmin();
 }
 
@@ -482,18 +501,22 @@ function copyBuyList(){
 }
 
 // AMBIL (cart mode)
+var AMB_CAT='';
 function renderAmbil(){
-  CART={};
+  CART={};AMB_CAT='';
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
+  var cats=getCategories();
   document.getElementById('ambil').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
+    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button>'+
+    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;margin-left:.3rem">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
-    '<div id="amb-list" style="background:#fff">'+ambRows('')+'</div>'+
+    '<div class="cat-bar" id="amb-cats">'+catChips(cats,'amb')+'</div>'+
+    '<div id="amb-list" style="background:#fff">'+ambRows('',AMB_CAT)+'</div>'+
     '<div id="amb-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.55rem .9rem;font-weight:700;font-size:.88rem;background:#FEF2F2;color:var(--danger);border-bottom:1px solid var(--border)">🛒 <span id="amb-cart-cnt"></span></div>'+
     '<div id="amb-cart">'+cartRowsAmb()+'</div>'+
@@ -510,9 +533,13 @@ function renderAmbil(){
     '<button class="btn btn-d btn-full" id="amb-btn" onclick="doAmbilCart()">'+t('doTake')+'</button>'+
     '</div>';
 }
-function ambRows(q){
-  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
-  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
+function ambRows(q,cat){
+  var items=DATA.items.filter(function(i){
+    var mq=!q||i.name.toLowerCase().includes(q);
+    var mc=!cat||(i.category||'未分類')===cat;
+    return mq&&mc;
+  });
+  if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Barang tidak ditemukan')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
     var low=i.qty>0&&i.qty<=i.critical_qty;
@@ -522,7 +549,7 @@ function ambRows(q){
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+'</div>'+
-      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?' 缺貨':low?' ⚠':'')+'</div>'+
+      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?' ⛔':low?' ⚠':'')+(i.category?'<span style="margin-left:.3rem;font-size:.68rem;color:#94A3B8">'+esc(i.category)+'</span>':'')+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj('+i.id+',-1)" '+(empty?'disabled':'')+'>−</button>'+
@@ -532,14 +559,31 @@ function ambRows(q){
   }).join('');
 }
 var AMB_GRID=false;
-function fltAmb(){var q=(document.getElementById('asrch').value||'').toLowerCase();var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q):ambRows(q);}
+function fltAmb(){var q=(document.getElementById('asrch').value||'').toLowerCase();var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q,AMB_CAT):ambRows(q,AMB_CAT);}
+function selCat(cat,mode){
+  if(mode==='amb'){AMB_CAT=cat;var el=document.getElementById('amb-cats');if(el)el.innerHTML=catChips(getCategories(),'amb');}
+  else{MSK_CAT=cat;var el=document.getElementById('msk-cats');if(el)el.innerHTML=catChips(getCategories(),'msk');}
+  if(mode==='amb')fltAmb();else fltMask();
+}
+function getCategories(){
+  var cats={};DATA.items.forEach(function(i){var c=i.category||'未分類';cats[c]=1;});return Object.keys(cats).sort();
+}
+function catChips(cats,mode){
+  var cur=mode==='amb'?AMB_CAT:MSK_CAT;
+  return '<div class="cat-chip'+(cur===''?' active':'')+'" onclick="selCat(\'\',\''+mode+'\')">'+t('allCat')+'</div>'+
+    cats.map(function(c){return'<div class="cat-chip'+(cur===c?' active':'')+'" onclick="selCat(\''+esc(c)+'\',\''+mode+'\')">'+esc(c)+'</div>';}).join('');
+}
 function toggleAmbView(){
   AMB_GRID=!AMB_GRID;
   var btn=document.getElementById('amb-view-btn');if(btn)btn.textContent=AMB_GRID?'☰':'⊞';
   fltAmb();
 }
-function ambGrid(q){
-  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
+function ambGrid(q,cat){
+  var items=DATA.items.filter(function(i){
+    var mq=!q||i.name.toLowerCase().includes(q);
+    var mc=!cat||(i.category||'未分類')===cat;
+    return mq&&mc;
+  });
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
   return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
@@ -610,17 +654,21 @@ async function doAmbilCart(){
 }
 
 // MASUK (cart mode)
+var MSK_CAT='';
 function renderMasuk(){
-  CART_M={};
+  CART_M={};MSK_CAT='';
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
+  var cats=getCategories();
   document.getElementById('masuk').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--ok),#059669);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('receive')+'</span>'+
-    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div></div>'+
+    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
+    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button></div>'+
     '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0">'+
     '</div>'+
-    '<div id="msk-list" style="background:#fff">'+maskRows('')+'</div>'+
+    '<div class="cat-bar" id="msk-cats">'+catChips(cats,'msk')+'</div>'+
+    '<div id="msk-list" style="background:#fff">'+maskRows('',MSK_CAT)+'</div>'+
     '<div id="msk-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.55rem .9rem;font-weight:700;font-size:.88rem;background:#ECFDF5;color:var(--ok);border-bottom:1px solid var(--border)">🛒 <span id="msk-cart-cnt"></span></div>'+
     '<div id="msk-cart">'+cartRowsMsk()+'</div>'+
@@ -637,8 +685,12 @@ function renderMasuk(){
     '<button class="btn btn-ok btn-full" id="msk-btn" onclick="doMasukCart()">'+t('doRcv')+'</button>'+
     '</div>';
 }
-function maskRows(q){
-  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
+function maskRows(q,cat){
+  var items=DATA.items.filter(function(i){
+    var mq=!q||i.name.toLowerCase().includes(q);
+    var mc=!cat||(i.category||'未分類')===cat;
+    return mq&&mc;
+  });
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
   return items.map(function(i){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
@@ -656,7 +708,7 @@ function maskRows(q){
       '</div></div>';
   }).join('');
 }
-function fltMask(){var q=(document.getElementById('msrch').value||'').toLowerCase();var el=document.getElementById('msk-list');if(el)el.innerHTML=maskRows(q);}
+function fltMask(){var q=(document.getElementById('msrch').value||'').toLowerCase();var el=document.getElementById('msk-list');if(el)el.innerHTML=maskRows(q,MSK_CAT);}
 function cartRowsMsk(){
   var keys=Object.keys(CART_M);
   if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+(LANG==='zh'?'搜尋上方商品，按 + 加入':'Cari barang di atas, tekan +')+'</div>';
@@ -773,6 +825,10 @@ function reqHTML(r){
 
 // RIWAYAT
 function renderRiwayat(){
+  if(!IS_ADMIN){
+    document.getElementById('riwayat').innerHTML='<div style="text-align:center;padding:3rem;color:#9CA3AF"><div style="font-size:2.5rem">🔒</div><div style="margin-top:.5rem">'+t('noAccess')+'</div></div>';
+    return;
+  }
   var h=DATA.transactions.map(function(tx){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
@@ -862,7 +918,7 @@ function aiListHTML(){
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
+        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+(i.barcode?' · 🔖'+esc(i.barcode):'')+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
         (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 採購連結</a>':'')+'</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
@@ -923,12 +979,17 @@ function showModal(title,body){
 function closeModal(){var o=document.getElementById('m-ov');if(o)o.remove();}
 
 function itemFormHTML(item){
+  var cats=getCategories();
   return '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
+    '<div class="fr">'+
+      '<div class="ig"><label>'+t('category')+'</label><input id="fcat" type="text" list="cat-list" placeholder="'+(LANG==='zh'?'例：電子、五金':'Contoh: Elektronik')+'..." value="'+(item&&item.category?esc(item.category):'')+'"><datalist id="cat-list">'+cats.map(function(c){return'<option value="'+esc(c)+'">';}).join('')+'</datalist></div>'+
+      '<div class="ig"><label>'+t('barcode')+'</label><input id="fbc" type="text" placeholder="'+(LANG==='zh'?'條碼（可選）':'Barcode (opsional)')+'..." value="'+(item&&item.barcode?esc(item.barcode):'')+'"></div>'+
+    '</div>'+
     '<div class="ig"><label>'+(LANG==='zh'?'商品照片':'Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
         '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'f-cam\').click()">📷 '+(LANG==='zh'?'拍照':'Kamera')+'</button>'+
@@ -958,8 +1019,10 @@ async function saveItem(){
   var min=parseInt(document.getElementById('fm').value)||10;
   var surl=(document.getElementById('fsu').value||'').trim();
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
+  var cat=(document.getElementById('fcat').value||'').trim()||null;
+  var bc=(document.getElementById('fbc').value||'').trim()||null;
   F_PHOTO='';
-  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img};
+  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img,category:cat,barcode:bc};
   try{
     if(EDIT_ITEM){var {error}=await sb.from('items').update(d).eq('id',EDIT_ITEM.id);if(error)throw error;}
     else{var {error}=await sb.from('items').insert(d);if(error)throw error;}
@@ -1166,6 +1229,34 @@ function swATab(el,id){
   document.querySelectorAll('#admin .tc').forEach(function(t){t.classList.remove('active')});
   var e=document.getElementById(id);if(e)e.classList.add('active');
 }
+// BARCODE SCANNER
+var SCAN_MODE='amb';
+var SCAN_QR=null;
+function startScan(mode){
+  SCAN_MODE=mode;
+  document.getElementById('scan-ov').classList.add('open');
+  var hint=document.getElementById('scan-hint');
+  if(hint)hint.textContent=LANG==='zh'?'對準條碼掃描...':'Arahkan ke barcode...';
+  SCAN_QR=new Html5Qrcode('scan-box');
+  SCAN_QR.start({facingMode:'environment'},{fps:10,qrbox:220},function(code){
+    stopScan();
+    var item=DATA.items.find(function(i){return i.barcode&&i.barcode===code;});
+    if(item){
+      if(SCAN_MODE==='amb')cAdj(item.id,1);
+      else cAdjM(item.id,1);
+      toast('✓ '+esc(item.name));
+    }else{
+      var srch=document.getElementById(SCAN_MODE==='amb'?'asrch':'msrch');
+      if(srch){srch.value=code;if(SCAN_MODE==='amb')fltAmb();else fltMask();}
+      toast(LANG==='zh'?'找不到條碼，已搜尋：'+code:'Barcode tidak ditemukan: '+code);
+    }
+  },function(){});
+}
+function stopScan(){
+  document.getElementById('scan-ov').classList.remove('open');
+  if(SCAN_QR){SCAN_QR.stop().catch(function(){});SCAN_QR=null;}
+}
+
 function compressImg(file,cb){
   var rd=new FileReader();
   rd.onload=function(e){
