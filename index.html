@@ -210,7 +210,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 
 <div class="scan-ov" id="scan-ov">
   <div id="scan-box"></div>
-  <div class="scan-hint" id="scan-hint">對準 QR Code / Arahkan ke QR Code</div>
+  <div class="scan-hint" id="scan-hint">對準條碼 / Arahkan ke barcode</div>
   <button class="scan-close" onclick="stopScan()">✕ 關閉</button>
 </div>
 
@@ -545,7 +545,7 @@ function renderAmbil(){
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷 QR</button>'+
+    '<button onclick="startScan(\'amb\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button>'+
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;margin-left:.3rem">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
@@ -698,7 +698,7 @@ function renderMasuk(){
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('receive')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷 QR</button></div>'+
+    '<button onclick="startScan(\'msk\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.85rem;cursor:pointer">📷</button></div>'+
     '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0">'+
     '</div>'+
     '<div class="cat-bar" id="msk-cats">'+catChips(cats,'msk')+'</div>'+
@@ -989,8 +989,10 @@ function renderAdminFull(){
   document.getElementById('admin').innerHTML=
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
+      '<button class="tsw" onclick="swATab(this,\'apu\')">💰 '+t('purchases')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'acat\')">🏷️ '+(LANG==='zh'?'分類':'Kategori')+'</button>'+
+      '<button class="tsw" onclick="swATab(this,\'aimp\')">📊 Excel</button>'+
       '<button class="tsw" onclick="swATab(this,\'apin\')">🔑 PIN</button>'+
     '</div>'+
     '<div class="val-bar"><div class="val-bar-lbl">'+t('stockVal')+'</div><div class="val-bar-val">'+fmtC(tv)+'</div></div>'+
@@ -998,24 +1000,42 @@ function renderAdminFull(){
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
       '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
     '</div>'+
+    '<div id="acat" class="tc" style="display:none"></div>'+
+    '<div id="apin" class="tc" style="display:none"></div>'+
+    '<div id="apu" class="tc">'+
+      '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddBuy()">➕ '+t('addBuy')+'</button></div>'+
+      '<div id="apu-list">'+puListHTML()+'</div>'+
+    '</div>'+
     '<div id="ape" class="tc">'+
       '<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text"></div>'+
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
-    '<div id="acat" class="tc" style="display:none"></div>'+
-    '<div id="apin" class="tc" style="display:none"></div>'+
+    '<div id="acat" class="tc"></div>'+
+    '<div id="apin" class="tc"></div>'+
+    '<div id="aimp" class="tc">'+
+      '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
+      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+(LANG==='zh'?'方法1：上傳 Excel / CSV 文件':'Metode 1: Upload file Excel / CSV')+'</p>'+
+      '<div class="ig"><input type="file" id="imp-file" accept=".xlsx,.xls,.csv" onchange="onImpFile()"></div>'+
+      '<p style="font-size:.78rem;color:#6B7280;margin:.7rem 0 .5rem">'+(LANG==='zh'?'方法2：貼上內容':'Metode 2: Tempel konten')+'</p>'+
+      '<p style="font-size:.75rem;color:#94A3B8;margin-bottom:.5rem">'+t('bulkHint')+'</p>'+
+      '<div class="imp-box"><textarea id="imp-txt" placeholder="'+(LANG==='zh'?'貼上 Excel 資料...':'Tempel data Excel...')+'" oninput="prevImp()"></textarea></div>'+
+      '<div id="imp-prev" style="margin:.5rem 0"></div>'+
+      '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
+      '</div>'+
+    '</div>'+
     '<div style="padding:1rem .7rem;text-align:center;border-top:2px solid var(--border);background:#FEF2F2;margin-top:1rem"><button class="btn btn-d" style="width:100%;font-size:.95rem;font-weight:700" onclick="if(confirm(\''+t('logout')+'?\'))logoutAdmin()">🔒 '+t('logout')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
+    var ac=avgCost(i.id);
     var ph=i.image_url?'<img style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img">📦</div>';
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+'</div>'+
+        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?' · 📁'+esc(i.category):'')+(i.barcode?' · 🔖'+esc(i.barcode):'')+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
         (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 採購連結</a>':'')+'</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
