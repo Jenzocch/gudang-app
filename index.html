@@ -6,6 +6,8 @@
 <title>倉庫管理系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--p:#0D9488;--s:#0F766E;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#0F172A;--border:#CBD5E1}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -168,6 +170,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 #scan-box{width:280px;height:280px;border-radius:16px;overflow:hidden}
 .scan-hint{color:#fff;font-size:.85rem;margin-top:1rem;opacity:.8}
 .scan-close{margin-top:1.2rem;background:rgba(255,255,255,.2);color:#fff;border:none;padding:.6rem 1.5rem;border-radius:20px;cursor:pointer;font-size:.9rem}
+.qr-box{background:#fff;padding:1rem;border-radius:10px;text-align:center;margin:.5rem 0;border:1.5px solid var(--border)}
+.qr-code{display:inline-block;padding:.5rem;background:#fff}
+.qr-hint{font-size:.75rem;color:#64748B;margin-top:.3rem}
 </style>
 </head>
 <body>
@@ -903,8 +908,11 @@ function renderAdminFull(){
     '</div>'+
     '<div id="aimp" class="tc">'+
       '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+t('bulkHint')+'</p>'+
-      '<div class="imp-box"><textarea id="imp-txt" placeholder="貼上 Excel 資料..." oninput="prevImp()"></textarea></div>'+
+      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+(LANG==='zh'?'方法1：上傳 Excel / CSV 文件':'Metode 1: Upload file Excel / CSV')+'</p>'+
+      '<div class="ig"><input type="file" id="imp-file" accept=".xlsx,.xls,.csv" onchange="onImpFile()"></div>'+
+      '<p style="font-size:.78rem;color:#6B7280;margin:.7rem 0 .5rem">'+(LANG==='zh'?'方法2：貼上內容':'Metode 2: Tempel konten')+'</p>'+
+      '<p style="font-size:.75rem;color:#94A3B8;margin-bottom:.5rem">'+t('bulkHint')+'</p>'+
+      '<div class="imp-box"><textarea id="imp-txt" placeholder="'+(LANG==='zh'?'貼上 Excel 資料...':'Tempel data Excel...')+'" oninput="prevImp()"></textarea></div>'+
       '<div id="imp-prev" style="margin:.5rem 0"></div>'+
       '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
       '</div>'+
@@ -1001,10 +1009,28 @@ function itemFormHTML(item){
       '<div id="fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
     '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
+    '<div id="fqr" class="qr-box" style="display:none"><div id="qr-code" class="qr-code"></div><div class="qr-hint">'+(LANG==='zh'?'掃描商品 QR Code':'Scan QR Code Produk')+'</div><button class="btn btn-s" style="margin-top:.5rem;font-size:.8rem" onclick="printQR()">🖨️ '+(LANG==='zh'?'打印':'Cetak')+'</button></div>'+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
 function showAddItem(){EDIT_ITEM=null;F_PHOTO='';showModal('➕ '+t('addItem'),itemFormHTML(null));}
-function showEdit(id){EDIT_ITEM=DATA.items.find(function(i){return i.id===id});F_PHOTO='';showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));}
+function showEdit(id){
+  EDIT_ITEM=DATA.items.find(function(i){return i.id===id});
+  F_PHOTO='';
+  showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));
+  setTimeout(function(){
+    if(EDIT_ITEM&&EDIT_ITEM.id){
+      var qrBox=document.getElementById('fqr');
+      if(qrBox){
+        qrBox.style.display='block';
+        var qrEl=document.getElementById('qr-code');
+        if(qrEl){
+          qrEl.innerHTML='';
+          new QRCode(qrEl,{text:'ITEM:'+EDIT_ITEM.id,width:150,height:150});
+        }
+      }
+    }
+  },100);
+}
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
   compressImg(f,function(d){
@@ -1077,6 +1103,17 @@ async function delPerson(id){
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
+function printQR(){
+  var printWin=window.open('','PrintQR','width=400,height=500');
+  var qrContent=document.getElementById('qr-code').innerHTML;
+  printWin.document.write('<html><head><title>QR Code</title></head><body style="text-align:center;padding:1rem">');
+  printWin.document.write('<h3>'+esc(EDIT_ITEM.name)+'</h3>');
+  printWin.document.write('<div style="margin:1rem">'+qrContent+'</div>');
+  printWin.document.write('<p style="font-size:0.85rem;color:#666">'+(EDIT_ITEM.barcode?'Barcode: '+esc(EDIT_ITEM.barcode):'')+'</p>');
+  printWin.document.write('</body></html>');
+  printWin.document.close();
+  setTimeout(function(){printWin.print();},100);
+}
 function prevImp(){
   var rows=parseImp(document.getElementById('imp-txt').value);
   var pv=document.getElementById('imp-prev');
@@ -1091,13 +1128,39 @@ async function doImport(){
   try{var {error}=await sb.from('items').insert(rows);if(error)throw error;toast('✓ 匯入 '+rows.length+' 筆');document.getElementById('imp-txt').value='';document.getElementById('imp-prev').innerHTML='';await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
+function onImpFile(){
+  var file=document.getElementById('imp-file').files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=e.target.result;
+      var workbook=XLSX.read(data,{type:'binary'});
+      var sheet=workbook.Sheets[workbook.SheetNames[0]];
+      var json=XLSX.utils.sheet_to_json(sheet,{header:1});
+      var rows=[];
+      for(var i=1;i<json.length;i++){
+        var row=json[i];
+        if(!row[0])continue;
+        rows.push({name:row[0]||'',qty:row[1]||0,unit:row[2]||'pcs',critical_qty:row[3]||10,supplier_url:row[4]||'',category:row[5]||'',barcode:row[6]||''});
+      }
+      var txt=rows.map(function(r){return(r.name)+'\t'+(r.qty)+'\t'+(r.unit)+'\t'+(r.critical_qty)+'\t'+(r.supplier_url)+'\t'+(r.category)+'\t'+(r.barcode);}).join('\n');
+      document.getElementById('imp-txt').value=txt;
+      prevImp();
+      toast('✓ '+(LANG==='zh'?'文件已讀取':'File berhasil dibaca'));
+    }catch(err){
+      toast('⚠ '+(LANG==='zh'?'讀取失敗：'+err.message:'Gagal membaca: '+err.message));
+    }
+  };
+  reader.readAsBinaryString(file);
+}
 function parseImp(text){
   if(!text.trim())return[];
   return text.trim().split('\n').map(function(l){
     var c=l.indexOf('\t')>=0?l.split('\t'):l.split(',');
     var nm=(c[0]||'').trim();
     if(!nm)return null;
-    return{name:nm,qty:parseInt(c[1])||0,unit:(c[2]||'pcs').trim(),critical_qty:parseInt(c[3])||10,supplier_url:(c[4]||'').trim()||null,image_url:null};
+    return{name:nm,qty:parseInt(c[1])||0,unit:(c[2]||'pcs').trim(),critical_qty:parseInt(c[3])||10,supplier_url:(c[4]||'').trim()||null,category:(c[5]||'').trim()||null,barcode:(c[6]||'').trim()||null,image_url:null};
   }).filter(Boolean);
 }
 function logoutAdmin(){IS_ADMIN=false;renderAdmin();}
