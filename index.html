@@ -309,7 +309,14 @@ function renderLoginScreen(){
         return k===''?'<div></div>':'<button class="pk" onclick="lpk(\''+k+'\')">'+k+'</button>';
       }).join('')+
     '</div></div>'+
-    '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
+    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
+    '<button class="btn btn-s" style="margin-top:.5rem;background:var(--light);border:1px solid var(--warn);color:var(--warn)" onclick="showGenPin()">'+(LANG==='zh'?'🔑 生成臨時 PIN':'🔑 Generate Temp PIN')+'</button>'+
+    '<div id="gen-pin-box" style="display:none;margin-top:1rem;background:#FEF3C7;border-left:4px solid var(--warn);padding:1rem;border-radius:8px">'+
+      '<div style="font-weight:600;margin-bottom:.5rem;color:#92400E">'+(LANG==='zh'?'✓ 臨時 PIN 已生成':'✓ Temporary PIN Generated')+'</div>'+
+      '<div id="gen-pin-val" style="font-size:1.8rem;font-weight:800;letter-spacing:.2em;text-align:center;color:var(--warn);margin:.5rem 0">0000</div>'+
+      '<div style="font-size:.8rem;color:#92400E;margin:.5rem 0;text-align:center">'+(LANG==='zh'?'告訴新人這個 PIN 碼':'Berikan PIN ini ke pengguna baru')+'</div>'+
+      '<button class="btn" style="width:100%;background:var(--warn);color:#fff;font-size:.85rem;margin-top:.5rem" onclick="copyGenPin()">📋 '+(LANG==='zh'?'複製':'Salin')+'</button>'+
+    '</div>'+
     '</div>';
 }
 function adminLogin(){
@@ -338,7 +345,8 @@ function onLoginSel(){
   if(!sel.value){area.style.display='none';if(nn)nn.style.display='none';return;}
   if(sel.value==='__new__'){
     if(nn)nn.style.display='block';
-    if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+GUEST_PIN:'Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
+    var pinDisplay=GEN_PIN||GUEST_PIN;
+    if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+pinDisplay:'Pengguna baru masukkan PIN sementara: '+pinDisplay;
   }else{
     if(nn){nn.style.display='none';nn.value='';}
     if(hint)hint.textContent='';
@@ -385,6 +393,24 @@ function staffLogout(){
   CURRENT_USER=null;IS_ADMIN=false;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   renderLoginScreen();
+}
+
+var GEN_PIN='';
+function showGenPin(){
+  GEN_PIN=String(Math.floor(Math.random()*10000)).padStart(4,'0');
+  var box=document.getElementById('gen-pin-box');
+  if(box){
+    box.style.display='block';
+    var val=document.getElementById('gen-pin-val');
+    if(val)val.textContent=GEN_PIN;
+  }
+}
+function copyGenPin(){
+  navigator.clipboard.writeText(GEN_PIN).then(function(){
+    toast(LANG==='zh'?'✓ 已複製到剪貼簿':'✓ Disalin ke clipboard');
+  }).catch(function(){
+    toast('⚠ '+(LANG==='zh'?'複製失敗':'Gagal disalin'));
+  });
 }
 
 var sb;
