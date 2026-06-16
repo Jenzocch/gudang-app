@@ -189,10 +189,10 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   <div class="tabs" id="tabs" style="display:none">
     <button class="tb active" onclick="goTab('home',this)"><span class="tb-icon">🏠</span><span id="tl-h"></span></button>
     <button class="tb" onclick="goTab('ambil',this)"><span class="tb-icon">📤</span><span id="tl-a"></span></button>
-    <button class="tb" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
+    <button class="tb" id="tb-masuk" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
     <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r"></span></button>
     <button class="tb" id="tb-riwayat" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
-    <button class="tb" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
+    <button class="tb" id="tb-admin" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
   </div>
 </div>
 
@@ -433,8 +433,9 @@ function renderAll(){
     '<div id="permintaan" class="sec"></div>'+
     '<div id="riwayat" class="sec"></div>'+
     '<div id="admin" class="sec"></div>';
-  var tbR=document.getElementById('tb-riwayat');
-  if(tbR)tbR.style.display=IS_ADMIN?'flex':'none';
+  var tbR=document.getElementById('tb-riwayat');if(tbR)tbR.style.display=IS_ADMIN?'flex':'none';
+  var tbM=document.getElementById('tb-masuk');if(tbM)tbM.style.display=IS_ADMIN?'flex':'none';
+  var tbA=document.getElementById('tb-admin');if(tbA)tbA.style.display=IS_ADMIN?'flex':'none';
   renderHome();renderAmbil();renderMasuk();renderPermintaan();renderRiwayat();renderAdmin();
 }
 
@@ -454,8 +455,8 @@ function renderHome(){
     '<div class="sc"><div class="sc-val" style="color:'+(critCount>0?'var(--danger)':'var(--ok)')+'">'+critCount+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
   '</div>';
 
-  // 🛒 需要採購清單
-  if(lowItems.length){
+  // 🛒 需要採購清單（只有 Admin 看到）
+  if(IS_ADMIN&&lowItems.length){
     h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
     '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
