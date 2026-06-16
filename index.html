@@ -4,14 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>倉庫管理系統</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// 需要時才載入 QR 庫，不阻塞頁面
+// 動態載入腳本，不阻塞頁面
 function loadScript(src,cb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=function(){console.warn('Script load failed:',src);if(cb)cb();};document.head.appendChild(s);}
 var QR_LIB_LOADED=false;
+var SUPA_LIB_LOADED=false;
 function ensureQRLib(cb){
   if(QR_LIB_LOADED){cb();return;}
   loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',function(){QR_LIB_LOADED=true;cb();});
+}
+function ensureSupabase(cb){
+  if(SUPA_LIB_LOADED&&typeof supabase!=='undefined'){cb();return;}
+  loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',function(){
+    SUPA_LIB_LOADED=true;cb();
+  });
 }
 </script>
 <style>
@@ -309,7 +315,7 @@ function renderLoginScreen(){
     '<div class="ig" style="width:100%;max-width:260px">'+
     '<label style="text-align:center;display:block">'+t('selPerson')+'</label>'+
     '<select id="ls-sel" onchange="onLoginSel()">'+
-    '<option value="">-- '+t('selPerson')+' --</option>'+
+    '<option value="">-- '+(LANG==='zh'?'載入中...':'Memuat...')+' --</option>'+
     DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+
     '<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>'+
     '</select>'+
@@ -326,6 +332,21 @@ function renderLoginScreen(){
     '</div></div>'+
     '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
     '</div>';
+  // 背景載入員工列表
+  ensureSupabase(function(){
+    if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+    sb.from('people').select('*').order('name').then(function(res){
+      if(res.data){
+        DATA.people=res.data;
+        var sel=document.getElementById('ls-sel');
+        if(sel){
+          sel.innerHTML='<option value="">-- '+t('selPerson')+' --</option>'+
+            DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+
+            '<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>';
+        }
+      }
+    });
+  });
 }
 function adminLogin(){
   var pin=prompt(LANG==='zh'?'請輸入管理員 PIN（6位）':'PIN Admin (6 digit)');
@@ -336,9 +357,11 @@ function adminLogin(){
     var btn=document.getElementById('hdr-user-btn');
     if(btn){btn.textContent='▶ '+CURRENT_USER.name;btn.style.display='inline';}
     document.getElementById('tabs').style.display='flex';
-    renderAll();
-    goTab('admin',document.querySelectorAll('.tb')[5]);
-    setTimeout(checkLowStock,600);
+    document.getElementById('mc').innerHTML='<div style="padding:2rem;text-align:center;color:#64748B">'+(LANG==='zh'?'載入中...':'Memuat...')+'</div>';
+    ensureSupabase(function(){
+      if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+      loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
+    });
   }else{
     alert(t('wrongPin'));
   }
@@ -385,7 +408,11 @@ function lpk(k){
       var btn=document.getElementById('hdr-user-btn');
       if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
       document.getElementById('tabs').style.display='flex';
-      renderAll();setTimeout(checkLowStock,600);
+      document.getElementById('mc').innerHTML='<div style="padding:2rem;text-align:center;color:#64748B">'+(LANG==='zh'?'載入中...':'Memuat...')+'</div>';
+      ensureSupabase(function(){
+        if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+        loadAll();
+      });
     }else{
       var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
       STAFF_PIN_ENT='';
@@ -436,13 +463,13 @@ var CART_M={};
 
 window.addEventListener('DOMContentLoaded',function(){
   updateLangUI();
-  sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-  loadAll();
+  // 立即顯示登入畫面（不等待 Supabase，秒開）
+  renderLoginScreen();
 });
 
 function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+(s==='ok'?' ok':s==='err'?' err':'');}
 
-async function loadAll(){
+async function loadAll(afterCb){
   setDot('');
   var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error(LANG==='zh'?'連線逾時 (12s)，請檢查網路或重試':'Koneksi timeout (12s), periksa jaringan'));},12000);});
   try{
@@ -461,14 +488,16 @@ async function loadAll(){
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
     DATA.transactions=tx.data||[];DATA.purchases=po.data||[];
     setDot('ok');
-    if(!CURRENT_USER){renderLoginScreen();}
-    else{document.getElementById('tabs').style.display='flex';renderAll();setTimeout(checkLowStock,600);}
+    document.getElementById('tabs').style.display='flex';
+    renderAll();
+    setTimeout(checkLowStock,600);
+    if(afterCb)afterCb();
   }catch(e){
     setDot('err');
     document.getElementById('mc').innerHTML=
       '<div style="padding:1.5rem;text-align:center">'+
       '<div class="ab ab-d" style="margin-bottom:1rem">⚠ '+e.message+'</div>'+
-      '<button class="btn btn-p" onclick="loadAll()">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
+      '<button class="btn btn-p" onclick="ensureSupabase(function(){if(!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);loadAll();})">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
       '<p style="font-size:.75rem;color:#94A3B8;margin-top:1rem">'+
       (LANG==='zh'?'URL: ':'URL: ')+SUPA_URL.substring(0,40)+'...</p>'+
       '</div>';
