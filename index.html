@@ -444,14 +444,19 @@ function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+
 
 async function loadAll(){
   setDot('');
+  var tOut=new Promise(function(_,rej){setTimeout(function(){rej(new Error(LANG==='zh'?'連線逾時 (12s)，請檢查網路或重試':'Koneksi timeout (12s), periksa jaringan'));},12000);});
   try{
-    var [i,p,r,tx,po]=await Promise.all([
-      sb.from('items').select('*').order('name'),
-      sb.from('people').select('*').order('name'),
-      sb.from('requests').select('*').order('created_at',{ascending:false}),
-      sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(100),
-      sb.from('purchase_orders').select('*').order('purchase_date',{ascending:false}).limit(200)
+    var results=await Promise.race([
+      Promise.all([
+        sb.from('items').select('*').order('name'),
+        sb.from('people').select('*').order('name'),
+        sb.from('requests').select('*').order('created_at',{ascending:false}),
+        sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(100),
+        sb.from('purchase_orders').select('*').order('purchase_date',{ascending:false}).limit(200)
+      ]),
+      tOut
     ]);
+    var i=results[0],p=results[1],r=results[2],tx=results[3],po=results[4];
     if(i.error)throw i.error;
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
     DATA.transactions=tx.data||[];DATA.purchases=po.data||[];
@@ -460,7 +465,13 @@ async function loadAll(){
     else{document.getElementById('tabs').style.display='flex';renderAll();setTimeout(checkLowStock,600);}
   }catch(e){
     setDot('err');
-    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">'+t('err')+': '+e.message+'</div>';
+    document.getElementById('mc').innerHTML=
+      '<div style="padding:1.5rem;text-align:center">'+
+      '<div class="ab ab-d" style="margin-bottom:1rem">⚠ '+e.message+'</div>'+
+      '<button class="btn btn-p" onclick="loadAll()">'+(LANG==='zh'?'🔄 重試':'🔄 Coba Lagi')+'</button>'+
+      '<p style="font-size:.75rem;color:#94A3B8;margin-top:1rem">'+
+      (LANG==='zh'?'URL: ':'URL: ')+SUPA_URL.substring(0,40)+'...</p>'+
+      '</div>';
   }
 }
 
