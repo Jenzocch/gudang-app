@@ -23,14 +23,17 @@ body{display:flex;flex-direction:column}
 .lang-btn:hover{background:rgba(255,255,255,.28)}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:#6B7280;flex-shrink:0}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
-.content{flex:1;overflow-y:auto;padding-bottom:90px;-webkit-overflow-scrolling:touch}
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
-.tb{flex:1;padding:.85rem .1rem;border:none;background:none;cursor:pointer;font-size:.85rem;font-weight:600;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.2rem;min-height:90px;touch-action:manipulation}
-.tb-icon{font-size:1.5rem;line-height:1}
+.content{flex:1;overflow-y:auto;padding-bottom:115px;-webkit-overflow-scrolling:touch}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+.tabs::-webkit-scrollbar{height:3px}
+.tabs::-webkit-scrollbar-track{background:transparent}
+.tabs::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
+.tb{padding:1rem .8rem;border:none;background:none;cursor:pointer;font-size:.9rem;font-weight:700;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.3rem;min-height:115px;touch-action:manipulation;white-space:nowrap;flex-shrink:0;min-width:max-content}
+.tb-icon{font-size:1.8rem;line-height:1}
 .tb.active{color:var(--p)}
 .tb.active-take{color:var(--danger)!important}
 .tb.active-recv{color:var(--ok)!important}
-@media(min-width:600px){.tabs{max-width:900px}.tb{font-size:.95rem}.tb-icon{font-size:1.7rem}}
+@media(min-width:600px){.tb{font-size:1rem;padding:1.1rem 1rem;min-height:120px}.tb-icon{font-size:2rem}}
 .sec{display:none}.sec.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .card{background:#fff;border-radius:12px;padding:1.1rem;margin:.7rem;box-shadow:0 1px 6px rgba(0,0,0,.07)}
@@ -67,9 +70,10 @@ textarea{resize:vertical;min-height:75px}
 @keyframes mIn{from{transform:translateY(100%)}to{transform:none}}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
 .mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94A3B8}
-.tab-nav{display:flex;border-bottom:2px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto}
-.tsw{flex:1;min-width:max-content;padding:.7rem .6rem;border:none;background:none;cursor:pointer;font-weight:500;color:#94A3B8;font-size:.86rem;border-bottom:3px solid transparent;margin-bottom:-2px}
-.tsw.act{color:var(--p);border-bottom-color:var(--p)}
+.tab-nav{display:flex;border-bottom:2px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto;padding:.2rem 0}
+.tsw{min-width:max-content;padding:.75rem 1rem;border:none;background:none;cursor:pointer;font-weight:700;color:#94A3B8;font-size:.9rem;border-bottom:3px solid transparent;margin-bottom:-2px;transition:.2s;white-space:nowrap}
+.tsw:hover{color:#64748B}
+.tsw.act{color:var(--p);border-bottom-color:var(--p);background:#F0FDFA}
 .tc{display:none}.tc.active{display:block}
 .ig-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:.6rem;padding:.7rem}
 .ic{background:#fff;border:2px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
@@ -116,8 +120,10 @@ textarea{resize:vertical;min-height:75px}
 .ai-name{font-weight:600;font-size:.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ai-detail{font-size:.8rem;color:#64748B;margin-top:.15rem}
 .ai-link{color:var(--p);font-size:.78rem}
-.ai-actions{display:flex;gap:.3rem;flex-shrink:0}
-.ib{width:32px;height:32px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.ai-actions{display:flex;gap:.4rem;flex-shrink:0;margin-left:.5rem}
+.ib{width:40px;height:40px;border:none;background:var(--light);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.ib:hover{background:#E2E8F0;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.1)}
+.ib:active{transform:translateY(0)}
 .ib:hover{background:var(--light)}
 .pu-item{background:#fff;padding:.9rem;margin:.4rem .7rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .pu-hdr{display:flex;justify-content:space-between;margin-bottom:.35rem}
@@ -1019,7 +1025,7 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
       '</div>'+
     '</div>'+
-    '<div style="padding:.7rem;text-align:center"><button class="btn btn-s" onclick="logoutAdmin()">🔒 '+t('logout')+'</button></div>';
+    '<div style="padding:1rem .7rem;text-align:center;border-top:2px solid var(--border);background:#FEF2F2;margin-top:1rem"><button class="btn btn-d" style="width:100%;font-size:.95rem;font-weight:700" onclick="if(confirm(\''+t('logout')+'?\'))logoutAdmin()">🔒 '+t('logout')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
@@ -1161,7 +1167,9 @@ async function saveItem(){
   }catch(e){toast('⚠ '+e.message);}
 }
 async function delItem(id){
-  if(!confirm(t('del')+'?'))return;
+  var item=DATA.items.find(function(i){return i.id===id;});
+  if(!item)return;
+  if(!confirm((LANG==='zh'?'確定刪除「':'Hapus "')+ esc(item.name)+(LANG==='zh'?'」?':'"?')))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
@@ -1203,7 +1211,9 @@ async function addPerson(){
   catch(e){toast('⚠ '+e.message);}
 }
 async function delPerson(id){
-  if(!confirm(t('del')+'?'))return;
+  var person=DATA.people.find(function(p){return p.id===id;});
+  if(!person)return;
+  if(!confirm((LANG==='zh'?'確定刪除員工「':'Hapus karyawan "')+ esc(person.name)+(LANG==='zh'?'」?':'"?')))return;
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
