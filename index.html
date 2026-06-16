@@ -193,6 +193,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
     <button class="tb active" onclick="goTab('home',this)"><span class="tb-icon">🏠</span><span id="tl-h"></span></button>
     <button class="tb" onclick="goTab('ambil',this)"><span class="tb-icon">📤</span><span id="tl-a"></span></button>
     <button class="tb" id="tb-masuk" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m"></span></button>
+    <button class="tb" onclick="goTab('catalog',this)"><span class="tb-icon">📚</span><span id="tl-cat"></span></button>
     <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r"></span></button>
     <button class="tb" id="tb-riwayat" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi"></span></button>
     <button class="tb" id="tb-admin" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm"></span></button>
@@ -248,7 +249,8 @@ var T = {
     stockVal:'總庫存價值',avgCost:'平均成本',
     out:'取出',in:'入庫',purchases:'採購',catg:'分類',
     newName:'輸入新名字',selItem2:'選擇現有商品',newItem:'新品/其他',itemDesc:'品項內容',
-    scanBarcode:'掃條碼',allCat:'全部',barcode:'條碼',category:'分類',noAccess:'無權限查看'},
+    scanBarcode:'掃條碼',allCat:'全部',barcode:'條碼',category:'分類',noAccess:'無權限查看',
+    catalog:'目錄',catTitle:'產品目錄'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -271,14 +273,15 @@ var T = {
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
     out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',
     newName:'Masukkan nama baru',selItem2:'Pilih barang yang ada',newItem:'Barang baru/lainnya',itemDesc:'Deskripsi item',
-    scanBarcode:'Scan Barcode',allCat:'Semua',barcode:'Barcode',category:'Kategori',noAccess:'Tidak ada akses'}
+    scanBarcode:'Scan Barcode',allCat:'Semua',barcode:'Barcode',category:'Kategori',noAccess:'Tidak ada akses',
+    catalog:'Katalog',catTitle:'Katalog Produk'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();}
 function updateLangUI(){
   var lb=document.getElementById('lang-btn');if(lb)lb.textContent=LANG==='zh'?'ID':'中文';
   var lt=document.getElementById('lt');if(lt)lt.textContent=t('conn');
-  ['h','a','m','r','hi','adm'].forEach(function(k,i){var el=document.getElementById('tl-'+k);if(el)el.textContent=[t('home'),t('take'),t('receive'),t('req'),t('hist'),t('adm')][i];});
+  ['h','a','m','cat','r','hi','adm'].forEach(function(k,i){var el=document.getElementById('tl-'+k);if(el)el.textContent=[t('home'),t('take'),t('receive'),t('catalog'),t('req'),t('hist'),t('adm')][i];});
 }
 
 function renderLoginScreen(){
@@ -307,14 +310,7 @@ function renderLoginScreen(){
         return k===''?'<div></div>':'<button class="pk" onclick="lpk(\''+k+'\')">'+k+'</button>';
       }).join('')+
     '</div></div>'+
-    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
-    '<button class="btn btn-s" style="margin-top:.5rem;background:var(--light);border:1px solid var(--warn);color:var(--warn)" onclick="showGenPin()">'+(LANG==='zh'?'🔑 生成臨時 PIN':'🔑 Generate Temp PIN')+'</button>'+
-    '<div id="gen-pin-box" style="display:none;margin-top:1rem;background:#FEF3C7;border-left:4px solid var(--warn);padding:1rem;border-radius:8px">'+
-      '<div style="font-weight:600;margin-bottom:.5rem;color:#92400E">'+(LANG==='zh'?'✓ 臨時 PIN 已生成':'✓ Temporary PIN Generated')+'</div>'+
-      '<div id="gen-pin-val" style="font-size:1.8rem;font-weight:800;letter-spacing:.2em;text-align:center;color:var(--warn);margin:.5rem 0">0000</div>'+
-      '<div style="font-size:.8rem;color:#92400E;margin:.5rem 0;text-align:center">'+(LANG==='zh'?'告訴新人這個 PIN 碼':'Berikan PIN ini ke pengguna baru')+'</div>'+
-      '<button class="btn" style="width:100%;background:var(--warn);color:#fff;font-size:.85rem;margin-top:.5rem" onclick="copyGenPin()">📋 '+(LANG==='zh'?'複製':'Salin')+'</button>'+
-    '</div>'+
+    '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
     '</div>';
 }
 function adminLogin(){
@@ -343,7 +339,7 @@ function onLoginSel(){
   if(!sel.value){area.style.display='none';if(nn)nn.style.display='none';return;}
   if(sel.value==='__new__'){
     if(nn)nn.style.display='block';
-    var pinDisplay=GEN_PIN||GUEST_PIN;
+    var pinDisplay=GEN_PIN_ADMIN||GUEST_PIN;
     if(hint)hint.textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+pinDisplay:'Pengguna baru masukkan PIN sementara: '+pinDisplay;
   }else{
     if(nn){nn.style.display='none';nn.value='';}
@@ -358,7 +354,7 @@ function lpk(k){
   if(STAFF_PIN_ENT.length===4){
     var pid=document.getElementById('ls-sel').value;
     var isNew=pid==='__new__';
-    var correct=isNew?GUEST_PIN:(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
+    var correct=isNew?(GEN_PIN_ADMIN||GUEST_PIN):(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
     if(STAFF_PIN_ENT===correct){
       if(isNew){
         var nm=(document.getElementById('ls-newname').value||'').trim();
@@ -459,13 +455,14 @@ function renderAll(){
     '<div id="home" class="sec active"></div>'+
     '<div id="ambil" class="sec"></div>'+
     '<div id="masuk" class="sec"></div>'+
+    '<div id="catalog" class="sec"></div>'+
     '<div id="permintaan" class="sec"></div>'+
     '<div id="riwayat" class="sec"></div>'+
     '<div id="admin" class="sec"></div>';
   var tbR=document.getElementById('tb-riwayat');if(tbR)tbR.style.display=IS_ADMIN?'flex':'none';
   var tbM=document.getElementById('tb-masuk');if(tbM)tbM.style.display=IS_ADMIN?'flex':'none';
   var tbA=document.getElementById('tb-admin');if(tbA)tbA.style.display=IS_ADMIN?'flex':'none';
-  renderHome();renderAmbil();renderMasuk();renderPermintaan();renderRiwayat();renderAdmin();
+  renderHome();renderAmbil();renderMasuk();renderCatalog();renderPermintaan();renderRiwayat();renderAdmin();
 }
 
 // HOME
@@ -790,6 +787,29 @@ async function doMasukCart(){
   btn.disabled=false;btn.textContent=t('doRcv');
 }
 
+// CATALOG
+function renderCatalog(){
+  var cats=getCategories();
+  var html='<div style="padding:.7rem"><h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem">📚 '+t('catTitle')+'</h2></div>';
+  cats.forEach(function(c){
+    var items=DATA.items.filter(function(i){return(i.category||'未分類')===c;});
+    html+='<div style="margin:.7rem"><div style="font-size:.9rem;font-weight:700;color:var(--p);padding:.5rem .7rem;background:var(--light);border-radius:8px">🏷️ '+esc(c)+'</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;padding:.7rem">'+
+        items.map(function(i){
+          var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:100px;object-fit:cover;border-radius:8px;display:block">'
+            :'<div style="width:100%;height:100px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
+          return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;overflow:hidden">'+
+            ph+
+            '<div style="font-weight:600;font-size:.85rem;margin-top:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+            '<div style="font-size:.78rem;color:#64748B;margin-top:.2rem">'+i.qty+' '+esc(i.unit)+'</div>'+
+            (i.barcode?'<div style="font-size:.65rem;color:#94A3B8;margin-top:.2rem">🔖 '+esc(i.barcode)+'</div>':'')+
+            '</div>';
+        }).join('')+
+      '</div></div>';
+  });
+  document.getElementById('catalog').innerHTML=html;
+}
+
 function iGrid(mode){
   return DATA.items.map(function(i){
     var low=i.qty<=i.critical_qty;
@@ -905,6 +925,58 @@ function pk(k){
     }
   }
 }
+function renderCategories(){
+  var cats=getCategories();
+  var html='';
+  cats.forEach(function(c){
+    var cnt=DATA.items.filter(function(i){return(i.category||'未分類')===c;}).length;
+    html+='<div class="ai">'+
+      '<div class="ai-info">'+
+        '<div class="ai-name">'+esc(c)+'</div>'+
+        '<div class="ai-detail">'+(LANG==='zh'?'商品數':'Jumlah barang')+': '+cnt+'</div>'+
+      '</div>'+
+      '<div class="ai-actions">'+
+        '<button class="ib" onclick="delCategory(\''+esc(c)+'\')">🗑️</button>'+
+      '</div></div>';
+  });
+  var catList=document.getElementById('cat-list');
+  if(catList)catList.innerHTML=html||'<div style="text-align:center;color:#9CA3AF;padding:1.5rem">-</div>';
+}
+function addCategory(){
+  var inp=document.getElementById('cat-input');
+  var cat=(inp.value||'').trim();
+  if(!cat){toast('⚠ '+(LANG==='zh'?'請輸入分類名稱':'Masukkan nama kategori'));return;}
+  if(getCategories().indexOf(cat)>=0){toast('⚠ '+(LANG==='zh'?'分類已存在':'Kategori sudah ada'));return;}
+  toast('✓ '+(LANG==='zh'?'分類已新增':'Kategori ditambahkan'));
+  inp.value='';
+  renderCategories();
+}
+function delCategory(cat){
+  var cnt=DATA.items.filter(function(i){return(i.category||'未分類')===cat;}).length;
+  if(cnt>0){toast('⚠ '+(LANG==='zh'?'該分類有 '+cnt+' 個商品，無法刪除':'Kategori memiliki '+cnt+' barang'));return;}
+  if(!confirm(LANG==='zh'?'確認刪除此分類？':'Hapus kategori?'))return;
+  toast('✓ '+(LANG==='zh'?'分類已刪除':'Kategori dihapus'));
+  renderCategories();
+}
+
+var GEN_PIN_ADMIN='';
+function genAndShowPin(){
+  GEN_PIN_ADMIN=String(Math.floor(Math.random()*10000)).padStart(4,'0');
+  var box=document.getElementById('pin-display');
+  if(box){
+    box.style.display='block';
+    var val=document.getElementById('pin-val');
+    if(val)val.textContent=GEN_PIN_ADMIN;
+  }
+}
+function copyPin(){
+  navigator.clipboard.writeText(GEN_PIN_ADMIN).then(function(){
+    toast('✓ '+(LANG==='zh'?'已複製到剪貼簿':'Disalin ke clipboard'));
+  }).catch(function(){
+    toast('⚠ '+(LANG==='zh'?'複製失敗':'Gagal disalin'));
+  });
+}
+
 function renderAdminFull(){
   var tv=0;
   DATA.items.forEach(function(i){tv+=avgCost(i.id)*i.qty;});
@@ -913,13 +985,17 @@ function renderAdminFull(){
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'apu\')">💰 '+t('purchases')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
+      '<button class="tsw" onclick="swATab(this,\'acat\')">🏷️ '+(LANG==='zh'?'分類':'Kategori')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'aimp\')">📊 Excel</button>'+
+      '<button class="tsw" onclick="swATab(this,\'apin\')">🔑 PIN</button>'+
     '</div>'+
     '<div class="val-bar"><div class="val-bar-lbl">'+t('stockVal')+'</div><div class="val-bar-val">'+fmtC(tv)+'</div></div>'+
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
       '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
     '</div>'+
+    '<div id="acat" class="tc" style="display:none"></div>'+
+    '<div id="apin" class="tc" style="display:none"></div>'+
     '<div id="apu" class="tc">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddBuy()">➕ '+t('addBuy')+'</button></div>'+
       '<div id="apu-list">'+puListHTML()+'</div>'+
@@ -930,6 +1006,8 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
+    '<div id="acat" class="tc"></div>'+
+    '<div id="apin" class="tc"></div>'+
     '<div id="aimp" class="tc">'+
       '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
       '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+(LANG==='zh'?'方法1：上傳 Excel / CSV 文件':'Metode 1: Upload file Excel / CSV')+'</p>'+
@@ -1317,7 +1395,27 @@ function swATab(el,id){
   document.getElementById('atnav').querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});
   if(el)el.classList.add('act');
   document.querySelectorAll('#admin .tc').forEach(function(t){t.classList.remove('active')});
-  var e=document.getElementById(id);if(e)e.classList.add('active');
+  var e=document.getElementById(id);if(e){
+    e.classList.add('active');
+    if(id==='acat'&&!e.innerHTML)e.innerHTML=
+      '<div class="card"><div class="card-title">🏷️ '+(LANG==='zh'?'產品分類管理':'Kelola Kategori Produk')+'</div>'+
+      '<div class="ig"><label>'+(LANG==='zh'?'新增分類':'Tambah Kategori')+'</label>'+
+      '<div style="display:flex;gap:.5rem">'+
+        '<input id="cat-input" type="text" placeholder="'+(LANG==='zh'?'輸入分類名稱':'Nama kategori')+'..." style="flex:1">'+
+        '<button class="btn btn-p" onclick="addCategory()" style="flex-shrink:0">➕</button>'+
+      '</div></div></div>'+
+      '<div class="ai-list" id="cat-list"></div>';
+    if(id==='apin'&&!e.innerHTML)e.innerHTML=
+      '<div class="card"><div class="card-title">🔑 '+(LANG==='zh'?'生成臨時 PIN':'Generate Temporary PIN')+'</div>'+
+      '<button class="btn btn-p btn-full" onclick="genAndShowPin()">'+(LANG==='zh'?'🔑 生成新 PIN':'🔑 Generate PIN')+'</button>'+
+      '<div id="pin-display" style="display:none;margin-top:1.5rem;background:#FEF3C7;border-left:4px solid var(--warn);padding:1rem;border-radius:8px;text-align:center">'+
+        '<div style="font-weight:600;color:#92400E">'+(LANG==='zh'?'✓ PIN 已生成':'✓ PIN Generated')+'</div>'+
+        '<div id="pin-val" style="font-size:2.5rem;font-weight:800;letter-spacing:.3em;color:var(--warn);margin:1rem 0">0000</div>'+
+        '<div style="font-size:.85rem;color:#92400E;margin:.5rem 0">'+(LANG==='zh'?'告訴新人這個 PIN 碼':'Bagikan PIN ini ke pengguna baru')+'</div>'+
+        '<button class="btn" style="width:100%;background:var(--warn);color:#fff;margin-top:.8rem" onclick="copyPin()">📋 '+(LANG==='zh'?'複製':'Salin')+'</button>'+
+      '</div></div>';
+    if(id==='acat')renderCategories();
+  }
 }
 // BARCODE SCANNER
 var SCAN_MODE='amb';
