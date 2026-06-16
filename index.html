@@ -6,6 +6,7 @@
 <title>倉庫管理系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--p:#0D9488;--s:#0F766E;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#0F172A;--border:#CBD5E1}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -149,11 +150,12 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .low-ov.open{display:flex}
 .low-box{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:380px;border-top:6px solid var(--danger)}
 .low-title{color:var(--danger);font-weight:700;font-size:1.1rem;margin-bottom:.5rem}
-.amb-row{display:flex;align-items:center;justify-content:space-between;padding:.55rem .9rem;border-bottom:1px solid #F3F4F6;gap:.6rem}
+.amb-row{display:flex;align-items:center;justify-content:space-between;padding:.65rem .9rem;border-bottom:1px solid #F3F4F6;gap:.7rem}
 .amb-row.amb-empty{opacity:.35}
-.amb-info{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0}
-.amb-th{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
-.amb-th-ph{width:52px;height:52px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.amb-info{display:flex;align-items:center;gap:.65rem;flex:1;min-width:0}
+.amb-th{width:70px;height:70px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in;transition:.15s}
+.amb-th:hover{box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.amb-th-ph{width:70px;height:70px;border-radius:10px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0}
 .img-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out}
 .amb-name{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amb-stk{font-size:.71rem;color:#6B7280;margin-top:.1rem}
@@ -611,17 +613,17 @@ function ambGrid(q,cat){
     return mq&&mc;
   });
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">找不到商品</div>';
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.6rem;padding:.7rem">'+
     items.map(function(i){
       var empty=i.qty<=0;
       var cqty=CART[i.id]||0;
-      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block">'
-        :'<div style="width:100%;height:80px;background:var(--light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
-      return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj('+i.id+',1)">'+
+      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:100px;object-fit:cover;border-radius:8px;display:block;cursor:pointer" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
+        :'<div style="width:100%;height:100px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2.2rem">📦</div>';
+      return '<div style="background:#fff;border-radius:10px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.5rem;'+(empty?'opacity:.5':'')+';cursor:pointer;transition:.15s" onclick="cAdj('+i.id+',1)" onmouseover="this.style.boxShadow=\'0 3px 10px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'+
         ph+
-        '<div style="font-size:.72rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word">'+esc(i.name)+'</div>'+
-        '<div style="font-size:.68rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
-        (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.2rem">+'+cqty+'</div>':'')+'</div>';
+        '<div style="font-size:.75rem;font-weight:600;margin-top:.4rem;line-height:1.3;word-break:break-word;color:var(--dark)">'+esc(i.name)+'</div>'+
+        '<div style="font-size:.7rem;color:#6B7280;margin-top:.2rem;font-weight:500">'+i.qty+' '+esc(i.unit)+'</div>'+
+        (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.3rem;padding:.2rem">+'+cqty+'</div>':'')+'</div>';
     }).join('')+'</div>';
 }
 function cartRowsAmb(){
@@ -793,15 +795,14 @@ function renderCatalog(){
   cats.forEach(function(c){
     var items=DATA.items.filter(function(i){return(i.category||'未分類')===c;});
     html+='<div style="margin:.7rem"><div style="font-size:.9rem;font-weight:700;color:var(--p);padding:.5rem .7rem;background:var(--light);border-radius:8px">🏷️ '+esc(c)+'</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;padding:.7rem">'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.7rem;padding:.7rem">'+
         items.map(function(i){
-          var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:100px;object-fit:cover;border-radius:8px;display:block">'
-            :'<div style="width:100%;height:100px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
-          return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;overflow:hidden">'+
+          var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:140px;object-fit:cover;border-radius:8px;display:block;cursor:pointer" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
+            :'<div style="width:100%;height:140px;background:var(--light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2.5rem">📦</div>';
+          return '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:.6rem;text-align:center;overflow:hidden;transition:.15s;cursor:pointer" onclick="showImg(\''+esc(i.image_url||'\')+'\',\''+esc(i.name)+'\')" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">'+
             ph+
-            '<div style="font-weight:600;font-size:.85rem;margin-top:.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
-            '<div style="font-size:.78rem;color:#64748B;margin-top:.2rem">'+i.qty+' '+esc(i.unit)+'</div>'+
-            (i.barcode?'<div style="font-size:.65rem;color:#94A3B8;margin-top:.2rem">🔖 '+esc(i.barcode)+'</div>':'')+
+            '<div style="font-weight:600;font-size:.86rem;margin-top:.5rem;line-height:1.4;color:var(--dark)">'+esc(i.name)+'</div>'+
+            '<div style="font-size:.78rem;color:#64748B;margin-top:.3rem;font-weight:500">'+i.qty+' '+esc(i.unit)+'</div>'+
             '</div>';
         }).join('')+
       '</div></div>';
@@ -812,7 +813,7 @@ function renderCatalog(){
 function iGrid(mode){
   return DATA.items.map(function(i){
     var low=i.qty<=i.critical_qty;
-    var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" onerror="this.style.display=\'none\'">'
+    var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" style="cursor:pointer" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')" onerror="this.style.display=\'none\'">'
       :'<div class="ic-ph-pl">📦</div>';
     return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,'+i.id+',\''+mode+'\')">'+
       (low?'<div class="low-badge">低</div>':'')+ph+
@@ -1423,19 +1424,23 @@ function startScan(mode){
   SCAN_MODE=mode;
   document.getElementById('scan-ov').classList.add('open');
   var hint=document.getElementById('scan-hint');
-  if(hint)hint.textContent=LANG==='zh'?'對準條碼掃描...':'Arahkan ke barcode...';
+  if(hint)hint.textContent=LANG==='zh'?'對準 QR Code 掃描...':'Arahkan ke QR Code...';
   SCAN_QR=new Html5Qrcode('scan-box');
   SCAN_QR.start({facingMode:'environment'},{fps:10,qrbox:220},function(code){
     stopScan();
-    var item=DATA.items.find(function(i){return i.barcode&&i.barcode===code;});
+    var itemId=null;
+    if(code.startsWith('ITEM:')){
+      itemId=parseInt(code.substring(5));
+    }else{
+      itemId=parseInt(code);
+    }
+    var item=DATA.items.find(function(i){return i.id===itemId;});
     if(item){
       if(SCAN_MODE==='amb')cAdj(item.id,1);
       else cAdjM(item.id,1);
       toast('✓ '+esc(item.name));
     }else{
-      var srch=document.getElementById(SCAN_MODE==='amb'?'asrch':'msrch');
-      if(srch){srch.value=code;if(SCAN_MODE==='amb')fltAmb();else fltMask();}
-      toast(LANG==='zh'?'找不到條碼，已搜尋：'+code:'Barcode tidak ditemukan: '+code);
+      toast(LANG==='zh'?'QR Code 無效':'QR Code tidak valid');
     }
   },function(){});
 }
