@@ -234,11 +234,10 @@ var SUPA_URL = 'https://klswfuzuhlowzrbncreu.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmdXp1aGxvd3pyYm5jcmV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjM5NTEsImV4cCI6MjA5NzA5OTk1MX0.yfqyBjGFwMsryWZszo-nONINYG8QdcIAUGL97TEWgDk';
 var ADMIN_PIN = '123456'; // ← 修改管理員 PIN
 var GUEST_PIN = '0000';  // ← 新人臨時 PIN（口頭告知）
-var GEMINI_KEY = '';     // ← 填入 Gemini API Key (免費申請: aistudio.google.com)
+// Gemini API Key 已設定於 Vercel 環境變數（GEMINI_API_KEY）
 // ══════════════════════════════════
 
 var LANG = localStorage.getItem('lang') || 'zh';
-if(localStorage.getItem('gemini_key'))GEMINI_KEY=localStorage.getItem('gemini_key');
 var T = {
   zh:{title:'倉庫管理',home:'首頁',take:'取貨',receive:'入貨',req:'申請',hist:'記錄',adm:'管理',
     conn:'連線中...',ok:'已連線',err:'連線失敗',items:'商品種類',people:'員工',
@@ -1420,26 +1419,8 @@ function swATab(el,id){
 // AI PHOTO SEARCH
 var PHOTO_MODE='amb';
 function startPhotoSearch(mode){
-  if(!GEMINI_KEY){
-    showModal(LANG==='zh'?'🔑 設定 Gemini API Key':'🔑 Setup Gemini API Key',
-      '<p style="font-size:.85rem;color:#64748B;margin-bottom:1rem">'+
-      (LANG==='zh'?'免費申請：前往 aistudio.google.com → 點「Get API Key」→ 複製貼上':'Gratis: Buka aistudio.google.com → Klik "Get API Key" → Copy paste')+
-      '</p>'+
-      '<div class="ig"><label>Gemini API Key</label><input id="gk-inp" type="text" placeholder="AIza..."></div>'+
-      '<button class="btn btn-p btn-full" onclick="saveGeminiKey()">'+(LANG==='zh'?'儲存':'Simpan')+'</button>'
-    );
-    return;
-  }
   PHOTO_MODE=mode;
   document.getElementById('ps-inp').click();
-}
-function saveGeminiKey(){
-  var k=(document.getElementById('gk-inp').value||'').trim();
-  if(!k){toast('⚠ Key 不能空白');return;}
-  GEMINI_KEY=k;
-  localStorage.setItem('gemini_key',k);
-  toast('✓ API Key 已儲存');
-  closeModal();
 }
 async function onPhotoSearch(e){
   var f=e.target.files[0];
@@ -1453,21 +1434,22 @@ async function onPhotoSearch(e){
     var base64=b64.split(',')[1];
     var mime=f.type||'image/jpeg';
     try{
-      var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{
+      var res=await fetch('/api/analyze',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[
-          {inline_data:{mime_type:mime,data:base64}},
-          {text:'Look at this product/item photo. Reply with ONLY the product name in 3-5 words. If there is a brand label or text, use that. No explanations, just the name.'}
-        ]}]})
+        body:JSON.stringify({image:base64,mime:mime})
       });
       toastEl.remove();
-      if(!res.ok)throw new Error('API error '+res.status);
+      if(!res.ok){
+        var err=await res.json().catch(function(){return{};});
+        toast('⚠ '+(err.error||'API 錯誤'));
+        return;
+      }
       var data=await res.json();
       var name=((data.candidates||[])[0]||{}).content;
       name=((name&&name.parts||[])[0]||{}).text||'';
       name=name.trim().replace(/["""''*\n]/g,'').substring(0,60);
-      if(!name){toast(LANG==='zh'?'⚠ 無法辨識':'⚠ Tidak bisa dikenali');return;}
+      if(!name){toast(LANG==='zh'?'⚠ 無法辨識，請拍清楚一點':'⚠ Tidak bisa dikenali, foto lebih jelas');return;}
       var srchId=PHOTO_MODE==='amb'?'asrch':'msrch';
       var srch=document.getElementById(srchId);
       if(srch){srch.value=name;}
@@ -1475,12 +1457,7 @@ async function onPhotoSearch(e){
       toast('🤖 '+name);
     }catch(err){
       toastEl.remove();
-      if(err.message.includes('403')||err.message.includes('400')){
-        GEMINI_KEY='';localStorage.removeItem('gemini_key');
-        toast(LANG==='zh'?'⚠ API Key 無效，請重新設定':'⚠ API Key tidak valid');
-      }else{
-        toast('⚠ '+err.message);
-      }
+      toast('⚠ '+err.message);
     }
   });
 }
