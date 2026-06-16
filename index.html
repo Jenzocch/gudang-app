@@ -5,8 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>倉庫管理系統</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// 需要時才載入 QR 庫，不阻塞頁面
+function loadScript(src,cb){var s=document.createElement('script');s.src=src;s.onload=cb||function(){};s.onerror=function(){console.warn('Script load failed:',src);if(cb)cb();};document.head.appendChild(s);}
+var QR_LIB_LOADED=false;
+function ensureQRLib(cb){
+  if(QR_LIB_LOADED){cb();return;}
+  loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',function(){QR_LIB_LOADED=true;cb();});
+}
+</script>
 <style>
 :root{--p:#0D9488;--s:#0F766E;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#0F172A;--border:#CBD5E1}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1436,7 +1443,9 @@ function startScan(mode){
   SCAN_MODE=mode;
   document.getElementById('scan-ov').classList.add('open');
   var hint=document.getElementById('scan-hint');
-  if(hint)hint.textContent=LANG==='zh'?'對準 QR Code 掃描...':'Arahkan ke QR Code...';
+  if(hint)hint.textContent=LANG==='zh'?'載入中...':'Memuat...';
+  ensureQRLib(function(){
+    if(hint)hint.textContent=LANG==='zh'?'對準 QR Code 掃描...':'Arahkan ke QR Code...';
   SCAN_QR=new Html5Qrcode('scan-box');
   SCAN_QR.start({facingMode:'environment'},{fps:10,qrbox:220},function(code){
     stopScan();
@@ -1455,6 +1464,7 @@ function startScan(mode){
       toast(LANG==='zh'?'QR Code 無效':'QR Code tidak valid');
     }
   },function(){});
+  });// ensureQRLib
 }
 function stopScan(){
   document.getElementById('scan-ov').classList.remove('open');
