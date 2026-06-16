@@ -1018,18 +1018,20 @@ function showEdit(id){
   F_PHOTO='';
   showModal('✏️ '+t('editItem'),itemFormHTML(EDIT_ITEM));
   setTimeout(function(){
-    if(EDIT_ITEM&&EDIT_ITEM.id){
-      var qrBox=document.getElementById('fqr');
-      if(qrBox){
-        qrBox.style.display='block';
-        var qrEl=document.getElementById('qr-code');
-        if(qrEl){
-          qrEl.innerHTML='';
-          new QRCode(qrEl,{text:'ITEM:'+EDIT_ITEM.id,width:150,height:150});
+    if(EDIT_ITEM&&EDIT_ITEM.id&&typeof QRCode!=='undefined'){
+      try{
+        var qrBox=document.getElementById('fqr');
+        if(qrBox){
+          qrBox.style.display='block';
+          var qrEl=document.getElementById('qr-code');
+          if(qrEl){
+            qrEl.innerHTML='';
+            new QRCode(qrEl,{text:'ITEM:'+EDIT_ITEM.id,width:150,height:150});
+          }
         }
-      }
+      }catch(e){console.log('QR生成失敗',e);}
     }
-  },100);
+  },200);
 }
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
