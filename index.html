@@ -719,14 +719,14 @@ function renderAmbil(){
   CART={};CATG_FILTER='';
   var cats=getCategories();
   document.getElementById('ambil').innerHTML=
-    '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff;padding:.5rem .7rem">'+
+    '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,#FEE2E2,#FECACA);color:#374151;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button>'+
-    '<span style="color:#fff;font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="掃碼槍已準備">▌▌▌</span>'+
-    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer" title="手機相機">📷</button></div>'+
-    '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
+    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button>'+
+    '<span style="color:#DC2626;font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="掃碼槍已準備">▌▌▌</span>'+
+    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="手機相機">📷</button></div>'+
+    '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0;background:#fff;color:#1F2937;border:1.5px solid #FBCACA">'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
     '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
