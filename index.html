@@ -173,6 +173,8 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-stk{font-size:.82rem;color:#6B7280;margin-top:.1rem}
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
+.login-person-btn{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:1rem;display:flex;gap:.75rem;align-items:center;cursor:pointer;transition:.2s;text-align:left;font-family:inherit;width:100%}
+.login-person-btn:hover{background:#F8FAFC;border-color:var(--p);box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
 .catg-chip{padding:.45rem 1rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.86rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
@@ -285,21 +287,17 @@ function updateLangUI(){
 }
 
 function renderLoginScreen(){
-  STAFF_PIN_ENT='';
+  STAFF_PIN_ENT='';LOGIN_SEL='';
   document.getElementById('tabs').style.display='none';
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   document.getElementById('mc').innerHTML=
     '<div class="login-wrap">'+
     '<h1 style="font-size:1.1rem;color:var(--dark);margin-bottom:1.5rem">'+t('title')+'</h1>'+
-    '<div class="ig" style="width:100%;max-width:260px">'+
-    '<label style="text-align:center;display:block">'+t('selPerson')+'</label>'+
-    '<select id="ls-sel" onchange="onLoginSel()">'+
-    '<option value="">-- '+(LANG==='zh'?'載入中...':'Memuat...')+' --</option>'+
-    DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+
-    '<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>'+
-    '</select>'+
-    '<input id="ls-newname" type="text" placeholder="'+(LANG==='zh'?'輸入你的名字':'Nama kamu')+'..." style="display:none;margin-top:.4rem">'+
+    '<div style="width:100%;max-width:320px;margin-bottom:1rem">'+
+    '<label style="text-align:center;display:block;font-size:.9rem;color:#64748B;margin-bottom:.5rem;font-weight:600">'+t('selPerson')+'</label>'+
+    '<div id="ls-people-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto"></div>'+
     '</div>'+
+    '<input id="ls-newname" type="text" placeholder="'+(LANG==='zh'?'輸入你的名字':'Nama kamu')+'..." style="display:none;width:100%;max-width:260px;margin-bottom:1rem">'+
     '<div id="ls-pin-area" style="display:none;width:100%">'+
     '<div id="ls-pin-hint" style="font-size:.75rem;color:#64748B;margin-bottom:.4rem;text-align:center"></div>'+
     '<div class="pin-dots" id="ls-dots">'+Array(4).fill('<div class="pin-dot"></div>').join('')+'</div>'+
@@ -311,11 +309,47 @@ function renderLoginScreen(){
     '</div></div>'+
     '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
     '</div>';
+  renderLoginPeopleList();
   initSupabase(function(){
     sb.from('people').select('id,name,initials,pin').order('name').then(function(res){
-      if(res.data&&res.data.length){DATA.people=res.data;var sel=document.getElementById('ls-sel');if(sel){sel.innerHTML='<option value="">-- '+t('selPerson')+' --</option>'+DATA.people.map(function(p){return'<option value="'+p.id+'">'+esc(p.name)+'</option>';}).join('')+'<option value="__new__">✏️ '+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</option>';}}
+      if(res.data&&res.data.length){DATA.people=res.data;renderLoginPeopleList();}
     });
   },function(){});
+}
+function renderLoginPeopleList(){
+  var html=DATA.people.map(function(p){
+    return '<button class="login-person-btn" onclick="selectLoginPerson('+p.id+',\''+esc(p.name)+'\')">'+
+      '<div class="av" style="width:42px;height:42px;font-size:.95rem;flex-shrink:0">'+esc(p.initials)+'</div>'+
+      '<div>'+
+        '<div style="font-weight:700;font-size:.93rem;color:var(--dark)">'+esc(p.name)+'</div>'+
+        '<div style="font-size:.72rem;color:#94A3B8">'+(p.pin?'●●●●':'無PIN')+'</div>'+
+      '</div>'+
+    '</button>';
+  }).join('')+
+  '<button class="login-person-btn" onclick="selectLoginPerson(\'__new__\',\'\')">'+
+    '<div style="width:42px;height:42px;border-radius:50%;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">✏️</div>'+
+    '<div>'+
+      '<div style="font-weight:700;font-size:.93rem;color:var(--dark)">'+(LANG==='zh'?'新用戶（第一次）':'Pengguna Baru')+'</div>'+
+      '<div style="font-size:.72rem;color:#94A3B8">'+(LANG==='zh'?'輸入臨時PIN':'PIN sementara')+'</div>'+
+    '</div>'+
+  '</button>';
+  var el=document.getElementById('ls-people-list');
+  if(el)el.innerHTML=html;
+}
+function selectLoginPerson(pid,name){
+  LOGIN_SEL=pid;
+  STAFF_PIN_ENT='';
+  document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
+  document.getElementById('ls-err').textContent='';
+  if(pid==='__new__'){
+    document.getElementById('ls-newname').style.display='block';
+    document.getElementById('ls-pin-hint').textContent=LANG==='zh'?'新用戶請輸入臨時 PIN：'+GUEST_PIN:'Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
+  }else{
+    document.getElementById('ls-newname').style.display='none';
+    document.getElementById('ls-newname').value='';
+    document.getElementById('ls-pin-hint').textContent='';
+  }
+  document.getElementById('ls-pin-area').style.display='block';
 }
 function adminLogin(){
   var pin=prompt(LANG==='zh'?'請輸入管理員 PIN（6位）':'PIN Admin (6 digit)');
@@ -359,7 +393,7 @@ function lpk(k){
   else if(STAFF_PIN_ENT.length<4)STAFF_PIN_ENT+=k;
   document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d,i){d.className='pin-dot'+(i<STAFF_PIN_ENT.length?' f':'');});
   if(STAFF_PIN_ENT.length===4){
-    var pid=document.getElementById('ls-sel').value;
+    var pid=LOGIN_SEL;
     var isNew=pid==='__new__';
     var correct=isNew?GUEST_PIN:(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
     if(STAFF_PIN_ENT===correct){
@@ -450,6 +484,7 @@ window.addEventListener('DOMContentLoaded',function(){
   setTimeout(keepQrFocused,300);
 });
 var QR_STREAM=null,QR_DETECT_INT=null,QR_CAM_OPEN=false,QR_CAM_MODE='';
+var LOGIN_SEL='';
 function keepQrFocused(){
   if(!QR_CAM_OPEN){var qr=document.getElementById('qr-scan-input');if(qr)qr.focus();}
   setTimeout(keepQrFocused,800);
