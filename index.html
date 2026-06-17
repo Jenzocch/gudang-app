@@ -457,55 +457,68 @@ function renderAll(){
 
 // HOME
 function renderHome(){
-  var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
-  var sorted=DATA.items.slice().sort(function(a,b){
-    var ra=a.critical_qty>0?a.qty/a.critical_qty:99;
-    var rb=b.critical_qty>0?b.qty/b.critical_qty:99;
-    return ra-rb;
-  });
-  var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
-  var critCount=lowItems.length;
+  var h='';
 
-  var h='<div class="g2">'+
-    '<div class="sc"><div class="sc-val">'+DATA.items.length+'</div><div class="sc-lbl">'+t('items')+'</div></div>'+
-    '<div class="sc"><div class="sc-val" style="color:'+(critCount>0?'var(--danger)':'var(--ok)')+'">'+critCount+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
-  '</div>';
-
-  // 需要採購清單
-  if(lowItems.length){
-    h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-    '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
-    '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
-    '<button onclick="copyBuyList()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .6rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600">📋 '+(LANG==='zh'?'複製清單':'Salin')+'</button>'+
+  // 一般員工：簡單歡迎
+  if(!IS_ADMIN){
+    h+='<div class="card" style="margin:1rem .7rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff">'+
+      '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+(LANG==='zh'?'歡迎':'Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
+      '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+(LANG==='zh'?'點選下方「取貨」開始':'Klik "Ambil" di bawah untuk memulai')+'</p>'+
     '</div>';
-    lowItems.forEach(function(i){
-      var empty=i.qty<=0;
-      h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.5rem">'+
-        '<span style="font-size:.9rem">'+(empty?'🔴':'🟠')+'</span>'+
-        '<span style="font-weight:600;flex:1;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
-        '<span style="color:#6B7280;font-size:.75rem;white-space:nowrap;margin-right:.4rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.15rem .45rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+'</div>';
+    if(CURRENT_USER.isGuest){
+      h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+(LANG==='zh'?'臨時帳號（今天有效）':'Akun sementara (berlaku hari ini)')+'</div>';
+    }
+  }else{
+    // 管理員：完整首頁
+    var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
+    var sorted=DATA.items.slice().sort(function(a,b){
+      var ra=a.critical_qty>0?a.qty/a.critical_qty:99;
+      var rb=b.critical_qty>0?b.qty/b.critical_qty:99;
+      return ra-rb;
+    });
+    var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
+
+    h+='<div class="g2">'+
+      '<div class="sc"><div class="sc-val">'+DATA.items.length+'</div><div class="sc-lbl">'+t('items')+'</div></div>'+
+      '<div class="sc"><div class="sc-val" style="color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</div><div class="sc-lbl">'+t('lowStock')+'</div></div>'+
+    '</div>';
+
+    if(lowItems.length){
+      h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+      '<div style="padding:.6rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'+
+      '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 '+(LANG==='zh'?'需要採購 ('+lowItems.length+' 項)':'Perlu Beli ('+lowItems.length+' item)')+'</span>'+
+      '<button onclick="copyBuyList()" style="background:var(--danger);color:#fff;border:none;padding:.2rem .6rem;border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600">📋 '+(LANG==='zh'?'複製清單':'Salin')+'</button>'+
+      '</div>';
+      lowItems.forEach(function(i){
+        var empty=i.qty<=0;
+        h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.5rem">'+
+          '<span style="font-size:.9rem">'+(empty?'🔴':'🟠')+'</span>'+
+          '<span style="font-weight:600;flex:1;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
+          '<span style="color:#6B7280;font-size:.75rem;white-space:nowrap;margin-right:.4rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
+          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.15rem .45rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+'</div>';
+      });
+      h+='</div>';
+    }
+
+    h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+    '<div style="padding:.6rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📦 '+(LANG==='zh'?'庫存狀態（依緊急程度）':'Status Stok (Urgensi)')+'</div>';
+    sorted.forEach(function(i){
+      var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
+      var dot=ratio<=0?'🔴':ratio<=1?'🟠':'🟢';
+      h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;font-size:.85rem">'+
+        '<span style="margin-right:.5rem;font-size:1rem">'+dot+'</span>'+
+        '<span style="font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
+        '<span style="color:#6B7280;font-size:.78rem;margin-left:.5rem;white-space:nowrap">'+i.qty+' / '+i.critical_qty+' '+esc(i.unit)+'</span>'+
+      '</div>';
     });
     h+='</div>';
+
+    h+='<div class="st">📋 '+t('recentReq')+'（'+(LANG==='zh'?'待審':'Tertunda')+'）</div>';
+    var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
+    if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
+    else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
   }
 
-  // 庫存狀態
-  h+='<div style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-  '<div style="padding:.6rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📦 '+(LANG==='zh'?'庫存狀態（依緊急程度）':'Status Stok (Urgensi)')+'</div>';
-  sorted.forEach(function(i){
-    var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
-    var dot=ratio<=0?'🔴':ratio<=1?'🟠':'🟢';
-    h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;font-size:.85rem">'+
-      '<span style="margin-right:.5rem;font-size:1rem">'+dot+'</span>'+
-      '<span style="font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</span>'+
-      '<span style="color:#6B7280;font-size:.78rem;margin-left:.5rem;white-space:nowrap">'+i.qty+' / '+i.critical_qty+' '+esc(i.unit)+'</span>'+
-    '</div>';
-  });
-  h+='</div>';
-
-  h+='<div class="st">📋 '+t('recentReq')+'（'+(LANG==='zh'?'待審':'Tertunda')+'）</div>';
-  if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
-  else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
   document.getElementById('home').innerHTML=h;
 }
 function copyBuyList(){
@@ -520,7 +533,6 @@ function copyBuyList(){
 // AMBIL (cart mode)
 function renderAmbil(){
   CART={};
-  var preselName=CURRENT_USER?CURRENT_USER.name:'';
   document.getElementById('ambil').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
@@ -535,14 +547,6 @@ function renderAmbil(){
     '<div id="amb-cart">'+cartRowsAmb()+'</div>'+
     '</div>'+
     '<div class="card" style="margin:.7rem">'+
-    '<div class="ig"><label>👤 '+t('myName')+'（'+(LANG==='zh'?'現有員工或手寫名字':'Karyawan atau nama baru')+'）</label>'+
-    '<select id="amb-p" onchange="onAmbPersonChange()">'+(preselName?'<option value="'+preselName+'" selected>'+esc(preselName)+'</option>':'')+
-    '<option value="">-- '+t('selPerson')+' --</option>'+
-    DATA.people.map(function(p){return'<option value="'+p.id+'"'+(p.name===preselName?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+
-    '<option value="__new__">✏️ '+(LANG==='zh'?'輸入新人名':'Nama baru')+'...</option>'+
-    '</select>'+
-    '<input id="amb-pn" type="text" placeholder="'+t('pName')+'..." style="display:none;margin-top:.4rem;">'+
-    '</div>'+
     '<button class="btn btn-d btn-full" id="amb-btn" onclick="doAmbilCart()">'+t('doTake')+'</button>'+
     '</div>';
 }
@@ -551,15 +555,12 @@ function ambRows(q){
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
-    var low=i.qty>0&&i.qty<=i.critical_qty;
     var cqty=CART[i.id]||0;
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
-      '<div class="amb-name">'+esc(i.name)+'</div>'+
-      '<div class="amb-stk'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+(empty?LANG==='zh'?' 缺貨':' Kosong':low?LANG==='zh'?' ⚠':' ⚠':'')+'</div>'+
-      '</div></div>'+
+      '<div class="amb-name">'+esc(i.name)+'</div></div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj('+i.id+',-1)" '+(empty?'disabled':'')+'>−</button>'+
       '<span id="aq-'+i.id+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
@@ -617,19 +618,28 @@ function cAdj(id,d){
   var cnt=document.getElementById('amb-cart-cnt');if(cnt)cnt.textContent=total?total+(LANG==='zh'?' 種商品':' barang'):'';
   var btn=document.getElementById('amb-btn');if(btn)btn.textContent=total?t('doTake')+' ('+total+(LANG==='zh'?' 種':' item')+')':t('doTake');
 }
-function onAmbPersonChange(){
-  var sel=document.getElementById('amb-p');
-  var inp=document.getElementById('amb-pn');
-  if(sel.value==='__new__'){inp.style.display='block';inp.focus();}
-  else{inp.style.display='none';inp.value='';}
+function showTakeConfirm(keys){
+  var items_taken=keys.map(function(id){
+    var item=DATA.items.find(function(i){return i.id==id;});
+    return item?'✓ '+esc(item.name)+' x'+CART[id]+' '+esc(item.unit):'';
+  }).filter(Boolean).join('<br>');
+  var title=(LANG==='zh'?'✅ 取貨完成':'✅ Ambil Selesai');
+  var msg='<div style="text-align:center">'+
+    '<p style="font-size:1.2rem;margin-bottom:1rem">'+title+'</p>'+
+    '<div style="background:var(--light);padding:1rem;border-radius:8px;margin-bottom:1rem;text-align:left;font-size:.9rem">'+
+    items_taken+
+    '</div>'+
+    '<div style="display:flex;gap:.6rem">'+
+    '<button class="btn btn-p" style="flex:1" onclick="CART={};renderAmbil();">'+(LANG==='zh'?'繼續取貨':'Lanjut Ambil')+'</button>'+
+    '<button class="btn btn-s" style="flex:1" onclick="CART={};loadAll();goTab(\'home\',document.querySelector(\'.tb\'));">'+(LANG==='zh'?'完成':'Selesai')+'</button>'+
+    '</div></div>';
+  showModal((LANG==='zh'?'取貨確認':'Konfirmasi Ambil'),msg);
 }
 async function doAmbilCart(){
-  var sel=document.getElementById('amb-p');
-  var pname=(sel.value==='__new__'?(document.getElementById('amb-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
   var keys=Object.keys(CART);
-  if(!pname||!keys.length){toast(t('selBoth'));return;}
-  var person=DATA.people.find(function(p){return p.id==sel.value;});
-  var pid=person?person.id:null;
+  if(!keys.length){toast(LANG==='zh'?'請先選擇商品':'Pilih barang dulu');return;}
+  var pname=CURRENT_USER.name;
+  var pid=CURRENT_USER.id||null;
   var ok=true;
   keys.forEach(function(id){var item=DATA.items.find(function(i){return i.id==id;});if(item&&CART[id]>item.qty){showLow(item,CART[id]);ok=false;}});
   if(!ok)return;
@@ -640,7 +650,7 @@ async function doAmbilCart(){
       await sb.from('items').update({qty:item.qty-qty}).eq('id',item.id);
       await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty});
     }
-    toast(t('takeOk'));CART={};await loadAll();goTab('home',document.querySelector('.tb'));
+    showTakeConfirm(keys);
   }catch(e){toast('⚠ '+e.message);}
   btn.disabled=false;btn.textContent=t('doTake');
 }
