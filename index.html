@@ -85,8 +85,8 @@ textarea{resize:vertical;min-height:75px}
 .ic.low{border-color:var(--danger)}
 .ic-ph{width:100%;height:65px;object-fit:cover;border-radius:6px;margin-bottom:.35rem;display:block;background:var(--light)}
 .ic-ph-pl{width:100%;height:65px;border-radius:6px;margin-bottom:.35rem;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.9rem}
-.ic-name{font-weight:600;font-size:.82rem;line-height:1.3;color:var(--dark);margin-bottom:.15rem;word-break:break-word}
-.ic-qty{font-size:.76rem;color:#64748B}
+.ic-name{font-weight:600;font-size:.9rem;line-height:1.3;color:var(--dark);margin-bottom:.15rem;word-break:break-word}
+.ic-qty{font-size:.82rem;color:#64748B}
 .ic-qty.low{color:var(--danger);font-weight:600}
 .low-badge{position:absolute;top:3px;right:3px;background:var(--danger);color:#fff;font-size:.6rem;padding:.1rem .3rem;border-radius:8px;font-weight:700}
 .pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:.6rem;padding:.7rem}
@@ -120,8 +120,8 @@ textarea{resize:vertical;min-height:75px}
 .ai{display:flex;align-items:center;gap:.7rem;background:#fff;padding:.8rem;border-radius:10px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .ai-img{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--light);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
 .ai-info{flex:1;min-width:0}
-.ai-name{font-weight:600;font-size:.93rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ai-detail{font-size:.8rem;color:#64748B;margin-top:.15rem}
+.ai-name{font-weight:600;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-detail{font-size:.88rem;color:#64748B;margin-top:.15rem}
 .ai-link{color:var(--p);font-size:.78rem}
 .ai-actions{display:flex;gap:.3rem;flex-shrink:0}
 .ib{width:32px;height:32px;border:1.5px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem}
@@ -160,17 +160,17 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-row{display:flex;align-items:center;justify-content:space-between;padding:.55rem .9rem;border-bottom:1px solid #F3F4F6;gap:.6rem}
 .amb-row.amb-empty{opacity:.35}
 .amb-info{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0}
-.amb-th{width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
-.amb-th-ph{width:52px;height:52px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.amb-th{width:62px;height:62px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
+.amb-th-ph{width:62px;height:62px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.7rem;flex-shrink:0}
 .img-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out}
-.amb-name{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.amb-stk{font-size:.71rem;color:#6B7280;margin-top:.1rem}
+.amb-name{font-weight:600;font-size:.97rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amb-stk{font-size:.82rem;color:#6B7280;margin-top:.1rem}
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
-.catg-chip{padding:.3rem .75rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.78rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
+.catg-chip{padding:.45rem 1rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.86rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
-.catg-badge{display:inline-block;padding:.1rem .45rem;border-radius:10px;font-size:.68rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.3rem}
+.catg-badge{display:inline-block;padding:.15rem .55rem;border-radius:10px;font-size:.76rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.3rem}
 .stk-row{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border-bottom:1px solid #F3F4F6;background:#fff;transition:.15s}
 .stk-row.changed{background:#FFFBEB;border-left:3px solid var(--warn)}
 .stk-qty{width:68px;padding:.38rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.95rem;font-weight:700;text-align:center;background:#fff}
@@ -505,10 +505,10 @@ function renderHome(){
       var renderLowRow=function(i){
         var empty=i.qty<=0;
         return '<div style="display:flex;align-items:center;padding:.5rem .9rem;border-bottom:1px solid #F3F4F6;gap:.45rem">'+
-          '<span style="font-size:.95rem;flex-shrink:0">'+(empty?'🔴':'🟠')+'</span>'+
+          '<span style="font-size:.95rem;flex-shrink:0">'+(empty?'❌':'🟠')+'</span>'+
           '<div style="flex:1;min-width:0">'+
-            '<div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
-            '<div style="font-size:.73rem;color:#6B7280;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+'</div>'+
+            '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+            '<div style="font-size:.8rem;color:#6B7280;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+'</div>'+
           '</div>'+
           (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+(LANG==='zh'?'採購':'Beli')+'</a>':'')+
         '</div>';
@@ -533,11 +533,11 @@ function renderHome(){
     '<div style="padding:.6rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📦 '+(LANG==='zh'?'庫存狀態（依緊急程度）':'Status Stok (Urgensi)')+'</div>';
     sorted.forEach(function(i){
       var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
-      var dot=ratio<=0?'🔴':ratio<=1?'🟠':'🟢';
+      var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
       h+='<div style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
         '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
         '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+          '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
           (i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+
         '</div>'+
         '<span style="color:#6B7280;font-size:.76rem;white-space:nowrap;flex-shrink:0">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+'</span>'+
@@ -558,7 +558,7 @@ function copyBuyList(){
   var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
   var txt=(LANG==='zh'?'📋 採購清單\n':'📋 Daftar Beli\n')+new Date().toLocaleDateString()+'\n\n'+
     lowItems.map(function(i){
-      return (i.qty<=0?'🔴':'🟠')+' '+i.name+': '+(LANG==='zh'?'庫存':'stok')+' '+i.qty+'/'+i.critical_qty+' '+i.unit+(i.supplier_url?'\n   🔗 '+i.supplier_url:'');
+      return (i.qty<=0?'❌':'🟠')+' '+i.name+': '+(LANG==='zh'?'庫存':'stok')+' '+i.qty+'/'+i.critical_qty+' '+i.unit+(i.supplier_url?'\n   🔗 '+i.supplier_url:'');
     }).join('\n');
   navigator.clipboard.writeText(txt).then(function(){toast('📋 '+(LANG==='zh'?'採購清單已複製':'Daftar disalin'));}).catch(function(){toast('⚠ '+(LANG==='zh'?'請手動複製':'Gagal salin'));});
 }
@@ -575,7 +575,7 @@ function renderAmbil(){
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
-    (cats.length?'<div id="catg-chips" style="display:flex;gap:.4rem;padding:.4rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
+    (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
     '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
     cats.map(function(c){return'<button class="catg-chip" onclick="setCatgFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+
     '</div>':'')+
@@ -620,12 +620,12 @@ function ambGrid(q){
     items.map(function(i){
       var empty=i.qty<=0;
       var cqty=CART[i.id]||0;
-      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block">'
+      var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
         :'<div style="width:100%;height:80px;background:var(--light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
       return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj('+i.id+',1)">'+
         ph+
-        '<div style="font-size:.72rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word">'+esc(i.name)+'</div>'+
-        '<div style="font-size:.68rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
+        '<div style="font-size:.8rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word">'+esc(i.name)+'</div>'+
+        '<div style="font-size:.75rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
         (cqty?'<div style="background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;text-align:center;border-radius:4px;margin-top:.2rem">+'+cqty+'</div>':'')+'</div>';
     }).join('')+'</div>';
 }
@@ -934,7 +934,13 @@ function aiListHTML(){
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+'</div>'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'')+'</div>'+
+        (i.supplier_url
+          ?'<div style="display:flex;align-items:center;gap:.35rem;margin-top:.2rem">'+
+            '<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>'+
+            '<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>'+
+            '</div>'
+          :'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
+        '</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="QR" onclick="printQR('+i.id+')">🖨️</button>'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
@@ -1201,6 +1207,28 @@ async function saveItem(){
     if(EDIT_ITEM){var {error}=await sb.from('items').update(d).eq('id',EDIT_ITEM.id);if(error)throw error;}
     else{var {error}=await sb.from('items').insert(d);if(error)throw error;}
     toast(t('saveOk'));closeModal();await loadAll();
+  }catch(e){toast('⚠ '+e.message);}
+}
+function editSupUrl(id){
+  var item=DATA.items.find(function(i){return i.id===id;});if(!item)return;
+  showModal('🔗 '+(LANG==='zh'?'採購連結 — ':'Link Beli — ')+esc(item.name),
+    '<div class="ig"><label>URL</label><input id="sup-url-inp" type="url" placeholder="https://..." value="'+(item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
+    '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
+    '<button class="btn btn-p" style="flex:2" onclick="saveSupUrl('+id+')">✓ '+(LANG==='zh'?'儲存':'Simpan')+'</button>'+
+    (item.supplier_url?'<button class="btn btn-d" style="flex:1" onclick="saveSupUrl('+id+',true)">🗑️</button>':'')+
+    '</div>'
+  );
+  setTimeout(function(){var el=document.getElementById('sup-url-inp');if(el)el.focus();},100);
+}
+async function saveSupUrl(id,clear){
+  var url=clear?'':(document.getElementById('sup-url-inp').value||'').trim();
+  try{
+    var {error}=await sb.from('items').update({supplier_url:url||null}).eq('id',id);
+    if(error)throw error;
+    var item=DATA.items.find(function(i){return i.id===id;});
+    if(item)item.supplier_url=url||null;
+    toast(t('saveOk'));closeModal();
+    document.getElementById('ai-list').innerHTML=aiListHTML();
   }catch(e){toast('⚠ '+e.message);}
 }
 async function delItem(id){
