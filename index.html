@@ -311,7 +311,7 @@ function renderLoginScreen(){
     '</div>';
   renderLoginPeopleList();
   initSupabase(function(){
-    sb.from('people').select('id,name,initials,pin').order('name').then(function(res){
+    sb.from('people').select('id,name,pin').order('name').then(function(res){
       if(res.data&&res.data.length){DATA.people=res.data;renderLoginPeopleList();}
     });
   },function(){});
@@ -399,11 +399,11 @@ function lpk(k){
           document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
           return;
         }
-        CURRENT_USER={id:null,name:nm,initials:nm.substr(0,2).toUpperCase(),isGuest:true};
+        CURRENT_USER={id:null,name:nm,isGuest:true};
       }else{
         CURRENT_USER=DATA.people.find(function(p){return p.id==pid;});
       }
-      localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,ini:CURRENT_USER.initials||'',g:CURRENT_USER.isGuest||false,ts:Date.now()}));
+      localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,ts:Date.now()}));
       var btn=document.getElementById('hdr-user-btn');
       if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
       document.getElementById('tabs').style.display='flex';
@@ -469,9 +469,9 @@ window.addEventListener('DOMContentLoaded',function(){
   try{adminS=JSON.parse(localStorage.getItem('admin_sess')||'null');}catch(e){}
   try{staffS=JSON.parse(localStorage.getItem('staff_sess')||'null');}catch(e){}
   if(adminS&&adminS.ts&&(Date.now()-adminS.ts)<7*86400000){
-    autoLogin('admin',{id:0,name:LANG==='zh'?'管理員':'Admin',initials:'AD'});
+    autoLogin('admin',{id:0,name:LANG==='zh'?'管理員':'Admin'});
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
-    autoLogin('staff',{id:staffS.id,name:staffS.name,initials:staffS.ini||'',isGuest:staffS.g||false});
+    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false});
   }else{
     clearSessions();renderLoginScreen();
   }
@@ -959,7 +959,7 @@ function iGrid(mode){
 function pGrid(mode){
   return DATA.people.map(function(p){
     return '<div class="pc" onclick="selP(this,'+p.id+',\''+mode+'\')">'+
-      '<div class="av">'+esc(p.initials)+'</div><div class="pn">'+esc(p.name)+'</div></div>';
+      '<div class="av">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div><div class="pn">'+esc(p.name)+'</div></div>';
   }).join('');
 }
 
@@ -1103,7 +1103,7 @@ function aiListHTML(){
 }
 function peListHTML(){
   return DATA.people.map(function(p){
-    return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.initials)+'</div>'+
+    return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
       '<div class="ai-info"><div class="ai-name">'+esc(p.name)+'</div>'+
       '<div style="font-size:.73rem;color:#9CA3AF">PIN: '+(p.pin?'●●●●':'未設定')+'</div></div>'+
       '<div class="ai-actions">'+
@@ -1426,8 +1426,7 @@ function printQR(id){
 async function addPerson(){
   var name=(document.getElementById('npn').value||'').trim();
   if(!name){toast('⚠ '+t('pName'));return;}
-  var ini=name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2);
-  try{var {error}=await sb.from('people').insert({name:name,initials:ini,pin:'1234'});if(error)throw error;toast('✓ '+name+' (PIN:1234)');document.getElementById('npn').value='';await loadAll();}
+  try{var {error}=await sb.from('people').insert({name:name,pin:'1234'});if(error)throw error;toast('✓ '+name+' (PIN:1234)');document.getElementById('npn').value='';await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
 async function delPerson(id){
