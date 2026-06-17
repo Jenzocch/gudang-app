@@ -34,9 +34,9 @@ body{display:flex;flex-direction:column}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:#6B7280;flex-shrink:0}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
 .content{flex:1;overflow-y:auto;padding-bottom:72px;-webkit-overflow-scrolling:touch}
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
-.tb{flex:1;padding:.6rem .1rem;border:none;background:none;cursor:pointer;font-size:.72rem;font-weight:500;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.12rem}
-.tb-icon{font-size:1.2rem}
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+.tb{flex:0 0 auto;min-width:68px;padding:.75rem .2rem;border:none;background:none;cursor:pointer;font-size:.75rem;font-weight:600;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.tb-icon{font-size:1.6rem}
 .tb.active{color:var(--p)}
 .sec{display:none}.sec.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -174,7 +174,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 <div id="app">
   <div class="hdr">
     <div class="hdr-title">
-      <div class="hdr-title-main">🏭 Sistem Gudang Inventory</div>
+      <div class="hdr-title-main">Sistem Gudang Inventory</div>
       <div class="hdr-title-sub">倉庫物料進出管理系統</div>
     </div>
     <div class="hdr-right">
@@ -274,7 +274,6 @@ function renderLoginScreen(){
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   document.getElementById('mc').innerHTML=
     '<div class="login-wrap">'+
-    '<div style="font-size:3rem;margin-bottom:.5rem">🏭</div>'+
     '<h1 style="font-size:1.1rem;color:var(--dark);margin-bottom:1.5rem">'+t('title')+'</h1>'+
     '<div class="ig" style="width:100%;max-width:260px">'+
     '<label style="text-align:center;display:block">'+t('selPerson')+'</label>'+
@@ -382,7 +381,7 @@ function staffLogout(){
 }
 
 var sb;
-var DATA={items:[],people:[],requests:[],transactions:[],purchases:[]};
+var DATA={items:[],people:[],requests:[],transactions:[]};
 var IS_ADMIN=false;
 var PIN_ENT='';
 var EDIT_ITEM=null;
@@ -410,15 +409,14 @@ async function loadAll(afterCb){
         sb.from('items').select('*').order('name'),
         sb.from('people').select('*').order('name'),
         sb.from('requests').select('*').order('created_at',{ascending:false}),
-        sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(100),
-        sb.from('purchase_orders').select('*').order('purchase_date',{ascending:false}).limit(200)
+        sb.from('transactions').select('*').order('created_at',{ascending:false}).limit(100)
       ]),
       tOut
     ]);
-    var i=results[0],p=results[1],r=results[2],tx=results[3],po=results[4];
+    var i=results[0],p=results[1],r=results[2],tx=results[3];
     if(i.error)throw i.error;
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
-    DATA.transactions=tx.data||[];DATA.purchases=po.data||[];
+    DATA.transactions=tx.data||[];
     setDot('ok');
     renderAll();setTimeout(checkLowStock,600);
     if(afterCb)afterCb();
@@ -844,23 +842,14 @@ function pk(k){
   }
 }
 function renderAdminFull(){
-  var tv=0;
-  DATA.items.forEach(function(i){tv+=avgCost(i.id)*i.qty;});
   document.getElementById('admin').innerHTML=
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
-      '<button class="tsw" onclick="swATab(this,\'apu\')">💰 '+t('purchases')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
-      '<button class="tsw" onclick="swATab(this,\'aimp\')">📊 Excel</button>'+
     '</div>'+
-    '<div class="val-bar"><div class="val-bar-lbl">'+t('stockVal')+'</div><div class="val-bar-val">'+fmtC(tv)+'</div></div>'+
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
       '<div class="ai-list" id="ai-list">'+aiListHTML()+'</div>'+
-    '</div>'+
-    '<div id="apu" class="tc">'+
-      '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddBuy()">➕ '+t('addBuy')+'</button></div>'+
-      '<div id="apu-list">'+puListHTML()+'</div>'+
     '</div>'+
     '<div id="ape" class="tc">'+
       '<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
@@ -868,40 +857,23 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
-    '<div id="aimp" class="tc">'+
-      '<div class="card"><div class="card-title">📊 '+t('bulk')+'</div>'+
-      '<p style="font-size:.78rem;color:#6B7280;margin-bottom:.7rem">'+t('bulkHint')+'</p>'+
-      '<div class="imp-box"><textarea id="imp-txt" placeholder="貼上 Excel 資料..." oninput="prevImp()"></textarea></div>'+
-      '<div id="imp-prev" style="margin:.5rem 0"></div>'+
-      '<button class="btn btn-p btn-full" onclick="doImport()">⬆️ '+t('impBtn')+'</button>'+
-      '</div>'+
-    '</div>'+
-    '<div style="padding:.7rem;text-align:center"><button class="btn btn-s" onclick="logoutAdmin()">🔒 '+t('logout')+'</button></div>';
+    '<div style="padding:.7rem;text-align:center"><button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:240px">🔒 '+(LANG==='zh'?'登出管理員':'Keluar Admin')+'</button></div>';
 }
 function aiListHTML(){
   return DATA.items.map(function(i){
-    var ac=avgCost(i.id);
     var ph=i.image_url?'<img style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img">📦</div>';
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(ac?' · '+fmtC(ac)+'/'+esc(i.unit):'')+'</div>'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 採購連結</a>':'')+'</div>'+
+        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
+        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'')+'</div>'+
       '<div class="ai-actions">'+
+        '<button class="ib" title="QR" onclick="printQR('+i.id+')">🖨️</button>'+
         '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
         '<button class="ib" onclick="delItem('+i.id+')">🗑️</button>'+
       '</div></div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">-</div>';
-}
-function puListHTML(){
-  return DATA.purchases.map(function(po){
-    var item=DATA.items.find(function(i){return i.id===po.item_id});
-    return '<div class="pu-item">'+
-      '<div class="pu-hdr"><span class="pu-name">'+(item?esc(item.name):'?')+'</span><span class="pu-price">'+fmtC(po.unit_price)+'/unit</span></div>'+
-      '<div class="pu-det">'+(po.supplier_name?esc(po.supplier_name)+' · ':'')+po.quantity+' '+((item&&item.unit)||'pcs')+' · '+(po.purchase_date||'')+(po.notes?' · '+esc(po.notes):'')+'</div>'+
-      (po.purchase_url?'<a href="'+esc(po.purchase_url)+'" target="_blank" class="pu-url">🔗 '+esc(po.purchase_url)+'</a>':'')+'</div>';
-  }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">'+t('noBuy')+'</div>';
 }
 function peListHTML(){
   return DATA.people.map(function(p){
@@ -927,12 +899,6 @@ async function savePin(id){
   if(!/^\d{4}$/.test(pin)){toast('⚠ 請輸入4位數字');return;}
   try{var {error}=await sb.from('people').update({pin:pin}).eq('id',id);if(error)throw error;toast(t('saveOk'));closeModal();await loadAll();}
   catch(e){toast('⚠ '+e.message);}
-}
-function avgCost(id){
-  var ps=DATA.purchases.filter(function(p){return p.item_id===id&&p.unit_price});
-  if(!ps.length)return 0;
-  var tq=0,tc=0;ps.forEach(function(p){tq+=p.quantity||0;tc+=(p.unit_price||0)*(p.quantity||0);});
-  return tq?tc/tq:0;
 }
 
 // MODALS
@@ -991,39 +957,36 @@ async function saveItem(){
   }catch(e){toast('⚠ '+e.message);}
 }
 async function delItem(id){
-  if(!confirm(t('del')+'?'))return;
+  var item=DATA.items.find(function(i){return i.id===id;});
+  if(!item)return;
+  if(!confirm(LANG==='zh'?'確定刪除「'+item.name+'」?':'Hapus "'+item.name+'"?'))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
-function showAddBuy(){
-  var opts=DATA.items.map(function(i){return '<option value="'+i.id+'">'+esc(i.name)+'</option>'}).join('');
-  showModal('💰 '+t('addBuy'),
-    '<div class="ig"><label>'+t('item')+' *</label><select id="po-i"><option value="">--</option>'+opts+'</select></div>'+
-    '<div class="ig"><label>'+t('supplier')+'</label><input id="po-s" type="text"></div>'+
-    '<div class="fr">'+
-      '<div class="ig"><label>'+t('price')+' *</label><input id="po-p" type="number" step="0.01" min="0"></div>'+
-      '<div class="ig"><label>'+t('qty')+' *</label><input id="po-q" type="number" min="1"></div>'+
+function printQR(id){
+  var item=DATA.items.find(function(i){return i.id===id;});
+  if(!item)return;
+  var qData=encodeURIComponent('gudang:'+item.id+':'+item.name);
+  var qUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+qData;
+  var w=window.open('','_blank','width=400,height=500');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+item.name+'</title>'+
+    '<style>body{font-family:sans-serif;margin:0;padding:20px;text-align:center}'+
+    '.label{border:2px solid #333;border-radius:8px;padding:16px;display:inline-block;min-width:240px}'+
+    'h2{margin:0 0 12px;font-size:1.1rem}'+
+    'img{display:block;margin:0 auto 12px}'+
+    '.info{font-size:.85rem;color:#555;margin-top:8px}'+
+    '.url{font-size:.75rem;color:#0D9488;word-break:break-all;margin-top:6px}'+
+    '@media print{body{margin:0}button{display:none}}'+
+    '</style></head><body>'+
+    '<div class="label">'+
+    '<h2>'+item.name+'</h2>'+
+    '<img src="'+qUrl+'" width="200" height="200">'+
+    '<div class="info">庫存: '+item.qty+' '+item.unit+' · min: '+item.critical_qty+'</div>'+
+    (item.supplier_url?'<div class="url">🔗 '+item.supplier_url+'</div>':'')+
     '</div>'+
-    '<div class="ig"><label>'+t('bDate')+'</label><input id="po-d" type="date" value="'+today()+'"></div>'+
-    '<div class="ig"><label>'+t('buyUrl')+'</label><input id="po-u" type="url" placeholder="https://..."></div>'+
-    '<div class="ig"><label>'+t('note')+'</label><input id="po-n" type="text"></div>'+
-    '<button class="btn btn-p btn-full" onclick="saveBuy()">'+t('save')+'</button>'
-  );
-}
-async function saveBuy(){
-  var iid=parseInt(document.getElementById('po-i').value);
-  var pr=parseFloat(document.getElementById('po-p').value)||0;
-  var q=parseInt(document.getElementById('po-q').value)||0;
-  if(!iid||!pr||!q){toast('⚠ Fill required fields');return;}
-  try{
-    var {error}=await sb.from('purchase_orders').insert({
-      item_id:iid,supplier_name:(document.getElementById('po-s').value||'').trim()||null,
-      unit_price:pr,quantity:q,purchase_date:(document.getElementById('po-d').value)||null,
-      purchase_url:(document.getElementById('po-u').value||'').trim()||null,
-      notes:(document.getElementById('po-n').value||'').trim()||null
-    });
-    if(error)throw error;toast(t('saveOk'));closeModal();await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
+    '<br><button onclick="window.print()" style="margin-top:12px;padding:8px 20px;background:#0D9488;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem">🖨️ '+(LANG==='zh'?'列印':'Cetak')+'</button>'+
+    '</body></html>');
+  w.document.close();
 }
 async function addPerson(){
   var name=(document.getElementById('npn').value||'').trim();
@@ -1033,32 +996,11 @@ async function addPerson(){
   catch(e){toast('⚠ '+e.message);}
 }
 async function delPerson(id){
-  if(!confirm(t('del')+'?'))return;
+  var person=DATA.people.find(function(p){return p.id===id;});
+  if(!person)return;
+  if(!confirm(LANG==='zh'?'確定刪除員工「'+person.name+'」?':'Hapus karyawan "'+person.name+'"?'))return;
   try{var {error}=await sb.from('people').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
-}
-function prevImp(){
-  var rows=parseImp(document.getElementById('imp-txt').value);
-  var pv=document.getElementById('imp-prev');
-  if(!rows.length){pv.innerHTML='';return;}
-  pv.innerHTML='<div style="font-size:.78rem;font-weight:600;margin-bottom:.3rem">'+t('prevLbl',{n:rows.length})+'</div>'+
-    rows.slice(0,5).map(function(r){return '<div class="imp-row">'+esc(r.name)+' | '+r.qty+' '+esc(r.unit)+' | min:'+r.critical_qty+'</div>';}).join('')+
-    (rows.length>5?'<div style="font-size:.72rem;color:#9CA3AF">... +'+( rows.length-5)+'</div>':'');
-}
-async function doImport(){
-  var rows=parseImp(document.getElementById('imp-txt').value);
-  if(!rows.length){toast('⚠ 無資料');return;}
-  try{var {error}=await sb.from('items').insert(rows);if(error)throw error;toast('✓ 匯入 '+rows.length+' 筆');document.getElementById('imp-txt').value='';document.getElementById('imp-prev').innerHTML='';await loadAll();}
-  catch(e){toast('⚠ '+e.message);}
-}
-function parseImp(text){
-  if(!text.trim())return[];
-  return text.trim().split('\n').map(function(l){
-    var c=l.indexOf('\t')>=0?l.split('\t'):l.split(',');
-    var nm=(c[0]||'').trim();
-    if(!nm)return null;
-    return{name:nm,qty:parseInt(c[1])||0,unit:(c[2]||'pcs').trim(),critical_qty:parseInt(c[3])||10,supplier_url:(c[4]||'').trim()||null,image_url:null};
-  }).filter(Boolean);
 }
 function logoutAdmin(){IS_ADMIN=false;renderAdmin();}
 
