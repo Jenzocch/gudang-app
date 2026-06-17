@@ -449,10 +449,62 @@ window.addEventListener('DOMContentLoaded',function(){
   }
   setTimeout(keepQrFocused,300);
 });
+var QR_STREAM=null,QR_DETECT_INT=null,QR_CAM_OPEN=false,QR_CAM_MODE='';
 function keepQrFocused(){
-  var qr=document.getElementById('qr-scan-input');
-  if(qr)qr.focus();
+  if(!QR_CAM_OPEN){var qr=document.getElementById('qr-scan-input');if(qr)qr.focus();}
   setTimeout(keepQrFocused,800);
+}
+function openQrCamera(mode){
+  QR_CAM_MODE=mode||'ambil';QR_CAM_OPEN=true;
+  var body='<div>'+
+    '<video id="qr-vid" style="width:100%;border-radius:10px;display:block;max-height:55vh" autoplay playsinline muted></video>'+
+    '<canvas id="qr-cvs" style="display:none"></canvas>'+
+    '<div style="text-align:center;padding:.6rem;color:#6B7280;font-size:.88rem">📷 '+(LANG==='zh'?'對準 QR code，自動識別':'Arahkan ke QR code')+'</div>'+
+    '<button class="btn btn-s btn-full" onclick="stopQrCamera();closeModal()">'+(LANG==='zh'?'取消':'Batal')+'</button>'+
+  '</div>';
+  showModal('📷 '+(LANG==='zh'?'掃碼':'Scan QR'),body);
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{exact:'environment'}}})
+    .catch(function(){return navigator.mediaDevices.getUserMedia({video:true});})
+    .then(function(stream){
+      QR_STREAM=stream;
+      var vid=document.getElementById('qr-vid');
+      if(!vid){stopQrCamera();return;}
+      vid.srcObject=stream;vid.play();
+      startQrDetect();
+    }).catch(function(e){toast('⚠ '+(LANG==='zh'?'無法開啟相機':'Kamera tidak bisa dibuka')+': '+e.message);stopQrCamera();closeModal();});
+}
+function startQrDetect(){
+  if('BarcodeDetector' in window){
+    try{
+      var bd=new BarcodeDetector({formats:['qr_code']});
+      var vid=document.getElementById('qr-vid');
+      QR_DETECT_INT=setInterval(function(){
+        if(!vid||!document.getElementById('qr-vid'))return;
+        bd.detect(vid).then(function(codes){
+          if(codes.length){stopQrCamera();closeModal();onQrScan(codes[0].rawValue);}
+        }).catch(function(){});
+      },300);
+      return;
+    }catch(e){}
+  }
+  loadScript('https://cdn.jsdelivr.net/npm/jsqr@1/dist/jsQR.js',function(){
+    var vid=document.getElementById('qr-vid');
+    var cvs=document.getElementById('qr-cvs');if(!cvs)return;
+    var ctx=cvs.getContext('2d');
+    QR_DETECT_INT=setInterval(function(){
+      if(!vid||!document.getElementById('qr-vid')||!vid.videoWidth)return;
+      cvs.width=vid.videoWidth;cvs.height=vid.videoHeight;
+      ctx.drawImage(vid,0,0);
+      var img=ctx.getImageData(0,0,cvs.width,cvs.height);
+      var code=jsQR&&jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+      if(code&&code.data){stopQrCamera();closeModal();onQrScan(code.data);}
+    },300);
+  },function(){toast('⚠ '+(LANG==='zh'?'瀏覽器不支援掃碼':'Browser tidak support scan'));stopQrCamera();closeModal();});
+}
+function stopQrCamera(){
+  QR_CAM_OPEN=false;
+  if(QR_DETECT_INT){clearInterval(QR_DETECT_INT);QR_DETECT_INT=null;}
+  if(QR_STREAM){QR_STREAM.getTracks().forEach(function(t){t.stop();});QR_STREAM=null;}
 }
 function onQrScan(val){
   var qr=document.getElementById('qr-scan-input');
@@ -464,9 +516,10 @@ function onQrScan(val){
   if(!item){toast('⚠ '+(LANG==='zh'?'商品未找到':'Barang tidak ditemukan'));if(qr)qr.value='';return;}
   var cur=document.querySelector('.sec.active');
   var cur_id=cur?cur.id:'';
-  if(cur_id==='admin'||document.getElementById('stk-'+id)){
+  var inStk=!!document.getElementById('stk-'+id);
+  if(QR_CAM_MODE==='stk'||inStk){
     onStkQrScan(id);
-  }else if(cur_id==='ambil'){
+  }else if(QR_CAM_MODE==='ambil'||cur_id==='ambil'){
     onAmbilQrScan(id);
   }else{
     toast('⚠ '+(LANG==='zh'?'請切換至取貨或盤點頁面':'Ke halaman ambil atau opname'));
@@ -641,9 +694,9 @@ function renderAmbil(){
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
     '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
+    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button>'+
+    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer" title="掃碼">📷</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
-    '<div style="background:#DCE7FF;border-top:1px solid rgba(255,255,255,.3);padding:.3rem .7rem;margin-top:.3rem;font-size:.75rem;color:#1E40AF;text-align:center;font-weight:600">📱 '+(LANG==='zh'?'掃碼槍可直接掃QR快速加入':'Scanner untuk cepat tambah')+'</div>'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
     '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
@@ -1126,9 +1179,11 @@ function renderStocktake(catFilter){
   var html='<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
     '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</span>'+
-    '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+(LANG==='zh'?'返回列表':'Kembali')+'</button>'+
+    '<div style="display:flex;gap:.4rem">'+
+    '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+(LANG==='zh'?'掃碼':'Scan')+'</button>'+
+    '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+(LANG==='zh'?'返回':'Kembali')+'</button>'+
     '</div>'+
-    '<div style="background:#ECFDF5;border:1px solid #86EFAC;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;font-size:.82rem;color:#166534;text-align:center"><span style="font-weight:700">🔍 '+(LANG==='zh'?'提示：掃碼槍可掃QR碼快速定位商品':'Gunakan scanner untuk cepat')+'</span></div>';
+    '</div>';
   if(cats.length){
     html+='<div style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.15rem">'+
       '<button class="catg-chip'+(STK_CATG===''?' act':'')+'" onclick="renderStocktake(\'\')">'+t('allCatg')+'</button>'+
@@ -1218,7 +1273,7 @@ function showModal(title,body){
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
 }
-function closeModal(){var o=document.getElementById('m-ov');if(o)o.remove();}
+function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)o.remove();}
 
 function itemFormHTML(item){
   return '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
