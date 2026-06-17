@@ -168,6 +168,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
+.catg-chip{padding:.3rem .75rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.78rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
+.catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
+.catg-badge{display:inline-block;padding:.1rem .45rem;border-radius:10px;font-size:.68rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.3rem}
 </style>
 </head>
 <body>
@@ -237,7 +240,7 @@ var T = {
     takeOk:'✓ 取貨成功',rcvOk:'✓ 入貨成功',saveOk:'✓ 儲存成功',delOk:'✓ 已刪除',reqOk:'✓ 申請已送出',
     selBoth:'⚠ 請選擇商品和人員',fillAll:'⚠ 請填寫姓名和申請內容',
     stockVal:'總庫存價值',avgCost:'平均成本',
-    out:'取出',in:'入庫',purchases:'採購',catg:'分類'},
+    out:'取出',in:'入庫',purchases:'採購',catg:'分類',catgMgmt:'分類管理',addCatg:'新增分類',noCatg:'無分類',allCatg:'全部'},
   id:{title:'Sistem Gudang',home:'Beranda',take:'Ambil',receive:'Masuk',req:'Minta',hist:'Riwayat',adm:'Admin',
     conn:'Menghubungkan...',ok:'Terhubung',err:'Gagal konek',items:'Jenis Barang',people:'Orang',
     lowStock:'Stok Rendah',allOk:'Semua Stok Aman',recentReq:'Permintaan Terbaru',noReq:'Belum ada permintaan',noTxn:'Belum ada transaksi',
@@ -258,7 +261,7 @@ var T = {
     takeOk:'✓ Berhasil diambil',rcvOk:'✓ Berhasil masuk',saveOk:'✓ Disimpan',delOk:'✓ Dihapus',reqOk:'✓ Permintaan terkirim',
     selBoth:'⚠ Pilih barang dan orang',fillAll:'⚠ Isi nama dan barang',
     stockVal:'Total Nilai Stok',avgCost:'Rata-rata Harga',
-    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori'}
+    out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Kategori',catgMgmt:'Kelola Kategori',addCatg:'Tambah Kategori',noCatg:'Tanpa Kategori',allCatg:'Semua'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
 function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();}
@@ -399,6 +402,7 @@ var CURRENT_USER=null;
 var STAFF_PIN_ENT='';
 var CART={};
 var CART_M={};
+var CATG_FILTER='';
 
 window.addEventListener('DOMContentLoaded',function(){
   updateLangUI();
@@ -532,7 +536,8 @@ function copyBuyList(){
 
 // AMBIL (cart mode)
 function renderAmbil(){
-  CART={};
+  CART={};CATG_FILTER='';
+  var cats=getCategories();
   document.getElementById('ambil').innerHTML=
     '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--danger),#DC2626);color:#fff;padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
@@ -541,6 +546,10 @@ function renderAmbil(){
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
     '</div>'+
+    (cats.length?'<div id="catg-chips" style="display:flex;gap:.4rem;padding:.4rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
+    '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
+    cats.map(function(c){return'<button class="catg-chip" onclick="setCatgFilter(\''+esc(c)+'\')">'+esc(c)+'</button>';}).join('')+
+    '</div>':'')+
     '<div id="amb-list" style="background:#fff">'+ambRows('')+'</div>'+
     '<div id="amb-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.55rem .9rem;font-weight:700;font-size:.88rem;background:#FEF2F2;color:var(--danger);border-bottom:1px solid var(--border)">🛒 <span id="amb-cart-cnt"></span></div>'+
@@ -551,7 +560,7 @@ function renderAmbil(){
     '</div>';
 }
 function ambRows(q){
-  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
+  var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||i.category===CATG_FILTER);});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
@@ -576,7 +585,7 @@ function toggleAmbView(){
   fltAmb();
 }
 function ambGrid(q){
-  var items=DATA.items.filter(function(i){return!q||i.name.toLowerCase().includes(q);});
+  var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||i.category===CATG_FILTER);});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+(LANG==='zh'?'找不到商品':'Tidak ada barang')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
@@ -870,6 +879,7 @@ function renderAdminFull(){
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       '<button class="tsw" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>'+
+      '<button class="tsw" onclick="swATab(this,\'acg\')">🏷️ '+t('catgMgmt')+'</button>'+
     '</div>'+
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="showAddItem()">➕ '+t('addItem')+'</button></div>'+
@@ -881,6 +891,7 @@ function renderAdminFull(){
       '<button class="btn btn-p btn-full" onclick="addPerson()">➕ '+t('addPerson')+'</button></div>'+
       '<div class="ai-list" id="pe-list">'+peListHTML()+'</div>'+
     '</div>'+
+    '<div id="acg" class="tc">'+catgPanelHTML()+'</div>'+
     '<div style="padding:.7rem;text-align:center"><button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:240px">🔒 '+(LANG==='zh'?'登出管理員':'Keluar Admin')+'</button></div>';
 }
 function aiListHTML(){
@@ -890,7 +901,7 @@ function aiListHTML(){
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
-        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
+        '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+(i.category?'<span class="catg-badge">🏷️ '+esc(i.category)+'</span>':'')+'</div>'+
         (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'')+'</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="QR" onclick="printQR('+i.id+')">🖨️</button>'+
@@ -909,6 +920,96 @@ function peListHTML(){
         '<button class="ib" onclick="delPerson('+p.id+')">🗑️</button>'+
       '</div></div>';
   }).join('');
+}
+function getCategories(){
+  var fromItems=DATA.items.map(function(i){return i.category;}).filter(Boolean);
+  var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+  return [].concat(fromItems,saved).filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
+}
+function setCatgFilter(cat){
+  CATG_FILTER=cat;
+  document.querySelectorAll('#catg-chips .catg-chip').forEach(function(b){
+    var isAll=cat===''&&b.textContent===t('allCatg');
+    b.classList.toggle('act',isAll||b.textContent===cat);
+  });
+  var q=(document.getElementById('asrch')&&document.getElementById('asrch').value||'').toLowerCase();
+  var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q):ambRows(q);
+}
+function catgPanelHTML(){
+  var cats=getCategories();
+  var html='<div style="padding:.7rem">'+
+    '<div class="ig"><label>➕ '+t('addCatg')+'</label>'+
+    '<div style="display:flex;gap:.4rem">'+
+    '<input id="ncg" type="text" placeholder="'+(LANG==='zh'?'分類名稱...':'Nama kategori...')+'">'+
+    '<button class="btn btn-p" style="flex-shrink:0;padding:.7rem 1rem" onclick="addCatg()">➕</button>'+
+    '</div></div></div>';
+  if(!cats.length){
+    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+(LANG==='zh'?'尚無分類，先新增一個吧！':'Belum ada kategori, tambahkan dulu!')+'</div>';
+  }else{
+    html+='<div class="ai-list">';
+    cats.forEach(function(cat){
+      var count=DATA.items.filter(function(i){return i.category===cat;}).length;
+      html+='<div class="ai">'+
+        '<div class="ai-info">'+
+          '<div class="ai-name">🏷️ '+esc(cat)+'</div>'+
+          '<div class="ai-detail">'+count+' '+(LANG==='zh'?'種商品':'barang')+'</div>'+
+        '</div>'+
+        '<div class="ai-actions">'+
+          '<button class="ib" title="'+(LANG==='zh'?'重命名':'Ubah')+'" onclick="renameCatg(\''+esc(cat)+'\')">✏️</button>'+
+          '<button class="ib" onclick="delCatg(\''+esc(cat)+'\')">🗑️</button>'+
+        '</div></div>';
+    });
+    html+='</div>';
+  }
+  return html;
+}
+function addCatg(){
+  var v=(document.getElementById('ncg').value||'').trim();
+  if(!v){toast('⚠ '+(LANG==='zh'?'請填寫分類名稱':'Isi nama kategori'));return;}
+  if(getCategories().includes(v)){toast('⚠ '+(LANG==='zh'?'分類已存在':'Kategori sudah ada'));return;}
+  var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+  saved.push(v);localStorage.setItem('cats',JSON.stringify(saved));
+  document.getElementById('ncg').value='';
+  document.getElementById('acg').innerHTML=catgPanelHTML();
+  toast('✓ '+v);
+}
+async function delCatg(cat){
+  if(!confirm(LANG==='zh'?'刪除分類「'+cat+'」？此分類的商品將變為無分類。':'Hapus kategori "'+cat+'"? Barang akan jadi tanpa kategori.'))return;
+  try{
+    var affected=DATA.items.filter(function(i){return i.category===cat;});
+    for(var ki=0;ki<affected.length;ki++){
+      await sb.from('items').update({category:null}).eq('id',affected[ki].id);
+      affected[ki].category=null;
+    }
+    var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+    localStorage.setItem('cats',JSON.stringify(saved.filter(function(c){return c!==cat;})));
+    document.getElementById('acg').innerHTML=catgPanelHTML();
+    toast(t('delOk'));
+  }catch(e){toast('⚠ '+e.message);}
+}
+async function renameCatg(cat){
+  var newName=prompt(LANG==='zh'?'重命名「'+cat+'」為：':'Nama baru untuk "'+cat+'":',cat);
+  if(!newName||newName.trim()===cat)return;
+  newName=newName.trim();if(!newName)return;
+  try{
+    var affected=DATA.items.filter(function(i){return i.category===cat;});
+    for(var ki=0;ki<affected.length;ki++){
+      await sb.from('items').update({category:newName}).eq('id',affected[ki].id);
+      affected[ki].category=newName;
+    }
+    var saved=JSON.parse(localStorage.getItem('cats')||'[]');
+    var idx=saved.indexOf(cat);if(idx>=0)saved[idx]=newName;
+    localStorage.setItem('cats',JSON.stringify(saved));
+    document.getElementById('acg').innerHTML=catgPanelHTML();
+    toast(t('saveOk'));
+  }catch(e){toast('⚠ '+e.message);}
+}
+function onCatgFormSel(){
+  var sel=document.getElementById('fcg');
+  var inp=document.getElementById('fcg-new');
+  if(!sel||!inp)return;
+  if(sel.value==='__new__'){inp.style.display='block';inp.focus();}
+  else{inp.style.display='none';inp.value='';}
 }
 function showSetPin(id){
   var p=DATA.people.find(function(x){return x.id===id;});if(!p)return;
@@ -953,6 +1054,14 @@ function itemFormHTML(item){
       '<div id="fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
     '</div>'+
     '<div class="ig"><label>'+t('supUrl')+'</label><input id="fsu" type="url" placeholder="https://..." value="'+(item&&item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
+    '<div class="ig"><label>🏷️ '+(LANG==='zh'?'分類':'Kategori')+'</label>'+
+    '<select id="fcg" onchange="onCatgFormSel()">'+
+    '<option value="">'+(LANG==='zh'?'── 無分類 ──':'── Tanpa Kategori ──')+'</option>'+
+    getCategories().map(function(c){return'<option value="'+esc(c)+'"'+(item&&item.category===c?' selected':'')+'>'+esc(c)+'</option>';}).join('')+
+    '<option value="__new__">✏️ '+(LANG==='zh'?'新增分類...':'Tambah Kategori...')+'</option>'+
+    '</select>'+
+    '<input id="fcg-new" type="text" placeholder="'+(LANG==='zh'?'新分類名稱...':'Nama kategori baru...')+'" style="display:none;margin-top:.4rem">'+
+    '</div>'+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
 function showAddItem(){EDIT_ITEM=null;F_PHOTO='';showModal('➕ '+t('addItem'),itemFormHTML(null));}
@@ -973,7 +1082,15 @@ async function saveItem(){
   var surl=(document.getElementById('fsu').value||'').trim();
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
   F_PHOTO='';
-  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img};
+  var selCg=document.getElementById('fcg');
+  var catgVal='';
+  if(selCg){
+    if(selCg.value==='__new__'){
+      catgVal=((document.getElementById('fcg-new')||{}).value||'').trim();
+      if(catgVal){var sv=JSON.parse(localStorage.getItem('cats')||'[]');if(!sv.includes(catgVal)){sv.push(catgVal);localStorage.setItem('cats',JSON.stringify(sv));}}
+    }else{catgVal=selCg.value;}
+  }
+  var d={name:name,qty:qty,unit:unit,critical_qty:min,supplier_url:surl||null,image_url:img,category:catgVal||null};
   try{
     if(EDIT_ITEM){var {error}=await sb.from('items').update(d).eq('id',EDIT_ITEM.id);if(error)throw error;}
     else{var {error}=await sb.from('items').insert(d);if(error)throw error;}
