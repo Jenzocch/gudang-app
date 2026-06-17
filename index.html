@@ -159,10 +159,10 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .val-bar{background:linear-gradient(135deg,var(--ok),#059669);color:#fff;padding:.9rem 1rem;margin:.7rem;border-radius:10px}
 .val-bar-lbl{font-size:.78rem;opacity:.85;margin-bottom:.2rem}
 .val-bar-val{font-size:1.7rem;font-weight:700}
-.low-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:center;justify-content:center;padding:1rem}
+.low-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center;padding:1rem}
 .low-ov.open{display:flex}
-.low-box{background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:380px;border-top:6px solid var(--danger)}
-.low-title{color:var(--danger);font-weight:700;font-size:1.1rem;margin-bottom:.5rem}
+.low-box{background:#fff;border-radius:20px;padding:2rem;width:100%;max-width:420px;border-top:8px solid var(--danger);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.low-title{color:var(--danger);font-weight:800;font-size:1.3rem;margin-bottom:1rem;line-height:1.3}
 .amb-row{display:flex;align-items:center;justify-content:space-between;padding:.55rem .9rem;border-bottom:1px solid #F3F4F6;gap:.6rem}
 .amb-row.amb-empty{opacity:.35}
 .amb-info{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0}
@@ -220,6 +220,8 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
     </div>
   </div>
 </div>
+
+<input type="text" id="qr-scan-input" style="position:fixed;left:-9999px;width:1px;height:1px" placeholder="QR" onchange="onQrScan(this.value)" onkeypress="if(event.key==='Enter'){onQrScan(this.value);this.value='';event.preventDefault();return false}">
 
 <script>
 // ══════════════════════════════════
@@ -445,7 +447,43 @@ window.addEventListener('DOMContentLoaded',function(){
   }else{
     clearSessions();renderLoginScreen();
   }
+  setTimeout(keepQrFocused,300);
 });
+function keepQrFocused(){
+  var qr=document.getElementById('qr-scan-input');
+  if(qr)qr.focus();
+  setTimeout(keepQrFocused,800);
+}
+function onQrScan(val){
+  var qr=document.getElementById('qr-scan-input');
+  if(!val||val.length<5){if(qr)qr.value='';return;}
+  var m=val.match(/gudang:(\d+):/);
+  if(!m){if(qr)qr.value='';return;}
+  var id=Number(m[1]);
+  var item=DATA.items.find(function(i){return i.id===id;});
+  if(!item){toast('⚠ '+(LANG==='zh'?'商品未找到':'Barang tidak ditemukan'));if(qr)qr.value='';return;}
+  var cur=document.querySelector('.sec.active');
+  var cur_id=cur?cur.id:'';
+  if(cur_id==='admin'||document.getElementById('stk-'+id)){
+    onStkQrScan(id);
+  }else if(cur_id==='ambil'){
+    onAmbilQrScan(id);
+  }else{
+    toast('⚠ '+(LANG==='zh'?'請切換至取貨或盤點頁面':'Ke halaman ambil atau opname'));
+  }
+  if(qr)qr.value='';
+}
+function onStkQrScan(id){
+  var row=document.getElementById('stk-'+id);
+  if(row){
+    var inp=document.querySelector('#sq-'+id);
+    if(inp){inp.focus();inp.select();toast('🔢 '+(LANG==='zh'?'聚焦於':'Fokus pada')+': '+DATA.items.find(function(i){return i.id===id;}).name);}
+  }
+}
+function onAmbilQrScan(id){
+  cAdj(id,1);
+  toast('✓ +'+(LANG==='zh'?'件':'1')+': '+DATA.items.find(function(i){return i.id===id;}).name);
+}
 
 function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+(s==='ok'?' ok':s==='err'?' err':'');}
 
@@ -605,6 +643,7 @@ function renderAmbil(){
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
     '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(255,255,255,.25);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer">☰</button></div>'+
     '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0">'+
+    '<div style="background:#DCE7FF;border-top:1px solid rgba(255,255,255,.3);padding:.3rem .7rem;margin-top:.3rem;font-size:.75rem;color:#1E40AF;text-align:center;font-weight:600">📱 '+(LANG==='zh'?'掃碼槍可直接掃QR快速加入':'Scanner untuk cepat tambah')+'</div>'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
     '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
@@ -1088,7 +1127,8 @@ function renderStocktake(catFilter){
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
     '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</span>'+
     '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+(LANG==='zh'?'返回列表':'Kembali')+'</button>'+
-    '</div>';
+    '</div>'+
+    '<div style="background:#ECFDF5;border:1px solid #86EFAC;border-radius:8px;padding:.5rem .7rem;margin-bottom:.5rem;font-size:.82rem;color:#166534;text-align:center"><span style="font-weight:700">🔍 '+(LANG==='zh'?'提示：掃碼槍可掃QR碼快速定位商品':'Gunakan scanner untuk cepat')+'</span></div>';
   if(cats.length){
     html+='<div style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.15rem">'+
       '<button class="catg-chip'+(STK_CATG===''?' act':'')+'" onclick="renderStocktake(\'\')">'+t('allCatg')+'</button>'+
@@ -1383,12 +1423,17 @@ function checkLowStock(){
 }
 function showLow(item,need){
   LOW_ITEM=item;
-  document.getElementById('low-title').textContent=t('lowTitle');
-  document.getElementById('low-body').innerHTML=
-    '<strong>'+esc(item.name)+'</strong><br>'+
-    t('lowMsg',{q:item.qty,u:item.unit,n:need})+
-    (item.supplier_url?'<br><a href="'+esc(item.supplier_url)+'" target="_blank" style="color:var(--p);font-size:.82rem">'+esc(item.supplier_url)+'</a>':'');
+  var msg='<div style="font-size:1.1rem;font-weight:700;color:var(--dark);margin-bottom:.8rem">📦 '+esc(item.name)+'</div>'+
+    '<div style="background:#FEF2F2;border-left:4px solid var(--danger);padding:1rem;border-radius:8px;margin-bottom:1rem;font-size:.95rem;line-height:1.6">'+
+      '<div><strong style="color:var(--danger)">目前庫存</strong>: '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div style="margin-top:.4rem"><strong style="color:var(--danger)">最低庫存</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
+      (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">需要補充</strong>: 至少 '+need+' '+esc(item.unit)+'</div>':'')+
+    '</div>'+
+    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">採購連結</strong>:<br><a href="'+esc(item.supplier_url)+'" target="_blank" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
+  document.getElementById('low-title').innerHTML='⚠️ '+t('lowTitle');
+  document.getElementById('low-body').innerHTML=msg;
   var lb=document.getElementById('low-link-btn');
+  lb.textContent=(LANG==='zh'?'🔗 前往採購':'🔗 Beli Sekarang');
   lb.style.display=item.supplier_url?'':'none';
   document.getElementById('low-ov').classList.add('open');
 }
