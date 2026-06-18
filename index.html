@@ -15,12 +15,15 @@ function loadScript(src,cb,errCb){var s=document.createElement('script');s.src=s
 var _sbReady=false,_sbErr=false,_sbCbs=[];
 function initSupabase(ok,fail){
   if(_sbReady){ok();return;}
-  if(_sbErr){if(fail)fail(new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat Supabase':'無法載入 Supabase'));return;}
+  if(_sbErr){if(fail)fail(new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal sambung, coba lagi':'連線失敗，請重試'));return;}
   _sbCbs.push({ok:ok,fail:fail||function(){}});
   if(_sbCbs.length>1)return;
+  var _tout=setTimeout(function(){
+    if(!_sbReady){_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Koneksi timeout (10s)':'連線逾時（10秒）');_sbCbs.forEach(function(x){x.fail(e);});_sbCbs=[];}
+  },10000);
   loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-    function(){_sbReady=true;if(typeof sb==='undefined'||!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);_sbCbs.forEach(function(x){x.ok();});_sbCbs=[];},
-    function(){_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat library, periksa jaringan':'無法載入函式庫，請檢查網路');_sbCbs.forEach(function(x){x.fail(e);});_sbCbs=[];}
+    function(){clearTimeout(_tout);_sbReady=true;if(typeof sb==='undefined'||!sb)sb=supabase.createClient(SUPA_URL,SUPA_KEY);_sbCbs.forEach(function(x){x.ok();});_sbCbs=[];},
+    function(){clearTimeout(_tout);_sbErr=true;var e=new Error(typeof LANG!=='undefined'&&LANG==='id'?'Gagal muat library, periksa jaringan':'無法載入函式庫，請檢查網路');_sbCbs.forEach(function(x){x.fail(e);});_sbCbs=[];}
   );
 }
 </script>
@@ -307,14 +310,24 @@ function renderLoginScreen(){
         return k===''?'<div></div>':'<button class="pk" onclick="lpk(\''+k+'\')">'+k+'</button>';
       }).join('')+
     '</div></div>'+
-    '<button class="btn btn-s" style="margin-top:1.8rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
+    '<div id="ls-status" style="min-height:1.4rem;margin-top:.5rem;text-align:center"><span style="font-size:.75rem;color:#94A3B8">'+(LANG==='id'?'Memuat data...':'載入資料中...')+'</span></div>'+
+    '<button class="btn btn-s" style="margin-top:1rem" onclick="adminLogin()">🔐 '+(LANG==='zh'?'管理員登入':'Login Admin')+'</button>'+
     '</div>';
+  try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}
   renderLoginPeopleList();
+  var lsStatus=document.getElementById('ls-status');
   initSupabase(function(){
     sb.from('people').select('id,name,pin').order('name').then(function(res){
-      if(res.data&&res.data.length){DATA.people=res.data;renderLoginPeopleList();}
-    });
-  },function(){});
+      if(res.data&&res.data.length){
+        DATA.people=res.data;
+        try{localStorage.setItem('cached_people',JSON.stringify(res.data));}catch(e){}
+        renderLoginPeopleList();
+      }
+      if(lsStatus)lsStatus.innerHTML='';
+    }).catch(function(){if(lsStatus)lsStatus.innerHTML='<span style="color:#F59E0B;font-size:.78rem">⚠ '+(LANG==='id'?'Data mungkin tidak terbaru':'資料可能不是最新')+'</span>';});
+  },function(e){
+    if(lsStatus)lsStatus.innerHTML='<div style="color:#DC2626;font-size:.8rem;margin-top:.5rem">⚠ '+(LANG==='id'?'Offline':'離線')+'<button class="btn btn-s" style="margin-left:.5rem;padding:.2rem .6rem;font-size:.78rem" onclick="_sbErr=false;_sbReady=false;renderLoginScreen()">'+(LANG==='id'?'Coba lagi':'重試')+'</button></div>';
+  });
 }
 function renderLoginPeopleList(){
   var colors=['#FEE2E2','#FEF3C7','#DCFCE7','#DBEAFE','#EDE9FE','#FCE7F3','#ECFDF5','#F0FDFA'];
@@ -461,7 +474,7 @@ function autoLogin(type,data){
   initSupabase(function(){
     loadAll(type==='admin'?function(){goTab('home',document.querySelector('.tb'));}:undefined);
   },function(e){
-    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'<br><button class="btn btn-s" style="margin-top:.5rem" onclick="clearSessions();location.reload()">↩ '+(LANG==='zh'?'重新登入':'Login ulang')+'</button></div>';
+    document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem;text-align:center"><div style="font-weight:700;margin-bottom:.4rem">⚠ '+(LANG==='id'?'Koneksi bermasalah':'連線有問題')+'</div><div style="font-size:.82rem;color:#6B7280;margin-bottom:.8rem">'+e.message+'</div><button class="btn btn-p" style="margin-bottom:.5rem;width:100%" onclick="_sbErr=false;_sbReady=false;autoLogin(\''+type+'\','+JSON.stringify(user)+')">🔄 '+(LANG==='id'?'Coba lagi':'重試')+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+(LANG==='id'?'Login ulang':'重新登入')+'</button></div>';
   });
 }
 function clearSessions(){localStorage.removeItem('admin_sess');localStorage.removeItem('staff_sess');}
@@ -588,6 +601,7 @@ async function loadAll(afterCb){
     if(i.error)throw i.error;
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
     DATA.transactions=tx.data||[];
+    try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     setDot('ok');
     renderAll();setTimeout(checkLowStock,600);
     if(afterCb)afterCb();
