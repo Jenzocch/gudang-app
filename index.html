@@ -498,7 +498,13 @@ window.addEventListener('DOMContentLoaded',function(){
 var QR_STREAM=null,QR_DETECT_INT=null,QR_CAM_OPEN=false,QR_CAM_MODE='';
 var LOGIN_SEL='';
 function keepQrFocused(){
-  if(!QR_CAM_OPEN){var qr=document.getElementById('qr-scan-input');if(qr)qr.focus();}
+  if(!QR_CAM_OPEN){
+    var a=document.activeElement;
+    var t=a?a.tagName.toLowerCase():'';
+    if(t!=='input'&&t!=='textarea'&&t!=='select'){
+      var qr=document.getElementById('qr-scan-input');if(qr)qr.focus();
+    }
+  }
   setTimeout(keepQrFocused,800);
 }
 function openQrCamera(mode){
