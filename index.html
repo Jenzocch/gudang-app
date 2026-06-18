@@ -1431,7 +1431,7 @@ function renderStocktake(catFilter){
           (i.category?'<div style="font-size:.7rem;color:#64748B">🏷️ '+esc(i.category)+'</div>':'')+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
-          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">'+(LANG==='zh'?'原':'Sbl')+':'+i.qty+'</span>'+
+          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">'+(LANG==='zh'?'原':'Sebelum')+':'+i.qty+'</span>'+
           '<input type="number" class="stk-qty" id="sq-'+i.id+'" value="'+i.qty+'" min="0" oninput="onStkChange('+i.id+',this)">'+
           '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
         '</div>'+
