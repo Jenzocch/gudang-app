@@ -282,7 +282,19 @@ var T = {
     out:'Keluar',in:'Masuk',purchases:'Pembelian',catg:'Tag',catgMgmt:'Kelola Tag',addCatg:'Tambah Tag',noCatg:'Tanpa Tag',allCatg:'Semua'}
 };
 function t(k,v){var s=(T[LANG]&&T[LANG][k])||k;if(v)Object.keys(v).forEach(function(x){s=s.replace('{'+x+'}',v[x])});return s;}
-function toggleLang(){LANG=LANG==='zh'?'id':'zh';localStorage.setItem('lang',LANG);updateLangUI();if(DATA.items.length)renderAll();else if(!CURRENT_USER)renderLoginScreen();}
+function toggleLang(){
+  var curTab=document.querySelector('.tb.active');
+  LANG=LANG==='zh'?'id':'zh';
+  localStorage.setItem('lang',LANG);
+  updateLangUI();
+  if(DATA.items.length){
+    renderAll();
+    if(curTab){
+      var tabIdx=Array.from(document.querySelectorAll('.tb')).indexOf(curTab);
+      if(tabIdx>=0&&document.querySelectorAll('.tb')[tabIdx])goTab(document.querySelectorAll('.sec')[tabIdx].id,document.querySelectorAll('.tb')[tabIdx]);
+    }
+  }else if(!CURRENT_USER)renderLoginScreen();
+}
 function updateLangUI(){
   var lb=document.getElementById('lang-btn');if(lb)lb.textContent=LANG==='zh'?'ID':'中文';
   var lt=document.getElementById('lt');if(lt)lt.textContent=t('conn');
@@ -1419,7 +1431,7 @@ function renderStocktake(catFilter){
           (i.category?'<div style="font-size:.7rem;color:#64748B">🏷️ '+esc(i.category)+'</div>':'')+
         '</div>'+
         '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
-          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">原:'+i.qty+'</span>'+
+          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+i.id+'">'+(LANG==='zh'?'原':'Sbl')+':'+i.qty+'</span>'+
           '<input type="number" class="stk-qty" id="sq-'+i.id+'" value="'+i.qty+'" min="0" oninput="onStkChange('+i.id+',this)">'+
           '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
         '</div>'+
