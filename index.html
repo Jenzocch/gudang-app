@@ -1103,7 +1103,7 @@ function renderAdminFull(){
     '<div id="ait" class="tc active">'+
       '<div style="padding:.7rem;display:flex;gap:.5rem">'+
         '<button class="btn btn-p" style="flex:1" onclick="showAddItem()">➕ '+t('addItem')+'</button>'+
-        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</button>'+
+        '<button class="btn btn-warn" style="flex:1" onclick="renderStocktake(\'\')">🔢 '+(LANG==='zh'?'庫存盤點':'Stock Check')+'</button>'+
       '</div>'+
       '<div id="ait-content"><div class="ai-list">'+aiListHTML()+'</div></div>'+
     '</div>'+
@@ -1402,7 +1402,7 @@ function renderStocktake(catFilter){
   var items=DATA.items.filter(function(i){return!STK_CATG||(i.tags||[]).includes(STK_CATG);});
   var html='<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
-    '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'快速盤點':'Stok Cepat')+'</span>'+
+    '<span style="font-weight:700;font-size:.9rem">🔢 '+(LANG==='zh'?'庫存盤點':'Stock Check')+'</span>'+
     '<div style="display:flex;gap:.4rem;align-items:center">'+
     '<span style="color:var(--p);font-size:1.2rem;font-weight:900;cursor:default" title="掃碼槍直接掃">▌▌▌</span>'+
     '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+(LANG==='zh'?'相機':'Cam')+'</button>'+
