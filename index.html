@@ -1052,7 +1052,7 @@ function renderRiwayat(){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
       '<div class="txl"><div class="txp">'+esc(tx.person_name)+'</div><div class="txd">'+esc(tx.item_name)+'</div></div>'+
-      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div></div>'+
+      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button onclick="showEditTx('+tx.id+')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#0D9488;padding:.2rem .4rem">✏️</button>':'')+'</div>'+
     '</div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';
   document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div>'+h;
@@ -1598,6 +1598,38 @@ async function delItem(id){
   if(!confirm(LANG==='zh'?'確定刪除「'+item.name+'」?':'Hapus "'+item.name+'"?'))return;
   try{var {error}=await sb.from('items').delete().eq('id',id);if(error)throw error;toast(t('delOk'));await loadAll();}
   catch(e){toast('⚠ '+e.message);}
+}
+function showEditTx(id){
+  var tx=DATA.transactions.find(function(t){return t.id===id;});
+  if(!tx)return;
+  var types=[{val:'ambil',lbl:LANG==='zh'?'提取':'Ambil'},{val:'masuk',lbl:LANG==='zh'?'入庫':'Masuk'},{val:'opname',lbl:LANG==='zh'?'盤點':'Opname'}];
+  showModal('✏️ '+(LANG==='zh'?'編輯交易':'Edit Transaksi'),
+    '<div class="ig"><label>'+(LANG==='zh'?'員工名稱':'Nama Karyawan')+'</label><input id="etx-pn" type="text" value="'+esc(tx.person_name)+'"></div>'+
+    '<div class="ig"><label>'+(LANG==='zh'?'商品名稱':'Nama Barang')+'</label><input id="etx-in" type="text" value="'+esc(tx.item_name)+'"></div>'+
+    '<div class="fr">'+
+      '<div class="ig"><label>'+(LANG==='zh'?'數量':'Jumlah')+'</label><input id="etx-q" type="number" value="'+tx.qty+'" min="1"></div>'+
+      '<div class="ig"><label>'+(LANG==='zh'?'類型':'Tipe')+'</label><select id="etx-t">'+types.map(function(tp){return'<option value="'+tp.val+'"'+(tx.type===tp.val?' selected':'')+'>'+(LANG==='zh'?tp.lbl:tp.lbl)+'</option>';}).join('')+'</select></div>'+
+    '</div>'+
+    '<div style="color:#9CA3B8;font-size:.8rem;margin-bottom:.8rem;padding:.6rem;background:var(--light);border-radius:8px">'+(LANG==='zh'?'編輯時間：':'Waktu edit: ')+fmtDate(tx.created_at)+'</div>'+
+    '<button class="btn btn-p btn-full" onclick="saveTxEdit('+tx.id+')">✓ '+t('save')+'</button>'
+  );
+}
+async function saveTxEdit(id){
+  var tx=DATA.transactions.find(function(t){return t.id===id;});
+  if(!tx)return;
+  var newPn=(document.getElementById('etx-pn').value||'').trim();
+  var newIn=(document.getElementById('etx-in').value||'').trim();
+  var newQ=parseInt(document.getElementById('etx-q').value)||1;
+  var newT=(document.getElementById('etx-t').value||'ambil').trim();
+  if(!newPn||!newIn){toast('⚠ '+(LANG==='zh'?'請填入所有欄位':'Isi semua field'));return;}
+  var oldVals={person_name:tx.person_name,item_name:tx.item_name,qty:tx.qty,type:tx.type};
+  var newVals={person_name:newPn,item_name:newIn,qty:newQ,type:newT};
+  try{
+    await sb.from('transactions').update({person_name:newPn,item_name:newIn,qty:newQ,type:newT}).eq('id',id);
+    var editEntry={transaction_id:id,edited_by:CURRENT_USER?CURRENT_USER.name:'Admin',old_values:oldVals,new_values:newVals,edited_at:new Date().toISOString()};
+    try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
+    toast(t('saveOk'));closeModal();await loadAll();
+  }catch(e){toast('⚠ '+e.message);}
 }
 function printQR(id){
   var item=DATA.items.find(function(i){return i.id===id;});
