@@ -396,7 +396,7 @@ function lpk(k){
       if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
       document.getElementById('tabs').style.display='flex';
       document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
-      initSupabase(function(){loadAll();},function(e){document.getElementById('mc').innerHTML='<div style="padding:1rem;text-align:center" class="ab ab-d"><div style="margin-bottom:.8rem">⚠ '+e.message+'</div><button class="btn btn-p" style="width:100%;margin-bottom:.3rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];initSupabase(function(){loadAll();},function(e){document.getElementById(\'mc\').innerHTML=\'<div style=\\\"color:#DC2626\\\">⚠ \'+e.message+\'</div>\';})">🔄 '+'Coba lagi'+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+'Login ulang'+'</button></div>';});
+      initSupabase(function(){loadAll(function(){goTab('ambil',document.querySelectorAll('.tb')[1]);setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);});},function(e){document.getElementById('mc').innerHTML='<div style="padding:1rem;text-align:center" class="ab ab-d"><div style="margin-bottom:.8rem">⚠ '+e.message+'</div><button class="btn btn-p" style="width:100%;margin-bottom:.3rem" onclick="_sbErr=false;_sbReady=false;_sbCbs=[];initSupabase(function(){loadAll();},function(e){document.getElementById(\'mc\').innerHTML=\'<div style=\\\"color:#DC2626\\\">⚠ \'+e.message+\'</div>\';})">🔄 '+'Coba lagi'+'</button><br><button class="btn btn-s" style="margin-top:.3rem" onclick="clearSessions();location.reload()">↩ '+'Login ulang'+'</button></div>';});
     }else{
       var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
       STAFF_PIN_ENT='';
@@ -781,17 +781,28 @@ function renderAmbil(){
     '<button class="btn btn-d btn-full" id="amb-btn" onclick="doAmbilCart()">'+t('doTake')+'</button>'+
     '</div>';
 }
+function matchesSearch(i,q){
+  if(!q)return true;
+  if(i.name.toLowerCase().includes(q))return true;
+  if((i.tags||[]).some(function(tg){return tg.toLowerCase().includes(q);}))return true;
+  if(i.description&&i.description.toLowerCase().includes(q))return true;
+  return false;
+}
 function ambRows(q){
-  var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
+  var items=DATA.items.filter(function(i){return matchesSearch(i,q)&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   return items.map(function(i){
     var empty=i.qty<=0;
     var cqty=CART[i.id]||0;
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
+    var tagHtml=(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="font-size:.7rem">🏷️ '+esc(tg)+'</span>';}).join('');
     return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
-      '<div class="amb-name">'+esc(i.name)+'</div>'+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+'</div></div>'+
+      '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
+      (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
+      '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'#6B7280')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
+      '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdj(\''+esc(i.id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
       '<span id="aq-'+esc(i.id)+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
@@ -807,7 +818,7 @@ function toggleAmbView(){
   fltAmb();
 }
 function ambGrid(q){
-  var items=DATA.items.filter(function(i){return(!q||i.name.toLowerCase().includes(q))&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
+  var items=DATA.items.filter(function(i){return matchesSearch(i,q)&&(!CATG_FILTER||(i.tags||[]).includes(CATG_FILTER));});
   if(!items.length)return'<div style="text-align:center;padding:2rem;color:#9CA3AF;font-size:.85rem">'+('Tidak ada barang')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;padding:.6rem">'+
     items.map(function(i){
