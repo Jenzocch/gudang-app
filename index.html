@@ -437,6 +437,7 @@ var CART_M={};
 var CATG_FILTER='';
 var STOCKTAKE={};
 var STK_CATG='';
+var NOTIFIED_LOW_ITEMS={};
 var CATG_MODAL_CAT=null;
 var FORM_TAGS=[];
 
@@ -619,17 +620,17 @@ function renderAll(){
 function renderHome(){
   var h='';
 
-  // 一般員工：簡單歡迎
-  if(!IS_ADMIN){
-    h+='<div class="card" style="margin:1rem .7rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff">'+
-      '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+('Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
-      '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+('Klik "Ambil" di bawah untuk memulai')+'</p>'+
-    '</div>';
-    if(CURRENT_USER.isGuest){
-      h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
-    }
-  }else{
-    // 管理員：完整首頁
+  // 歡迎卡片
+  h+='<div class="card" style="margin:1rem .7rem;background:linear-gradient(135deg,var(--p),var(--s));color:#fff">'+
+    '<h2 style="margin:0 0 .5rem;font-size:1.1rem">👋 '+('Selamat datang')+', '+esc(CURRENT_USER.name)+'</h2>'+
+    '<p style="margin:.3rem 0;font-size:.9rem;opacity:.9">'+('Cek stok barang di bawah atau klik "Ambil" untuk mulai')+'</p>'+
+  '</div>';
+  if(CURRENT_USER&&CURRENT_USER.isGuest){
+    h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
+  }
+
+  // 所有用户：库存状态
+  {
     var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
     var sorted=DATA.items.slice().sort(function(a,b){
       var ra=a.critical_qty>0?a.qty/a.critical_qty:99;
@@ -695,14 +696,55 @@ function renderHome(){
     });
     h+='</div>';
 
-    h+='<div class="st">📋 '+t('recentReq')+'（'+('Tertunda')+'）</div>';
-    var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
-    if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
-    else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
+    if(IS_ADMIN){
+      h+='<div class="st">📋 '+t('recentReq')+'（'+('Tertunda')+'）</div>';
+      var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
+      if(reqs.length)reqs.forEach(function(r){h+=reqHTML(r)});
+      else h+='<div style="text-align:center;color:#9CA3AF;padding:1rem;font-size:.85rem">'+t('noReq')+'</div>';
+    }
   }
 
   document.getElementById('home').innerHTML=h;
+
+  // 庫存警告通知
+  var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
+  lowItems.forEach(function(i){
+    if(!NOTIFIED_LOW_ITEMS[i.id]){
+      NOTIFIED_LOW_ITEMS[i.id]=true;
+      playNotificationSound();
+      showBrowserNotification('⚠ 庫存警告',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
+    }
+  });
 }
+
+function playNotificationSound(){
+  try{
+    var audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    var oscillator=audioContext.createOscillator();
+    var gainNode=audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value=800;
+    oscillator.type='sine';
+    gainNode.gain.setValueAtTime(0.3,audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01,audioContext.currentTime+0.5);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime+0.5);
+  }catch(e){}
+}
+
+function showBrowserNotification(title,message){
+  if('Notification' in window&&Notification.permission==='granted'){
+    new Notification(title,{body:message,icon:'🛒'});
+  }else if('Notification' in window&&Notification.permission!=='denied'){
+    Notification.requestPermission().then(function(permission){
+      if(permission==='granted'){
+        new Notification(title,{body:message,icon:'🛒'});
+      }
+    });
+  }
+}
+
 function copyBuyList(){
   var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
   var txt=('📋 Daftar Beli\n')+new Date().toLocaleDateString()+'\n\n'+
