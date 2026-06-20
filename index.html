@@ -233,6 +233,8 @@ var SUPA_URL = 'https://klswfuzuhlowzrbncreu.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmdXp1aGxvd3pyYm5jcmV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjM5NTEsImV4cCI6MjA5NzA5OTk1MX0.yfqyBjGFwMsryWZszo-nONINYG8QdcIAUGL97TEWgDk';
 var ADMIN_PIN = '123456'; // ← 修改管理員 PIN
 var GUEST_PIN = '0000';  // ← 新人臨時 PIN（口頭告知）
+var TG_TOKEN = '8781911171:AAEaU8niWNiGjemUrVheBUy5c89f5MsAxeg';
+var TG_IDS = ['5003966994','6860586246','8388678925','5097723576'];
 // ══════════════════════════════════
 
 var LANG = 'id';  // 僅保留印尼語
@@ -712,9 +714,10 @@ function renderHome(){
     if(!NOTIFIED_LOW_ITEMS[i.id]){
       NOTIFIED_LOW_ITEMS[i.id]=true;
       playNotificationSound();
-      showBrowserNotification('⚠ 庫存警告',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
+      showBrowserNotification('⚠ Stok Rendah',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
     }
   });
+  checkAndNotifyLow(DATA.items);
 }
 
 function playNotificationSound(){
@@ -743,6 +746,32 @@ function showBrowserNotification(title,message){
       }
     });
   }
+}
+
+function sendTelegram(msg){
+  TG_IDS.forEach(function(cid){
+    fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:cid,text:msg,parse_mode:'HTML'})
+    }).catch(function(){});
+  });
+}
+
+var TG_NOTIFIED={};
+function checkAndNotifyLow(items){
+  items.forEach(function(i){
+    if(i.qty<=i.critical_qty&&i.critical_qty>0&&!TG_NOTIFIED[i.id]){
+      TG_NOTIFIED[i.id]=true;
+      var emoji=i.qty<=0?'❌':'🟠';
+      var msg=emoji+' <b>Stok '+i.name+' rendah!</b>\n'+
+        '📦 Sisa: <b>'+i.qty+' '+i.unit+'</b> (min: '+i.critical_qty+')\n'+
+        (i.supplier_url?'🔗 '+i.supplier_url+'\n':'')+
+        '🕐 '+new Date().toLocaleString('id-ID');
+      sendTelegram(msg);
+    }
+    if(i.qty>i.critical_qty){delete TG_NOTIFIED[i.id];}
+  });
 }
 
 function copyBuyList(){
@@ -889,8 +918,19 @@ async function doAmbilCart(){
   try{
     for(var ki=0;ki<keys.length;ki++){
       var id=keys[ki];var item=DATA.items.find(function(i){return i.id==id;});var qty=CART[id];
-      await sb.from('items').update({qty:item.qty-qty}).eq('id',item.id);
+      var newQty=item.qty-qty;
+      await sb.from('items').update({qty:newQty}).eq('id',item.id);
       await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty});
+      // Kirim notifikasi Telegram jika stok turun ke bawah minimum
+      if(newQty<=item.critical_qty&&item.critical_qty>0&&!TG_NOTIFIED[item.id]){
+        TG_NOTIFIED[item.id]=true;
+        var emoji=newQty<=0?'❌':'🟠';
+        sendTelegram(emoji+' <b>Stok rendah: '+item.name+'</b>\n'+
+          '👤 Diambil oleh: <b>'+pname+'</b> ('+qty+' '+item.unit+')\n'+
+          '📦 Sisa stok: <b>'+newQty+' '+item.unit+'</b> (min: '+item.critical_qty+')\n'+
+          (item.supplier_url?'🔗 '+item.supplier_url+'\n':'')+
+          '🕐 '+new Date().toLocaleString('id-ID'));
+      }
     }
     showTakeConfirm(keys);
   }catch(e){toast('⚠ '+e.message);}
