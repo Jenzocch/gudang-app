@@ -348,7 +348,7 @@ function renderLoginPeopleList(){
   var colors=['#FEE2E2','#FEF3C7','#DCFCE7','#DBEAFE','#EDE9FE','#FCE7F3','#ECFDF5','#F0FDFA'];
   var html=DATA.people.map(function(p,i){
     var bg=colors[i%colors.length];
-    return '<button class="login-person-btn" style="background:'+bg+';border:1.5px solid rgba(0,0,0,.08)" onclick="selectLoginPerson('+p.id+',\''+esc(p.name)+'\')">'+
+    return '<button class="login-person-btn" style="background:'+bg+';border:1.5px solid rgba(0,0,0,.08)" onclick="selectLoginPerson(\''+esc(p.id)+'\',\''+esc(p.name)+'\')">'+
       '<div style="font-weight:800;font-size:1.15rem;color:var(--dark);text-align:center;flex:1">'+esc(p.name)+'</div>'+
     '</button>';
   }).join('')+
@@ -791,9 +791,9 @@ function ambRows(q){
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+'</div>'+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+'</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
-      '<button class="qb" onclick="cAdj('+i.id+',-1)" '+(empty?'disabled':'')+'>−</button>'+
-      '<span id="aq-'+i.id+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
-      '<button class="qb" onclick="cAdj('+i.id+',1)" '+(empty?'disabled':'')+'>+</button>'+
+      '<button class="qb" onclick="cAdj(\''+esc(i.id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
+      '<span id="aq-'+esc(i.id)+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
+      '<button class="qb" onclick="cAdj(\''+esc(i.id)+'\',1)" '+(empty?'disabled':'')+'>+</button>'+
       '</div></div>';
   }).join('');
 }
@@ -813,7 +813,7 @@ function ambGrid(q){
       var cqty=CART[i.id]||0;
       var ph=i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;height:80px;object-fit:cover;border-radius:6px;display:block;cursor:zoom-in" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
         :'<div style="width:100%;height:80px;background:var(--light);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2rem">📦</div>';
-      return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj('+i.id+',1)">'+
+      return '<div style="background:#fff;border-radius:8px;border:2px solid '+(cqty>0?'var(--danger)':'var(--border)')+';padding:.4rem;'+(empty?'opacity:.4':'')+'" onclick="cAdj(\''+esc(i.id)+'\',1)">'+
         ph+
         '<div style="font-size:.8rem;font-weight:600;margin-top:.3rem;line-height:1.3;word-break:break-word;display:flex;align-items:center;justify-content:space-between">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;color:#0D9488;padding:0;flex-shrink:0;margin-left:.3rem" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+'</div>'+
         '<div style="font-size:.75rem;color:#6B7280">'+i.qty+' '+esc(i.unit)+'</div>'+
@@ -831,9 +831,9 @@ function cartRowsAmb(){
       '<div class="amb-stk">'+(LANG==='zh'?'庫存':'stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
-      '<button class="qb" onclick="cAdj('+item.id+',-1)">−</button>'+
+      '<button class="qb" onclick="cAdj(\''+esc(item.id)+'\',-1)">−</button>'+
       '<span class="qi" style="font-size:.9rem">'+CART[id]+'</span>'+
-      '<button class="qb" onclick="cAdj('+item.id+',1)">+</button>'+
+      '<button class="qb" onclick="cAdj(\''+esc(item.id)+'\',1)">+</button>'+
       '</div></div>';
   }).join('');
 }
@@ -925,9 +925,9 @@ function maskRows(q){
       '<div class="amb-stk">'+i.qty+' '+esc(i.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
-      '<button class="qb" onclick="cAdjM('+i.id+',-1)">−</button>'+
-      '<span id="mq-'+i.id+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
-      '<button class="qb" onclick="cAdjM('+i.id+',1)">+</button>'+
+      '<button class="qb" onclick="cAdjM(\''+esc(i.id)+'\',-1)">−</button>'+
+      '<span id="mq-'+esc(i.id)+'" class="qi" style="font-size:.9rem">'+(cqty||'')+'</span>'+
+      '<button class="qb" onclick="cAdjM(\''+esc(i.id)+'\',1)">+</button>'+
       '</div></div>';
   }).join('');
 }
@@ -943,9 +943,9 @@ function cartRowsMsk(){
       '<div class="amb-stk">'+(LANG==='zh'?'庫存':'stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
       '</div></div>'+
       '<div class="qc" style="width:106px;flex-shrink:0">'+
-      '<button class="qb" onclick="cAdjM('+item.id+',-1)">−</button>'+
+      '<button class="qb" onclick="cAdjM(\''+esc(item.id)+'\',-1)">−</button>'+
       '<span class="qi" style="font-size:.9rem">'+CART_M[id]+'</span>'+
-      '<button class="qb" onclick="cAdjM('+item.id+',1)">+</button>'+
+      '<button class="qb" onclick="cAdjM(\''+esc(item.id)+'\',1)">+</button>'+
       '</div></div>';
   }).join('');
 }
@@ -988,7 +988,7 @@ function iGrid(mode){
     var low=i.qty<=i.critical_qty;
     var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" onerror="this.style.display=\'none\'">'
       :'<div class="ic-ph-pl">📦</div>';
-    return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,'+i.id+',\''+mode+'\')">'+
+    return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,\''+esc(i.id)+'\',\''+mode+'\')">'+
       (low?'<div class="low-badge">低</div>':'')+ph+
       '<div class="ic-name">'+esc(i.name)+'</div>'+
       '<div class="ic-qty'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+'</div></div>';
@@ -996,7 +996,7 @@ function iGrid(mode){
 }
 function pGrid(mode){
   return DATA.people.map(function(p){
-    return '<div class="pc" onclick="selP(this,'+p.id+',\''+mode+'\')">'+
+    return '<div class="pc" onclick="selP(this,\''+esc(p.id)+'\',\''+mode+'\')">'+
       '<div class="av">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div><div class="pn">'+esc(p.name)+'</div></div>';
   }).join('');
 }
@@ -1039,8 +1039,8 @@ function reqHTML(r){
   var cls=r.status==='approved'?'b-a':r.status==='rejected'?'b-r':'b-p';
   var lbl=r.status==='approved'?t('approved'):r.status==='rejected'?t('rejected'):t('pending');
   var act=r.status==='pending'&&IS_ADMIN?'<div class="ra">'+
-    '<button class="btn btn-ok" onclick="updReq('+r.id+',\'approved\')">✓ '+t('approve')+'</button>'+
-    '<button class="btn btn-d" onclick="updReq('+r.id+',\'rejected\')">✗ '+t('reject')+'</button></div>':'';
+    '<button class="btn btn-ok" onclick="updReq(\''+esc(r.id)+'\',\'approved\')">✓ '+t('approve')+'</button>'+
+    '<button class="btn btn-d" onclick="updReq(\''+esc(r.id)+'\',\'rejected\')">✗ '+t('reject')+'</button></div>':'';
   return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span><span class="badge '+cls+'">'+lbl+'</span></div>'+
     '<div class="rd">'+fmtDate(r.created_at)+'</div>'+
     '<div class="rc">'+esc(r.items_requested)+(r.note?'<br><small style="color:#9CA3AF">'+esc(r.note)+'</small>':'')+'</div>'+act+'</div>';
@@ -1052,7 +1052,7 @@ function renderRiwayat(){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
       '<div class="txl"><div class="txp">'+esc(tx.person_name)+'</div><div class="txd">'+esc(tx.item_name)+'</div></div>'+
-      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button onclick="showEditTx('+tx.id+')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#0D9488;padding:.2rem .4rem">✏️</button>':'')+'</div>'+
+      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button onclick="showEditTx(\''+esc(tx.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#0D9488;padding:.2rem .4rem">✏️</button>':'')+'</div>'+
     '</div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';
   document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div>'+h;
@@ -1125,17 +1125,17 @@ function aiListHTML(){
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
-        '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag('+i.id+')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag('+i.id+')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
         '<div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">'+
-        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
-        (i.supplier_url?'<button onclick="editSupUrl('+i.id+')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>':'')+
+        (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+(LANG==='zh'?'採購連結':'Link Beli')+'</a>':'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+(LANG==='zh'?'新增採購連結':'Tambah link')+'</button>')+
+        (i.supplier_url?'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:0">✏️</button>':'')+
         (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+(LANG==='zh'?'存放位置':'Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;padding:.1rem .3rem;color:#0D9488" title="'+(LANG==='zh'?'存放位置':'Tempat Simpan')+'">📍</button>':'')+
         '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
-        '<button class="ib" title="QR" onclick="printQR('+i.id+')">🖨️</button>'+
-        '<button class="ib" onclick="showEdit('+i.id+')">✏️</button>'+
-        '<button class="ib" onclick="delItem('+i.id+')">🗑️</button>'+
+        '<button class="ib" title="QR" onclick="printQR(\''+esc(i.id)+'\')">🖨️</button>'+
+        '<button class="ib" onclick="showEdit(\''+esc(i.id)+'\')">✏️</button>'+
+        '<button class="ib" onclick="delItem(\''+esc(i.id)+'\')">🗑️</button>'+
       '</div></div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">-</div>';
 }
@@ -1145,8 +1145,8 @@ function peListHTML(){
       '<div class="ai-info"><div class="ai-name">'+esc(p.name)+'</div>'+
       '<div style="font-size:.73rem;color:#9CA3AF">PIN: '+(p.pin?'●●●●':'未設定')+'</div></div>'+
       '<div class="ai-actions">'+
-        '<button class="ib" title="設定PIN" onclick="showSetPin('+p.id+')">🔑</button>'+
-        '<button class="ib" onclick="delPerson('+p.id+')">🗑️</button>'+
+        '<button class="ib" title="設定PIN" onclick="showSetPin(\''+esc(p.id)+'\')">🔑</button>'+
+        '<button class="ib" onclick="delPerson(\''+esc(p.id)+'\')">🗑️</button>'+
       '</div></div>';
   }).join('');
 }
