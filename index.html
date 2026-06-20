@@ -456,7 +456,6 @@ function autoLogin(type,data){
 }
 function clearSessions(){localStorage.removeItem('admin_sess');localStorage.removeItem('staff_sess');}
 window.addEventListener('DOMContentLoaded',function(){
-  updateLangUI();
   var adminS=null,staffS=null;
   try{adminS=JSON.parse(localStorage.getItem('admin_sess')||'null');}catch(e){}
   try{staffS=JSON.parse(localStorage.getItem('staff_sess')||'null');}catch(e){}
