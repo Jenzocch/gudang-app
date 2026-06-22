@@ -422,7 +422,7 @@ function staffLogout(){
 }
 
 var sb;
-var DATA={items:[],people:[],requests:[],transactions:[]};
+var DATA={items:[],people:[],requests:[],transactions:[],batches:[]};
 var IS_ADMIN=false;
 var PIN_ENT='';
 var EDIT_ITEM=null;
@@ -583,14 +583,15 @@ async function loadAll(afterCb){
         (CURRENT_WAREHOUSE?sb.from('items').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('items').select('*')).order('name'),
         sb.from('people').select('*').order('name'),
         (CURRENT_WAREHOUSE?sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('requests').select('*')).order('created_at',{ascending:false}),
-        (CURRENT_WAREHOUSE?sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('transactions').select('*')).order('created_at',{ascending:false}).limit(200)
+        (CURRENT_WAREHOUSE?sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('transactions').select('*')).order('created_at',{ascending:false}).limit(200),
+        (CURRENT_WAREHOUSE?sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('item_batches').select('*')).order('expiry_date',{ascending:true})
       ]),
       tOut
     ]);
-    var i=results[0],p=results[1],r=results[2],tx=results[3];
+    var i=results[0],p=results[1],r=results[2],tx=results[3],bt=results[4];
     if(i.error)throw i.error;
     DATA.items=i.data||[];DATA.people=p.data||[];DATA.requests=r.data||[];
-    DATA.transactions=tx.data||[];
+    DATA.transactions=tx.data||[];DATA.batches=bt?bt.data||[]:[];
     try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     setDot('ok');
     renderAll();setTimeout(checkLowStock,600);
@@ -638,6 +639,16 @@ function renderHome(){
   '</div>';
   if(CURRENT_USER&&CURRENT_USER.isGuest){
     h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
+  }
+  // Expiry warnings
+  var now=new Date();var d30=new Date(now.getTime()+30*86400000);
+  var expWarn=DATA.batches.filter(function(b){return b.expiry_date&&b.qty_remaining>0&&new Date(b.expiry_date)<=d30;}).sort(function(a,b){return new Date(a.expiry_date)-new Date(b.expiry_date);});
+  if(expWarn.length){
+    h+='<div class="card" style="margin:.7rem;border-left:4px solid #D97706;padding:.8rem 1rem">'+
+      '<div style="font-weight:700;font-size:.88rem;color:#D97706;margin-bottom:.5rem">⏰ Kadaluarsa dalam 30 hari ('+expWarn.length+')</div>'+
+      expWarn.slice(0,8).map(function(b){var item=DATA.items.find(function(i){return i.id==b.item_id;});var isExp=new Date(b.expiry_date)<now;return'<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #FEF3C7;font-size:.82rem"><span>'+(item?esc(item.name):'?')+(b.lot_no?' · <span style="color:#64748B">Lot '+esc(b.lot_no)+'</span>':'')+'<br><span style="font-size:.7rem;color:#9CA3AF">Sisa: '+b.qty_remaining+'</span></span><span style="font-weight:700;color:'+(isExp?'#DC2626':'#D97706')+'">'+b.expiry_date+(isExp?' ❌':' ⏰')+'</span></div>';}).join('')+
+      (expWarn.length>8?'<div style="font-size:.75rem;color:#9CA3AF;margin-top:.3rem">+'+(expWarn.length-8)+' lainnya</div>':'')+
+    '</div>';
   }
 
   // 所有用户：库存状态
@@ -930,6 +941,10 @@ async function doAmbilCart(){
       var newQty=item.qty-qty;
       await sb.from('items').update({qty:newQty}).eq('id',item.id);
       await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      // FIFO: deduct from oldest batches (nearest expiry first)
+      var abat=DATA.batches.filter(function(b){return b.item_id==item.id&&b.qty_remaining>0;}).sort(function(a,b){if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);if(a.expiry_date)return -1;if(b.expiry_date)return 1;return new Date(a.created_at)-new Date(b.created_at);});
+      var remQ=qty;
+      for(var bi=0;bi<abat.length&&remQ>0;bi++){var bat=abat[bi];var ded=Math.min(bat.qty_remaining,remQ);var nr=bat.qty_remaining-ded;await sb.from('item_batches').update({qty_remaining:nr}).eq('id',bat.id);bat.qty_remaining=nr;remQ-=ded;}
       // Kirim notifikasi Telegram jika stok turun ke bawah minimum
       if(newQty<=item.critical_qty&&item.critical_qty>0&&!TG_NOTIFIED[item.id]){
         TG_NOTIFIED[item.id]=true;
@@ -980,7 +995,7 @@ function maskRows(q){
   return items.map(function(i){
     var th=i.image_url?'<img class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="amb-th-ph">📦</div>';
-    var cqty=CART_M[i.id]||0;
+    var cqty=CART_M[i.id]?CART_M[i.id].qty:0;
     return '<div class="amb-row">'+
       '<div class="amb-info">'+th+'<div style="min-width:0">'+
       '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
@@ -998,27 +1013,37 @@ function cartRowsMsk(){
   var keys=Object.keys(CART_M);
   if(!keys.length)return'<div style="text-align:center;padding:1rem;color:#9CA3AF;font-size:.82rem">'+('Cari barang di atas, tekan +')+'</div>';
   return keys.map(function(id){
+    var ci=CART_M[id];
     var item=DATA.items.find(function(i){return i.id==id;});if(!item)return'';
+    var hasLot=ci.lot_no||ci.expiry_date||ci.production_date||ci.code_produksi;
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
       '<div class="amb-name">'+esc(item.name)+'</div>'+
-      '<div class="amb-stk">'+('stok')+' '+item.qty+' '+esc(item.unit)+'</div>'+
+      '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
+      (hasLot?'<div style="font-size:.72rem;color:#0D9488;margin-top:.1rem">📋 '+(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+ci.expiry_date:'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
       '</div></div>'+
-      '<div class="qc" style="width:106px;flex-shrink:0">'+
+      '<div style="display:flex;align-items:center;gap:.25rem;flex-shrink:0">'+
+      '<button onclick="showLotInfoModal(\''+esc(id)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap">📋 Lot</button>'+
+      '<div class="qc" style="width:100px;flex-shrink:0">'+
       '<button class="qb" onclick="cAdjM(\''+esc(item.id)+'\',-1)">−</button>'+
-      '<span class="qi" style="font-size:.9rem">'+CART_M[id]+'</span>'+
+      '<span class="qi" style="font-size:.9rem">'+ci.qty+'</span>'+
       '<button class="qb" onclick="cAdjM(\''+esc(item.id)+'\',1)">+</button>'+
-      '</div></div>';
+      '</div></div></div>';
   }).join('');
 }
 function cAdjM(id,d){
-  var nv=Math.max(0,(CART_M[id]||0)+d);
-  if(nv===0)delete CART_M[id];else CART_M[id]=nv;
+  var cur=CART_M[id]?CART_M[id].qty:0;
+  var nv=Math.max(0,cur+d);
+  var firstAdd=(cur===0&&nv>0);
+  if(nv===0){delete CART_M[id];}
+  else if(!CART_M[id]){CART_M[id]={qty:nv,lot_no:'',code_produksi:'',production_date:'',expiry_date:'',shelf_life:''};}
+  else{CART_M[id].qty=nv;}
   var el=document.getElementById('mq-'+id);if(el)el.textContent=nv||'';
   var cw=document.getElementById('msk-cart');if(cw)cw.innerHTML=cartRowsMsk();
   var total=Object.keys(CART_M).length;
   var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=total?total+(' barang'):'';
   var btn=document.getElementById('msk-btn');if(btn)btn.textContent=total?t('doRcv')+' ('+total+(' item')+')':t('doRcv');
+  if(firstAdd){setTimeout(function(){showLotInfoModal(id);},50);}
 }
 function onMskPersonChange(){
   var sel=document.getElementById('msk-p');
@@ -1036,9 +1061,10 @@ async function doMasukCart(){
   var btn=document.getElementById('msk-btn');btn.disabled=true;btn.textContent='...';
   try{
     for(var ki=0;ki<keys.length;ki++){
-      var id=keys[ki];var item=DATA.items.find(function(i){return i.id==id;});var qty=CART_M[id];
+      var id=keys[ki];var ci=CART_M[id];var item=DATA.items.find(function(i){return i.id==id;});var qty=ci.qty;
       await sb.from('items').update({qty:item.qty+qty}).eq('id',item.id);
       await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      await sb.from('item_batches').insert({item_id:item.id,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:ci.lot_no||null,code_produksi:ci.code_produksi||null,production_date:ci.production_date||null,expiry_date:ci.expiry_date||null,shelf_life:ci.shelf_life||null,qty_initial:qty,qty_remaining:qty,received_date:new Date().toISOString().slice(0,10)});
     }
     toast(t('rcvOk'));CART_M={};await loadAll();goTab('home',document.querySelector('.tb'));
   }catch(e){toast('⚠ '+e.message);}
@@ -1189,11 +1215,17 @@ function aiListHTML(){
   return DATA.items.map(function(i){
     var ph=i.image_url?'<img style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img">📦</div>';
+    var iBats=DATA.batches.filter(function(b){return b.item_id==i.id&&b.qty_remaining>0;});
+    var iBatsExp=iBats.filter(function(b){return b.expiry_date;}).sort(function(a,b){return new Date(a.expiry_date)-new Date(b.expiry_date);});
+    var nearExp=iBatsExp.length?iBatsExp[0]:null;
+    var now30=new Date(Date.now()+30*86400000);
+    var expColor=nearExp?(new Date(nearExp.expiry_date)<new Date()?'#DC2626':new Date(nearExp.expiry_date)<now30?'#D97706':'#059669'):'#9CA3AF';
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
-        (i.description?'<div style="font-size:.8rem;color:#6B7280;margin-top:.3rem;font-style:italic;line-height:1.4">'+esc(i.description)+'</div>':'')+
+        '<div style="font-size:.75rem;color:#64748B;margin-top:.1rem">📦 '+iBats.length+' lot aktif'+(nearExp?' | <span style="color:'+expColor+'">⏰ Exp: '+nearExp.expiry_date+'</span>':'')+'</div>'+
+        (i.description?'<div style="font-size:.8rem;color:#6B7280;margin-top:.25rem;font-style:italic;line-height:1.4">'+esc(i.description)+'</div>':'')+
         '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.15rem">'+(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+'<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.72rem;color:#94A3B8;padding:.05rem .4rem">+ tag</button></div>'+
         '<div style="display:flex;align-items:center;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">'+
         (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link">🔗 '+('Link Beli')+'</a>':'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:#94A3B8;padding:.1rem 0;text-align:left">＋ '+('Tambah link')+'</button>')+
@@ -1202,6 +1234,7 @@ function aiListHTML(){
         '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
+        '<button class="ib" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
         '<button class="ib" title="QR" onclick="printQR(\''+esc(i.id)+'\')">🖨️</button>'+
         '<button class="ib" onclick="showEdit(\''+esc(i.id)+'\')">✏️</button>'+
         '<button class="ib" onclick="delItem(\''+esc(i.id)+'\')">🗑️</button>'+
@@ -1927,6 +1960,123 @@ function showImg(url,name,icon){
     '<div style="color:#aaa;font-size:.75rem;margin-top:.2rem">'+('Tap untuk tutup')+'</div>'+
   '</div>';
   document.body.appendChild(ov);
+}
+// === LOT / BATCH FUNCTIONS ===
+function showLotInfoModal(itemId){
+  var item=DATA.items.find(function(i){return i.id==itemId;});if(!item)return;
+  var cur=CART_M[itemId]||{};
+  showModal('📋 Info Lot — '+esc(item.name),
+    '<div style="font-size:.8rem;color:#64748B;margin-bottom:.7rem">Isi info lot untuk FIFO tracking (opsional)</div>'+
+    '<div class="ig"><label>Lot No.</label><input id="li-lot" type="text" value="'+esc(cur.lot_no||'')+'" placeholder="Opsional"></div>'+
+    '<div class="ig"><label>Code Produksi</label><input id="li-cprod" type="text" value="'+esc(cur.code_produksi||'')+'" placeholder="Opsional"></div>'+
+    '<div class="fr">'+
+      '<div class="ig"><label>Tgl Produksi</label><input id="li-pd" type="date" value="'+(cur.production_date||'')+'"></div>'+
+      '<div class="ig"><label>Tgl Kadaluarsa</label><input id="li-ed" type="date" value="'+(cur.expiry_date||'')+'"></div>'+
+    '</div>'+
+    '<div class="ig"><label>Masa Simpan</label><input id="li-sl" type="text" placeholder="mis: 12 bulan" value="'+esc(cur.shelf_life||'')+'"></div>'+
+    '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
+      '<button class="btn btn-p" style="flex:2" onclick="saveLotInfo(\''+esc(itemId)+'\')">✓ Simpan</button>'+
+      '<button class="btn btn-s" style="flex:1" onclick="closeModal()">Skip</button>'+
+    '</div>'
+  );
+}
+function saveLotInfo(itemId){
+  if(!CART_M[itemId])return;
+  CART_M[itemId].lot_no=(document.getElementById('li-lot').value||'').trim();
+  CART_M[itemId].code_produksi=(document.getElementById('li-cprod').value||'').trim();
+  CART_M[itemId].production_date=document.getElementById('li-pd').value||'';
+  CART_M[itemId].expiry_date=document.getElementById('li-ed').value||'';
+  CART_M[itemId].shelf_life=(document.getElementById('li-sl').value||'').trim();
+  closeModal();
+  var cw=document.getElementById('msk-cart');if(cw)cw.innerHTML=cartRowsMsk();
+}
+function showItemBatches(itemId){
+  var item=DATA.items.find(function(i){return i.id==itemId;});if(!item)return;
+  var batches=DATA.batches.filter(function(b){return b.item_id==itemId;}).sort(function(a,b){
+    if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);
+    if(a.expiry_date)return -1;if(b.expiry_date)return 1;
+    return new Date(a.created_at)-new Date(b.created_at);
+  });
+  var now=new Date();var d30=new Date(now.getTime()+30*86400000);
+  var h='<div style="margin-bottom:.7rem"><button class="btn btn-p btn-full" onclick="showAddBatch(\''+esc(itemId)+'\')">➕ Tambah Batch / Lot</button></div>';
+  if(!batches.length){h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem">Belum ada batch</div>';}
+  else{
+    h+=batches.map(function(b){
+      var isExp=b.expiry_date&&new Date(b.expiry_date)<now;
+      var isNear=b.expiry_date&&!isExp&&new Date(b.expiry_date)<d30;
+      var bg=isExp?'#FEE2E2':isNear?'#FEF3C7':'#F8FAFC';
+      var ec=isExp?'#DC2626':isNear?'#D97706':'#64748B';
+      return '<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem;margin-bottom:.5rem;background:'+bg+'">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div style="flex:1;min-width:0">'+
+            (b.lot_no?'<div style="font-weight:700;font-size:.88rem">📋 Lot: '+esc(b.lot_no)+'</div>':'')+
+            (b.code_produksi?'<div style="font-size:.78rem;color:#6B7280">Code: '+esc(b.code_produksi)+'</div>':'')+
+            '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem">'+
+              (b.production_date?'<span style="font-size:.75rem;color:#6B7280">Prod: '+b.production_date+'</span>':'')+
+              (b.expiry_date?'<span style="font-size:.75rem;font-weight:700;color:'+ec+'">Exp: '+b.expiry_date+(isExp?' ❌':isNear?' ⏰':'')+'</span>':'')+
+              (b.shelf_life?'<span style="font-size:.75rem;color:#6B7280">Simpan: '+esc(b.shelf_life)+'</span>':'')+
+            '</div>'+
+            '<div style="margin-top:.3rem;font-weight:700;color:var(--p);font-size:.88rem">Sisa: '+b.qty_remaining+' / '+b.qty_initial+' '+esc(item.unit)+'</div>'+
+          '</div>'+
+          '<div style="display:flex;gap:.25rem;flex-shrink:0;margin-left:.5rem">'+
+            '<button class="ib" onclick="showEditBatch(\''+esc(b.id)+'\',\''+esc(itemId)+'\')">✏️</button>'+
+            '<button class="ib" onclick="deleteBatch(\''+esc(b.id)+'\',\''+esc(itemId)+'\')">🗑️</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+  showModal('📋 Batch — '+esc(item.name),h);
+}
+function showAddBatch(itemId,batchId){
+  var item=DATA.items.find(function(i){return i.id==itemId;});if(!item)return;
+  var b=batchId?DATA.batches.find(function(x){return x.id==batchId;}):null;
+  var isEdit=!!b;
+  showModal((isEdit?'✏️ Edit':'➕ Tambah')+' Batch — '+esc(item.name),
+    '<div class="ig"><label>Lot No.</label><input id="b-lot" type="text" value="'+esc(b&&b.lot_no?b.lot_no:'')+'"></div>'+
+    '<div class="ig"><label>Code Produksi</label><input id="b-cprod" type="text" value="'+esc(b&&b.code_produksi?b.code_produksi:'')+'"></div>'+
+    '<div class="fr">'+
+      '<div class="ig"><label>Tgl Produksi</label><input id="b-pd" type="date" value="'+(b&&b.production_date?b.production_date:'')+'"></div>'+
+      '<div class="ig"><label>Tgl Kadaluarsa</label><input id="b-ed" type="date" value="'+(b&&b.expiry_date?b.expiry_date:'')+'"></div>'+
+    '</div>'+
+    '<div class="ig"><label>Masa Simpan</label><input id="b-sl" type="text" placeholder="mis: 12 bulan" value="'+esc(b&&b.shelf_life?b.shelf_life:'')+'"></div>'+
+    (isEdit?
+      '<div class="ig"><label>Qty Sisa</label><input id="b-qtyrem" type="number" min="0" value="'+(b.qty_remaining||0)+'"><span style="font-size:.85rem;color:#6B7280;margin-left:.3rem">'+esc(item.unit)+'</span></div>':
+      '<div class="ig"><label>Qty Masuk</label><input id="b-qty" type="number" min="0" value="0"><span style="font-size:.85rem;color:#6B7280;margin-left:.3rem">'+esc(item.unit)+'</span></div>')+
+    '<button class="btn btn-p btn-full" onclick="saveBatch(\''+esc(itemId)+'\''+(batchId?',\''+esc(batchId)+'\'':'')+')">✓ Simpan</button>'
+  );
+}
+function showEditBatch(batchId,itemId){showAddBatch(itemId,batchId);}
+async function saveBatch(itemId,batchId){
+  var item=DATA.items.find(function(i){return i.id==itemId;});if(!item)return;
+  var isEdit=!!batchId;
+  var lot=(document.getElementById('b-lot').value||'').trim();
+  var cprod=(document.getElementById('b-cprod').value||'').trim();
+  var pd=document.getElementById('b-pd').value||null;
+  var ed=document.getElementById('b-ed').value||null;
+  var sl=(document.getElementById('b-sl').value||'').trim();
+  try{
+    if(isEdit){
+      var qr=parseFloat(document.getElementById('b-qtyrem').value)||0;
+      var {error}=await sb.from('item_batches').update({lot_no:lot||null,code_produksi:cprod||null,production_date:pd,expiry_date:ed,shelf_life:sl||null,qty_remaining:qr}).eq('id',batchId);
+      if(error)throw error;
+    }else{
+      var qty=parseFloat(document.getElementById('b-qty').value)||0;
+      var {error}=await sb.from('item_batches').insert({item_id:itemId,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:lot||null,code_produksi:cprod||null,production_date:pd,expiry_date:ed,shelf_life:sl||null,qty_initial:qty,qty_remaining:qty,received_date:new Date().toISOString().slice(0,10)});
+      if(error)throw error;
+    }
+    toast('✓ Disimpan');closeModal();await loadAll();
+    setTimeout(function(){showItemBatches(itemId);},300);
+  }catch(e){toast('⚠ '+e.message);}
+}
+async function deleteBatch(batchId,itemId){
+  if(!confirm('Hapus batch ini?'))return;
+  try{
+    var {error}=await sb.from('item_batches').delete().eq('id',batchId);
+    if(error)throw error;
+    toast('✓ Dihapus');closeModal();await loadAll();
+    if(itemId)setTimeout(function(){showItemBatches(itemId);},300);
+  }catch(e){toast('⚠ '+e.message);}
 }
 function showWarehouseSelect(savedWh){
   var whs=IS_ADMIN?WAREHOUSES:(CURRENT_USER&&CURRENT_USER.warehouses?CURRENT_USER.warehouses:[]);
