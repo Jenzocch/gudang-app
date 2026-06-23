@@ -117,14 +117,14 @@ function syncAll() {
   sheet.getRange(1, 13).setValue(new Date()).setNumberFormat('yyyy-mm-dd hh:mm');
 }
 
-/** 設定每天自動同步（每天 02:00） */
+/** Setup auto-sync every 12 hours */
 function setupDailyTrigger() {
-  // 先刪掉舊的 trigger 避免重複
+  // Remove old triggers to avoid duplicates
   var triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(function (t) {
     if (t.getHandlerFunction() === 'syncAll') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('syncAll').timeBased().everyDays(1).atHour(2).create();
-  syncAll(); // 立即同步一次
-  SpreadsheetApp.getActiveSpreadsheet().toast('已設定每天 02:00 自動同步，並已同步一次！');
+  ScriptApp.newTrigger('syncAll').timeBased().everyHours(12).create();
+  syncAll(); // Sync immediately once
+  SpreadsheetApp.getActiveSpreadsheet().toast('Auto-sync setiap 12 jam aktif, sudah sync sekali!');
 }
