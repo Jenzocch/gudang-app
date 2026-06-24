@@ -884,8 +884,8 @@ function renderHome(){
         return '<div style="display:flex;align-items:center;padding:.5rem .9rem;border-bottom:1px solid #F3F4F6;gap:.45rem">'+
           '<span style="font-size:.95rem;flex-shrink:0">'+(empty?'❌':'🟠')+'</span>'+
           '<div style="flex:1;min-width:0">'+
-            '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
-            '<div style="font-size:.8rem;color:#6B7280;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
+            '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+(empty?'var(--danger)':'#1F2937')+'">'+esc(i.name)+'</div>'+
+            '<div style="font-size:.75rem;color:var(--danger);font-weight:700;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
           '</div>'+
           (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
         '</div>';
@@ -1059,8 +1059,9 @@ function renderAmbil(){
     return;
   }
   if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
-    document.getElementById('ambil').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
-    loadAll(function(){renderAmbil();},false);
+    var ambilEl=document.getElementById('ambil');
+    if(ambilEl)ambilEl.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderAmbil();})();
     return;
   }
   CART={};CATG_FILTER='';
@@ -1303,8 +1304,9 @@ function renderMasuk(){
     return;
   }
   if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
-    document.getElementById('masuk').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
-    loadAll(function(){renderMasuk();},false);
+    var masukEl=document.getElementById('masuk');
+    if(masukEl)masukEl.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderMasuk();})();
     return;
   }
   CART_M={};
@@ -1963,8 +1965,9 @@ function renderStocktake(catFilter){
     return;
   }
   if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
-    document.getElementById('opname').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
-    loadAll(function(){renderStocktake(catFilter);},false);
+    var opEl=document.getElementById('opname');
+    if(opEl)opEl.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderStocktake(catFilter);})();
     return;
   }
   STOCKTAKE={};STK_CATG=catFilter||'';
