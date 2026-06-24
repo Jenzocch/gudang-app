@@ -1569,7 +1569,7 @@ function renderAdminFull(){
     '</div>'+
     '<div id="acg" class="tc">'+catgPanelHTML()+'</div>'+
     '<div style="padding:.7rem;display:flex;gap:.5rem;flex-direction:column">'+
-    '<button class="btn btn-ok btn-full" onclick="exportToCSV()">📥 Backup ke CSV</button>'+
+    '<button class="btn btn-ok btn-full" onclick="exportToCSV()">📊 Backup ke Google Sheet</button>'+
     '<button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:none">🔒 '+('Keluar Admin')+'</button>'+
     '</div>';
 }
@@ -2756,7 +2756,8 @@ function selectWarehouse(wid){
     document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1.5rem;text-align:center">⚠ '+e.message+'<br><button class="btn btn-p" style="margin-top:.5rem" onclick="clearSessions();location.reload()">↩ Login ulang</button></div>';
   });
 }
-// === CSV EXPORT ===
+// === CSV EXPORT & GOOGLE SHEET BACKUP ===
+var GS_WEBHOOK='https://script.google.com/macros/s/AKfycbxmL9itTmkmatsI1GG_ptyRjN5NYtuO9m_fJBDXptKMJiR8uI_16W_xU0w3Nwtp2vdz/exec';
 function exportToCSV(){
   // Pastikan transaksi sudah dimuat agar CSV lengkap
   if(!TX_LOADED){toast('⏳ '+('Memuat transaksi dulu')+'...');loadTransactions(exportToCSV);return;}
@@ -2764,38 +2765,43 @@ function exportToCSV(){
     var now=new Date();
     var dateStr=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0');
 
-    // 1. Items CSV
-    var itemsCSV='Item Name,Qty,Unit,Critical Qty,Supplier,Warehouse,Storage Condition,Description,COA URL\n';
-    itemsCSV+=DATA.items.map(function(i){return[
+    // 準備資料為陣列格式（給 Google Sheet）
+    var itemsData=DATA.items.map(function(i){return[
       i.name,i.qty,i.unit,i.critical_qty,i.supplier_name||'',i.warehouse_id||'',i.storage_condition||'',i.description||'',i.coa_url||''
-    ].map(escapeCSV).join(',');}).join('\n');
-    downloadCSV(itemsCSV,'Items_'+dateStr+'.csv');
+    ];});
 
-    // 2. Transactions CSV
-    var txCSV='Date,Type,Item Name,Qty,Unit,Person,Warehouse,Lot No\n';
-    txCSV+=DATA.transactions.map(function(t){
+    var txData=DATA.transactions.map(function(t){
       var it=itemById(t.item_id);
       return[
         new Date(t.created_at).toLocaleDateString('id-ID'),
         t.type,t.item_name,t.qty,
         it?it.unit:'',
         t.person_name||'',t.warehouse_id||'',''
-      ].map(escapeCSV).join(',');
-    }).join('\n');
-    downloadCSV(txCSV,'Transactions_'+dateStr+'.csv');
+      ];
+    });
 
-    // 3. Batches CSV
-    var batCSV='Item Name,Lot No,Code Produksi,PO No,DO No,Production Date,Expiry Date,QC Status,Qty Initial,Qty Remaining,Warehouse\n';
-    batCSV+=DATA.batches.map(function(b){
+    var batchData=DATA.batches.map(function(b){
       var item=itemById(b.item_id);
       return[
         item?item.name:'?',b.lot_no||'',b.code_produksi||'',b.po_no||'',b.do_no||'',
         b.production_date||'',b.expiry_date||'',b.qc_status||'',b.qty_initial||0,b.qty_remaining||0,b.warehouse_id||''
-      ].map(escapeCSV).join(',');
-    }).join('\n');
-    downloadCSV(batCSV,'Batches_'+dateStr+'.csv');
+      ];
+    });
 
-    toast('✓ 3 file CSV terunduh');
+    // 寄到 Google Sheet
+    var payload={items:itemsData,transactions:txData,batches:batchData};
+    fetch(GS_WEBHOOK,{
+      method:'POST',
+      body:JSON.stringify(payload)
+    }).then(function(r){return r.json();}).then(function(res){
+      if(res.success){
+        toast('✓ Backup ke Google Sheet: '+res.sheetUrl);
+      }else{
+        toast('⚠ '+res.error);
+      }
+    }).catch(function(e){
+      toast('⚠ '+e.message);
+    });
   }catch(e){toast('⚠ '+e.message);}
 }
 function escapeCSV(val){
