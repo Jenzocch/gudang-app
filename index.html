@@ -201,18 +201,18 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 @media(min-width:768px){
   body{background:#CBD5E1}
   #app{max-width:100%;box-shadow:none;flex-direction:row;min-height:100vh}
-  .hdr{position:fixed;top:0;left:220px;right:0;z-index:50;border-bottom:1px solid rgba(255,255,255,.15)}
-  .content{margin-left:220px;padding-top:60px;padding-bottom:1.5rem;min-height:100vh}
-  .tabs{position:fixed;left:0;top:0;bottom:0;width:220px;flex-direction:column;border-top:none;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;transform:none;max-width:220px;padding:0;background:#fff;justify-content:flex-start;align-items:stretch;box-shadow:2px 0 12px rgba(0,0,0,.06)}
-  .tabs::before{content:'📦 Gudang';display:block;padding:1.2rem 1.2rem .8rem;font-weight:800;font-size:1rem;color:var(--p);border-bottom:1px solid var(--border);letter-spacing:.01em}
-  .tb{min-width:unset;flex-direction:row;gap:.6rem;justify-content:flex-start;padding:.85rem 1.2rem;font-size:.88rem;border-bottom:1px solid #F1F5F9;text-align:left;color:#64748B;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tb-icon{font-size:1.2rem;flex-shrink:0}
-  .tb.active{background:#F0FDFA;border-left:3px solid var(--p);padding-left:calc(1.2rem - 3px)}
+  .hdr{position:fixed;top:0;left:180px;right:0;z-index:50;border-bottom:1px solid rgba(255,255,255,.15)}
+  .content{margin-left:180px;padding-top:60px;padding-bottom:2rem;padding-left:1.5rem;padding-right:1.5rem;min-height:100vh;font-size:1rem;line-height:1.6}
+  .tabs{position:fixed;left:0;top:0;bottom:0;width:180px;flex-direction:column;border-top:none;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;transform:none;max-width:180px;padding:0;background:#fff;justify-content:flex-start;align-items:stretch;box-shadow:2px 0 12px rgba(0,0,0,.06)}
+  .tabs::before{content:'📦 Gudang';display:block;padding:1rem 1rem .6rem;font-weight:800;font-size:.95rem;color:var(--p);border-bottom:1px solid var(--border);letter-spacing:.01em}
+  .tb{min-width:unset;flex-direction:row;gap:.5rem;justify-content:flex-start;padding:.75rem 1rem;font-size:.92rem;font-weight:600;border-bottom:1px solid #F1F5F9;text-align:left;color:#64748B;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tb-icon{font-size:1.3rem;flex-shrink:0}
+  .tb.active{background:#F0FDFA;border-left:3px solid var(--p);padding-left:calc(1rem - 3px)}
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
-  .ai-list.grid{grid-template-columns:1fr 1fr;gap:.7rem}
-  .toast{left:calc(220px + (100% - 220px)/2);transform:translateX(-50%)}
-  .low-ov{padding-left:220px}
+  .ai-list.grid{grid-template-columns:1fr 1fr;gap:.9rem;margin:.6rem 0}
+  .toast{left:calc(180px + (100% - 180px)/2);transform:translateX(-50%)}
+  .low-ov{padding-left:180px}
 }
 </style>
 </head>
@@ -1620,14 +1620,14 @@ function updateAIViewBtns(){
 function aiListHTML(){
   var items=DATA.items;
   if(!items.length)return'<div style="text-align:center;color:#9CA3AF;padding:1.2rem">-</div>';
-  // 先渲染前 30 筆，其餘異步載入
-  var first=items.slice(0,30).map(aiItemHTML).join('');
-  if(items.length>30){
+  // 先渲染前 50 筆，其餘異步載入
+  var first=items.slice(0,50).map(aiItemHTML).join('');
+  if(items.length>50){
     setTimeout(function(){
       var el=document.getElementById('ait-more');
-      if(el)el.outerHTML=items.slice(30).map(aiItemHTML).join('');
+      if(el)el.outerHTML=items.slice(50).map(aiItemHTML).join('');
     },80);
-    return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ 載入中…（還有 '+(items.length-30)+' 件）</div>';
+    return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ 載入中…（還有 '+(items.length-50)+' 件）</div>';
   }
   return first;
 }
