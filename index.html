@@ -2112,6 +2112,26 @@ function onStoragePhoto(e){
     var p=document.getElementById('fsp');if(p)p.innerHTML='<img class="prev" src="'+d+'">';
   });
 }
+// Insert/update tahan kolom hilang: jika PostgREST melaporkan kolom tak ada di
+// schema cache, buang kolom itu lalu coba lagi. DB asli kadang beda dgn migrasi.
+async function sbInsertSafe(table,row){
+  var r=await sb.from(table).insert(row).select(),g=0;
+  while(r.error&&g<8){
+    var m=(r.error.message||'').match(/'([^']+)' column/i);
+    if(!m||!(m[1] in row))break;
+    delete row[m[1]];r=await sb.from(table).insert(row).select();g++;
+  }
+  return r;
+}
+async function sbUpdateSafe(table,row,idCol,idVal){
+  var r=await sb.from(table).update(row).eq(idCol,idVal),g=0;
+  while(r.error&&g<8){
+    var m=(r.error.message||'').match(/'([^']+)' column/i);
+    if(!m||!(m[1] in row))break;
+    delete row[m[1]];r=await sb.from(table).update(row).eq(idCol,idVal);g++;
+  }
+  return r;
+}
 async function saveItem(){
   var name=(document.getElementById('fn').value||'').trim();
   if(!name){toast('⚠ '+t('iName'));return;}
@@ -2124,20 +2144,20 @@ async function saveItem(){
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var {error:e1}=await sb.from('items').update({name:name,image_url:img,unit:unit}).eq('id',EDIT_ITEM.id);
-      if(e1)throw e1;
-      var {error:e2}=await sb.from('item_variants').update({qty:qty,critical_qty:min,storage_photo_url:sp}).eq('id',EDIT_ITEM.variant_id);
-      if(e2)throw e2;
+      var u1=await sbUpdateSafe('items',{name:name,image_url:img,unit:unit},'id',EDIT_ITEM.id);
+      if(u1.error)throw u1.error;
+      var u2=await sbUpdateSafe('item_variants',{qty:qty,critical_qty:min,storage_photo_url:sp},'id',EDIT_ITEM.variant_id);
+      if(u2.error)throw u2.error;
     }else{
       // 新增：先選倉庫（super admin 在「全部倉庫」可選），再建 items + item_variants
       var whEl=document.getElementById('f-warehouse');
       var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
       if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
-      var {data:newItem,error:e1}=await sb.from('items').insert({name:name,image_url:img,unit:unit}).select();
-      if(e1||!newItem||!newItem[0])throw e1||new Error('新增商品失敗');
-      var itemId=newItem[0].id;
-      var {error:e2}=await sb.from('item_variants').insert({item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
-      if(e2)throw e2;
+      var ins=await sbInsertSafe('items',{name:name,image_url:img,unit:unit});
+      if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('新增商品失敗');
+      var itemId=ins.data[0].id;
+      var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
+      if(vins.error)throw vins.error;
     }
     toast(t('saveOk'));closeModal();await loadAll();
   }catch(e){toast('⚠ '+e.message);}
