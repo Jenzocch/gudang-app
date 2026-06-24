@@ -1054,15 +1054,17 @@ function copyBuyList(){
 function renderAmbil(){
   CART={};CATG_FILTER='';
   var cats=getCategories();
+  var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#1F2937'):'#1F2937';
+  var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||'#FEE2E2'):'#FEE2E2';
   document.getElementById('ambil').innerHTML=
-    '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,#FEE2E2,#FECACA);color:#374151;padding:.5rem .7rem">'+
+    '<div style="position:sticky;top:0;z-index:5;background:'+bg+';color:'+col+';padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
-    '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+'</span>'+
+    '<span style="font-size:1.3rem">📤</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('take')+' — '+(CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'')+'</span>'+
     '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('out')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button>'+
-    '<span style="color:#DC2626;font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="Barcode gun ready">▌▌▌</span>'+
-    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:#374151;padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="Kamera">📷</button></div>'+
-    '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0;background:#fff;color:#1F2937;border:1.5px solid #FBCACA">'+
+    '<button onclick="toggleAmbView()" id="amb-view-btn" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button>'+
+    '<span style="color:'+col+';font-size:1.4rem;opacity:.9;cursor:default;font-weight:900" title="Barcode gun ready">▌▌▌</span>'+
+    '<button onclick="openQrCamera(\'ambil\')" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .55rem;border-radius:6px;font-size:1rem;cursor:pointer;font-weight:600" title="Kamera">📷</button></div>'+
+    '<input id="asrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltAmb()" style="margin:0;background:#fff;color:#1F2937;border:1.5px solid '+col+'33">'+
     '</div>'+
     (cats.length?'<div id="catg-chips" style="display:flex;gap:.6rem;padding:.55rem .7rem;overflow-x:auto;background:#F8FAFC;border-bottom:1px solid var(--border)">'+
     '<button class="catg-chip act" onclick="setCatgFilter(\'\')">'+t('allCatg')+'</button>'+
@@ -1286,13 +1288,16 @@ var MSK_GRID=false;
 function renderMasuk(){
   CART_M={};
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
+  var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#065F46'):'#065F46';
+  var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||'#ECFDF5'):'#ECFDF5';
+  var txtcol=CURRENT_WAREHOUSE&&(CURRENT_WAREHOUSE==='SJA'||CURRENT_WAREHOUSE==='HARDWARE')?'#0F172A':'#fff';
   document.getElementById('masuk').innerHTML=
-    '<div style="position:sticky;top:0;z-index:5;background:linear-gradient(135deg,var(--ok),#059669);color:#fff;padding:.5rem .7rem">'+
+    '<div style="position:sticky;top:0;z-index:5;background:'+bg+';color:'+col+';padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">'+
-    '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem">'+t('receive')+'</span>'+
-    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
-    '<button onclick="toggleMaskView()" id="msk-view-btn" style="background:rgba(0,0,0,.2);border:none;color:#fff;padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button></div>'+
-    '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0">'+
+    '<span style="font-size:1.3rem">📥</span><div style="flex:1"><span style="font-weight:700;font-size:.98rem;color:'+col+'">'+t('receive')+' — '+(CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'')+'</span>'+
+    '<span style="font-size:.72rem;opacity:.85;margin-left:.4rem;color:'+col+'">'+t('in')+' · '+(CURRENT_USER?esc(CURRENT_USER.name):'')+'</span></div>'+
+    '<button onclick="toggleMaskView()" id="msk-view-btn" style="background:rgba(0,0,0,.12);border:none;color:'+col+';padding:.2rem .5rem;border-radius:6px;font-size:.8rem;cursor:pointer;font-weight:600">☰</button></div>'+
+    '<input id="msrch" type="search" placeholder="🔍 '+t('selItem')+'..." oninput="fltMask()" style="margin:0;border:1.5px solid '+col+'33">'+
     '</div>'+
     '<div id="msk-list" style="background:#fff">'+(MSK_GRID?maskGrid(''):maskRows(''))+'</div>'+
     '<div id="msk-cart-wrap" style="margin:.7rem;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
