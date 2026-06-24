@@ -531,6 +531,7 @@ var NOTIFIED_LOW_ITEMS={};
 var CATG_MODAL_CAT=null;
 var FORM_TAGS=[];
 var CURRENT_WAREHOUSE=null;
+var LAST_LOADED_WAREHOUSE=null;
 // HARDWARE = gudang bahan baku / sparepart (五金原料 - gudang asli/pertama)
 var WAREHOUSES=['HARDWARE','SJA','DENIKIN','OLENTIA'];
 var WH_COLORS={HARDWARE:'#E2E8F0',SJA:'#FFEDD5',DENIKIN:'#DCFCE7',OLENTIA:'#DBEAFE'};
@@ -775,6 +776,7 @@ async function loadAll(afterCb,fromCache){
     try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     saveWhCache(CURRENT_WAREHOUSE);
     setDot('ok');
+    LAST_LOADED_WAREHOUSE=CURRENT_WAREHOUSE;
     renderAll();
     setTimeout(function(){renderHome();if(afterCb)afterCb();},100);
     setTimeout(checkLowStock,800);
@@ -1056,6 +1058,11 @@ function renderAmbil(){
     document.getElementById('ambil').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
     return;
   }
+  if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
+    document.getElementById('ambil').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    loadAll(function(){renderAmbil();},false);
+    return;
+  }
   CART={};CATG_FILTER='';
   var cats=getCategories();
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#1F2937'):'#1F2937';
@@ -1292,6 +1299,11 @@ var MSK_GRID=false;
 function renderMasuk(){
   if(!CURRENT_WAREHOUSE){
     document.getElementById('masuk').innerHTML='<div style="padding:2rem;text-align:center;background:#ECFDF5;margin:1rem;border-radius:12px;border:2px solid #86EFAC"><div style="font-size:1.2rem;font-weight:800;color:#059669;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    return;
+  }
+  if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
+    document.getElementById('masuk').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    loadAll(function(){renderMasuk();},false);
     return;
   }
   CART_M={};
@@ -1946,6 +1958,11 @@ async function saveCatgItems(){
 function renderStocktake(catFilter){
   if(!CURRENT_WAREHOUSE){
     document.getElementById('opname').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    return;
+  }
+  if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
+    document.getElementById('opname').innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ 載入 '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+' 商品中…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    loadAll(function(){renderStocktake(catFilter);},false);
     return;
   }
   STOCKTAKE={};STK_CATG=catFilter||'';
