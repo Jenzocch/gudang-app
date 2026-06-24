@@ -1052,6 +1052,10 @@ function copyBuyList(){
 
 // AMBIL (cart mode)
 function renderAmbil(){
+  if(!CURRENT_WAREHOUSE){
+    document.getElementById('ambil').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    return;
+  }
   CART={};CATG_FILTER='';
   var cats=getCategories();
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#1F2937'):'#1F2937';
@@ -1286,6 +1290,10 @@ async function executeAmbilCart(){
 // MASUK (cart mode)
 var MSK_GRID=false;
 function renderMasuk(){
+  if(!CURRENT_WAREHOUSE){
+    document.getElementById('masuk').innerHTML='<div style="padding:2rem;text-align:center;background:#ECFDF5;margin:1rem;border-radius:12px;border:2px solid #86EFAC"><div style="font-size:1.2rem;font-weight:800;color:#059669;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    return;
+  }
   CART_M={};
   var preselName=CURRENT_USER?CURRENT_USER.name:'';
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#065F46'):'#065F46';
@@ -1936,6 +1944,10 @@ async function saveCatgItems(){
   }catch(e){toast('⚠ '+e.message);}
 }
 function renderStocktake(catFilter){
+  if(!CURRENT_WAREHOUSE){
+    document.getElementById('opname').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    return;
+  }
   STOCKTAKE={};STK_CATG=catFilter||'';
   var cats=getCategories();
   var items=DATA.items.filter(function(i){return!STK_CATG||(i.tags||[]).includes(STK_CATG);});
@@ -2067,6 +2079,9 @@ function itemFormHTML(item){
       '<input type="file" id="f-stor-fi" accept="image/*" style="display:none" onchange="onStoragePhoto(event)">'+
       '<div id="fsp">'+(item&&item.storage_photo_url?'<img class="prev" src="'+esc(item.storage_photo_url)+'">':'')+'</div>'+
     '</div>'+
+    '<div class="ig"><label>📅 生產日期</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
+    '<div class="ig"><label>📅 到期日期</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
+    '<div class="ig"><label>📝 備註</label><textarea id="frm" placeholder="規格、成分、等級..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
     (IS_ADMIN&&!CURRENT_WAREHOUSE?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':'')+(CURRENT_WAREHOUSE?'<input type="hidden" id="f-warehouse" value="'+CURRENT_WAREHOUSE+'">':'')+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
@@ -2169,13 +2184,16 @@ async function saveItem(){
   var qty=parseInt(document.getElementById('fq').value)||0;
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=parseInt(document.getElementById('fm').value)||10;
+  var pd=(document.getElementById('fpd').value||'').trim();
+  var ed=(document.getElementById('fed').value||'').trim();
+  var rm=(document.getElementById('frm').value||'').trim();
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
   var sp=F_STORAGE_PHOTO||(EDIT_ITEM&&EDIT_ITEM.storage_photo_url)||null;
   F_PHOTO='';F_STORAGE_PHOTO='';
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var u1=await sbUpdateSafe('items',{name:name,image_url:img,unit:unit},'id',EDIT_ITEM.id);
+      var u1=await sbUpdateSafe('items',{name:name,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
       if(u1.error)throw u1.error;
       var u2=await sbUpdateSafe('item_variants',{qty:qty,critical_qty:min,storage_photo_url:sp},'id',EDIT_ITEM.variant_id);
       if(u2.error)throw u2.error;
@@ -2184,7 +2202,7 @@ async function saveItem(){
       var whEl=document.getElementById('f-warehouse');
       var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
       if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
-      var ins=await sbInsertSafe('items',{name:name,image_url:img,unit:unit});
+      var ins=await sbInsertSafe('items',{name:name,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('新增商品失敗');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
