@@ -1523,10 +1523,12 @@ function pk(k){
 }
 function renderAdminFull(){
   var whShort=CURRENT_WAREHOUSE?(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE):'Semua Gudang';
+  var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||'#0F172A'):'#0F766E';
+  var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||'#F1F5F9'):'#F0FDFA';
   document.getElementById('admin').innerHTML=
-    '<div style="padding:.8rem .7rem;background:linear-gradient(135deg,#0D9488,#0F766E);color:#fff;margin-bottom:.5rem">'+
-    '<div style="font-size:.8rem;font-weight:600;opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
-    '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
+    '<div style="padding:.8rem .7rem;background:'+bg+';border-bottom:2.5px solid '+col+';margin-bottom:.5rem">'+
+    '<div style="font-size:.8rem;font-weight:600;color:'+col+';opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
+    '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem;color:'+col+'">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
     '</div>'+
     (IS_SUPER?'<div style="padding:.7rem;background:#F0FDFA;border-bottom:2px solid var(--p)">'+
     '<div style="font-size:.78rem;font-weight:700;color:#0F766E;margin-bottom:.5rem">🏭 Pilih Gudang:</div>'+
