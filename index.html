@@ -40,10 +40,10 @@ body{display:flex;flex-direction:column}
 .hdr-right{display:flex;align-items:center;gap:.6rem}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:#6B7280;flex-shrink:0}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
-.content{flex:1;overflow-y:auto;padding-bottom:72px;-webkit-overflow-scrolling:touch}
+.content{flex:1;overflow-y:auto;padding-bottom:58px;-webkit-overflow-scrolling:touch}
 .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.tb{flex:1;min-width:60px;padding:.75rem .2rem;border:none;background:none;cursor:pointer;font-size:.75rem;font-weight:600;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem}
-.tb-icon{font-size:1.6rem}
+.tb{flex:1;min-width:60px;padding:.45rem .2rem;border:none;background:none;cursor:pointer;font-size:.65rem;font-weight:600;color:#94A3B8;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.1rem}
+.tb-icon{font-size:1.3rem}
 .tb.active{color:var(--p)}
 .sec{display:none}.sec.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -181,7 +181,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.2rem .6rem;border-radius:12px;cursor:pointer;font-size:.75rem;font-weight:600;display:none}
 .catg-chip{padding:.45rem 1rem;border:1.5px solid var(--border);background:#fff;border-radius:20px;cursor:pointer;font-size:.86rem;font-weight:600;color:#64748B;white-space:nowrap;transition:.2s}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p)}
-.catg-badge{display:inline-block;padding:.15rem .55rem;border-radius:10px;font-size:.76rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.3rem}
+.catg-badge{display:inline-block;padding:.12rem .45rem;border-radius:10px;font-size:.65rem;font-weight:700;background:#E0F2FE;color:#0369A1;margin-left:.2rem}
 .stk-row{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border-bottom:1px solid #F3F4F6;background:#fff;transition:.15s}
 .stk-row.changed{background:#FFFBEB;border-left:3px solid var(--warn)}
 .stk-qty{width:68px;padding:.38rem .4rem;border:1.5px solid var(--border);border-radius:6px;font-size:.95rem;font-weight:700;text-align:center;background:#fff}
@@ -524,6 +524,7 @@ var STAFF_PIN_ENT='';
 var CART={};
 var CART_M={};
 var CATG_FILTER='';
+var AI_TAG_FILTER='';
 var VIEW_AI='list';
 var STOCKTAKE={};
 var STK_CATG='';
@@ -1588,6 +1589,12 @@ function renderAdminFull(){
       '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
         '<input id="ai-search-inp" type="text" placeholder="🔍 搜尋產品..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
       '</div>'+
+      '<div style="padding:.5rem .7rem;background:#fff;border-bottom:1px solid var(--border)">'+
+        '<select id="ai-tag-filter" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;cursor:pointer" onchange="setAITagFilter(this.value)">'+
+          '<option value="">🏭 所有工廠</option>'+
+          (getAITagOptions?getAITagOptions():'')+
+        '</select>'+
+      '</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:#64748B;font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
@@ -1659,6 +1666,9 @@ function aiListHTML(){
     var q=AI_SEARCH_FILTER.toLowerCase();
     items=items.filter(function(i){return i.name.toLowerCase().includes(q);});
   }
+  if(AI_TAG_FILTER){
+    items=items.filter(function(i){return(i.tags||[]).includes(AI_TAG_FILTER);});
+  }
   if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'找不到相符的產品 🚫':'-')+'</div>';
   // 先渲染前 50 筆，其餘異步載入
   var first=items.slice(0,50).map(aiItemHTML).join('');
@@ -1674,6 +1684,18 @@ function aiListHTML(){
 function aiSearchItems(){
   var inp=document.getElementById('ai-search-inp');
   AI_SEARCH_FILTER=inp?inp.value:'';
+  var tc=document.getElementById('ait-content');
+  if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
+}
+function getAITagOptions(){
+  var seen={};var tags=[];
+  DATA.items.forEach(function(i){var tt=i.tags||[];tt.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;tags.push(tg);}});});
+  return tags.sort().map(function(tg){return'<option value="'+esc(tg)+'">'+esc(tg)+'</option>';}).join('');
+}
+function setAITagFilter(tag){
+  AI_TAG_FILTER=tag;
+  var sel=document.getElementById('ai-tag-filter');
+  if(sel)sel.value=tag;
   var tc=document.getElementById('ait-content');
   if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
