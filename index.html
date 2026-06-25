@@ -1631,7 +1631,7 @@ function aiItemHTML(i){
       '<div class="ai-actions">'+
         '<button class="ib" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
         '<button class="ib" title="QR" onclick="printQR(\''+esc(i.id)+'\')">🖨️</button>'+
-        (IS_ADMIN?'<button class="ib" onclick="showEdit(\''+esc(i.variant_id)+'\')">✏️</button>':'<button class="ib" disabled style="opacity:.3">✏️</button>')+
+        (IS_ADMIN?'<button class="ib" style="font-size:1.2rem" onclick="showEdit(\''+esc(i.variant_id)+'\')">✏️</button>':'<button class="ib" disabled style="opacity:.3;font-size:1.2rem">✏️</button>')+
         (IS_ADMIN?'<button class="ib" onclick="delItem(\''+esc(i.variant_id)+'\')">🗑️</button>':'<button class="ib" disabled style="opacity:.3">🗑️</button>')+
       '</div></div>';
 }
