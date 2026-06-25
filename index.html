@@ -1567,10 +1567,10 @@ function renderAdminFull(){
     '<div style="font-size:.8rem;font-weight:600;color:'+col+';opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
     '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem;color:'+col+'">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
     '</div>'+
-    (IS_SUPER?'<div style="padding:.5rem .7rem;background:#F0FDFA;border-bottom:1px solid var(--p);display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">'+
+    (IS_SUPER?'<div style="padding:.6rem .7rem;background:#F0FDFA;border-bottom:1px solid var(--p);display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">'+
     '<span style="font-size:.7rem;font-weight:700;color:#0F766E">🏭</span>'+
-    '<button onclick="switchWarehouse(null)" style="padding:.35rem .5rem;border-radius:6px;border:1.5px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+';min-width:50px;text-align:center">Semua</button>'+
-    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.35rem .4rem;border-radius:6px;border:1.5px solid '+col+';cursor:pointer;font-size:.75rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:50px;text-align:center">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
+    '<button onclick="switchWarehouse(null)" style="padding:.45rem .8rem;border-radius:8px;border:1.5px solid '+(CURRENT_WAREHOUSE===null?'var(--p)':'var(--border)')+';cursor:pointer;font-size:.8rem;font-weight:700;background:'+(CURRENT_WAREHOUSE===null?'var(--p)':'#fff')+';color:'+(CURRENT_WAREHOUSE===null?'#fff':'#64748B')+';min-width:58px;text-align:center">Semua</button>'+
+    WAREHOUSES.map(function(w){var col=WH_TEXT[w]||'#0F172A';var bg=CURRENT_WAREHOUSE===w?col:'#fff';var tc=CURRENT_WAREHOUSE===w?'#fff':col;return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.45rem .7rem;border-radius:8px;border:1.5px solid '+col+';cursor:pointer;font-size:.8rem;font-weight:700;background:'+bg+';color:'+tc+';min-width:58px;text-align:center">'+(WH_SHORT[w]||w)+'</button>';}).join('')+
     '</div>':'')+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw act" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
@@ -1628,9 +1628,9 @@ function aiItemHTML(i){
         '</div>'+
         '</div>'+
       '<div class="ai-actions">'+
-        '<button class="ib" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
+        '<button class="ib" style="font-size:1.5rem" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
         '<button class="ib" title="QR" onclick="printQR(\''+esc(i.id)+'\')">🖨️</button>'+
-        (IS_ADMIN?'<button class="ib" style="font-size:1.2rem" onclick="showEdit(\''+esc(i.variant_id)+'\')">✏️</button>':'<button class="ib" disabled style="opacity:.3;font-size:1.2rem">✏️</button>')+
+        (IS_ADMIN?'<button class="ib" style="font-size:1.5rem" onclick="showEdit(\''+esc(i.variant_id)+'\')">✏️</button>':'<button class="ib" disabled style="opacity:.3;font-size:1.5rem">✏️</button>')+
         (IS_ADMIN?'<button class="ib" onclick="delItem(\''+esc(i.variant_id)+'\')">🗑️</button>':'<button class="ib" disabled style="opacity:.3">🗑️</button>')+
       '</div></div>';
 }
