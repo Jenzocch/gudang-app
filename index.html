@@ -828,13 +828,13 @@ function renderHome(){
 
   // Admin 無倉庫時：顯示倉庫選擇卡片
   if(IS_SUPER&&!CURRENT_WAREHOUSE){
-    h+='<div style="margin:.7rem;padding:1rem;background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.08)">'+
-      '<div style="font-weight:700;font-size:.9rem;color:#0F766E;margin-bottom:.7rem">🏭 Pilih Gudang</div>'+
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem">'+
+    h+='<div style="margin:.7rem;padding:.8rem;background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.08)">'+
+      '<div style="font-weight:700;font-size:.8rem;color:#0F766E;margin-bottom:.5rem">🏭 Pilih Gudang</div>'+
+      '<div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">'+
       WAREHOUSES.map(function(w){
         var col=WH_TEXT[w]||'#0F172A';var bg=WH_COLORS[w]||'#F1F5F9';
-        return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:1rem .8rem;border-radius:12px;border:2px solid '+col+';background:'+bg+';cursor:pointer;text-align:center;transition:.15s" onmouseover="this.style.opacity=.85" onmouseout="this.style.opacity=1">'+
-          '<div style="font-size:1.6rem;font-weight:900;color:'+col+';line-height:1.1">'+(WH_SHORT[w]||w)+'</div>'+
+        return'<button onclick="switchWarehouse(\''+w+'\')" style="padding:.5rem .8rem;border-radius:10px;border:1.5px solid '+col+';background:'+bg+';cursor:pointer;text-align:center;transition:.15s;font-size:.8rem;font-weight:700;color:'+col+';flex-shrink:0" onmouseover="this.style.opacity=.85" onmouseout="this.style.opacity=1">'+
+          (WH_SHORT[w]||w)+
         '</button>';
       }).join('')+
       '</div>'+
