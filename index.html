@@ -859,7 +859,7 @@ function renderHome(){
   {
     var reqs=DATA.requests.filter(function(r){return r.status==='pending';}).slice(0,3);
     var sorted=IDX.sortedByRatio;
-    var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0;});
+    var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0&&!(i.remark&&i.remark.includes('#noalert'));});
 
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.4rem .7rem">'+
       '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:#64748B;font-weight:500">'+t('items')+'</span><span style="font-size:1.1rem;font-weight:800;color:var(--p)">'+DATA.items.length+'</span></div>'+
@@ -1610,6 +1610,8 @@ function aiItemHTML(i){
     var stcEmoji={Ambient:'🌡️',Chilled:'❄️',Frozen:'🧊'}[i.storage_condition]||'🌡️';
     return '<div class="ai">'+ph+
       '<div class="ai-info">'+
+        '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem">'+(i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.7rem;background:#E0F2FE;color:#0369A1;padding:.1rem .3rem;border-radius:6px;font-weight:700">🔕 Skip</span>':'')+
+        '</div>'+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
         '<div style="font-size:.73rem;color:#6B7280;margin-top:.15rem">'+(i.supplier_name?'🏢 '+esc(i.supplier_name)+' · ':'')+(i.storage_condition?stcEmoji+' '+esc(i.storage_condition):'')+'</div>'+
@@ -2121,6 +2123,7 @@ function itemFormHTML(item){
     '<div class="ig"><label>📅 Production Date</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
     '<div class="ig"><label>📅 Expiry Date</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
     '<div class="ig"><label>📝 Remarks</label><textarea id="frm" placeholder="Specifications, ingredients, grade..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
+    '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#fff;margin:.7rem 0"><input type="checkbox" id="f-no-alert" '+(item&&item.remark&&item.remark.includes('#noalert')?'checked':'')+' style="width:18px;height:18px;cursor:pointer"> 🔕 Jangan Ingatkan (Skip Low Stock Warning)</label>'+
     (IS_ADMIN&&!CURRENT_WAREHOUSE?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':'')+(CURRENT_WAREHOUSE?'<input type="hidden" id="f-warehouse" value="'+CURRENT_WAREHOUSE+'">':'')+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
@@ -2261,6 +2264,9 @@ async function saveItem(forceNew){
   var pd=(document.getElementById('fpd').value||'').trim();
   var ed=(document.getElementById('fed').value||'').trim();
   var rm=(document.getElementById('frm').value||'').trim();
+  var noAlert=document.getElementById('f-no-alert').checked;
+  if(noAlert&&!rm.includes('#noalert')){rm=(rm+' #noalert').trim();}
+  if(!noAlert){rm=rm.replace(/#noalert/g,'').trim();}
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
   var sp=F_STORAGE_PHOTO||(EDIT_ITEM&&EDIT_ITEM.storage_photo_url)||null;
   F_PHOTO='';F_STORAGE_PHOTO='';
