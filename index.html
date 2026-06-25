@@ -213,6 +213,8 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .ai-list.grid{grid-template-columns:1fr 1fr;gap:.9rem;margin:.6rem 0}
   .toast{left:calc(180px + (100% - 180px)/2);transform:translateX(-50%)}
   .low-ov{padding-left:180px}
+  #mc{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1rem;padding:1rem}
+  .sec-card{margin:0!important}
 }
 </style>
 </head>
@@ -848,7 +850,7 @@ function renderHome(){
   var nowTime=Date.now();var d30Time=nowTime+30*86400000;
   var expWarn=DATA.batches.filter(function(b){return b.expiry_date&&b.qty_remaining>0&&b._expT<=d30Time;}).sort(function(a,b){return a._expT-b._expT;}).slice(0,20);
   if(expWarn.length){
-    h+='<div class="card" style="margin:.7rem;border-left:4px solid #D97706;padding:.8rem 1rem">'+
+    h+='<div class="card sec-card" style="margin:.7rem;border-left:4px solid #D97706;padding:.8rem 1rem">'+
       '<div style="font-weight:700;font-size:.88rem;color:#D97706;margin-bottom:.5rem">⏰ Kadaluarsa dalam 30 hari ('+expWarn.length+')</div>'+
       expWarn.slice(0,8).map(function(b){var item=itemById(b.item_id);var isExp=b._expT<nowTime;return'<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #FEF3C7;font-size:.82rem"><span>'+(item?esc(item.name):'?')+(b.lot_no?' · <span style="color:#64748B">Lot '+esc(b.lot_no)+'</span>':'')+'<br><span style="font-size:.7rem;color:#9CA3AF">Sisa: '+b.qty_remaining+'</span></span><span style="font-weight:700;color:'+(isExp?'#DC2626':'#D97706')+'">'+b.expiry_date+(isExp?' ❌':' ⏰')+'</span></div>';}).join('')+
       (expWarn.length>8?'<div style="font-size:.75rem;color:#9CA3AF;margin-top:.3rem">+'+(expWarn.length-8)+' lainnya</div>':'')+
@@ -867,7 +869,7 @@ function renderHome(){
     '</div>';
 
     if(lowItems.length){
-      h+='<div id="low-section" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+      h+='<div id="low-section" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
       '<div style="padding:.5rem .9rem;background:#FEF2F2;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleLowSection()">'+
       '<span style="font-weight:700;font-size:.85rem;color:var(--danger)">🛒 Perlu Beli ('+lowItems.length+' item)</span>'+
       '<div style="display:flex;gap:.4rem;align-items:center">'+
@@ -875,7 +877,7 @@ function renderHome(){
       '<span id="low-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div id="low-content" style="display:block">'+
+      '<div id="low-content" style="display:none">'+
       '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6">'+
       '<input id="low-search" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterLowItems()">'+
       '</div>';
@@ -908,12 +910,12 @@ function renderHome(){
       h+='</div></div>';
     }
 
-    h+='<div id="stock-list" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
+    h+='<div id="stock-list" class="sec-card" style="background:#fff;border-radius:10px;margin:.7rem;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
     '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleStockSection()">'+
     '<span>📦 Status Stok (Urgensi)</span>'+
     '<span id="stock-toggle" style="font-size:1.2rem;transition:.2s;display:inline-block">▼</span>'+
     '</div>'+
-    '<div id="stock-content" style="display:block">'+
+    '<div id="stock-content" style="display:none">'+
     '<div style="padding:.4rem .7rem;border-bottom:1px solid #F3F4F6;position:sticky;top:0;background:#fff;z-index:2">'+
     '<input id="stock-search" type="text" placeholder="🔍 Cari semua barang..." style="width:100%;padding:.5rem .7rem;border:2px solid var(--p);border-radius:6px;font-size:.9rem;background:#fff" oninput="filterStockItems()">'+
     '</div>';
@@ -998,7 +1000,7 @@ function toggleLowSection(){
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
-    if(toggle)toggle.style.transform=isOpen?'rotate(0deg)':'rotate(-180deg)';
+    if(toggle)toggle.style.transform=isOpen?'rotate(90deg)':'rotate(0deg)';
   }
 }
 function toggleStockSection(){
@@ -1007,7 +1009,7 @@ function toggleStockSection(){
   if(content){
     var isOpen=content.style.display!=='none';
     content.style.display=isOpen?'none':'block';
-    if(toggle)toggle.style.transform=isOpen?'rotate(0deg)':'rotate(-180deg)';
+    if(toggle)toggle.style.transform=isOpen?'rotate(90deg)':'rotate(0deg)';
   }
 }
 function filterLowItems(){
@@ -1568,7 +1570,7 @@ function renderRiwayat(){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
       '<div class="txl"><div class="txp">'+esc(tx.person_name)+'</div><div class="txd">'+esc(tx.item_name)+'</div></div>'+
-      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button onclick="showEditTx(\''+esc(tx.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#0D9488;padding:.2rem .4rem">✏️</button>':'')+'</div>'+
+      '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button onclick="showEditTx(\''+esc(tx.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#0D9488;padding:.2rem .4rem">✏️</button><button onclick="confirmDeleteTx(\''+esc(tx.id)+'\',\''+esc(tx.item_name)+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem;color:#DC2626;padding:.2rem .4rem">🗑️</button>':'')+'</div>'+
     '</div>';
   }).join('')||'<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';
   document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div>'+h;
@@ -2417,6 +2419,31 @@ async function saveTxEdit(id){
     try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
     toast(t('saveOk'));closeModal();await loadAll();
   }catch(e){toast('⚠ '+e.message);}
+}
+function confirmDeleteTx(id,itemName){
+  showModal('🗑️ 確認刪除交易記錄',
+    '<div style="background:#FEF2F2;border:1.5px solid #FECACA;border-radius:8px;padding:.8rem;margin-bottom:1rem">'+
+    '<div style="font-size:.9rem;color:#991B1B;margin-bottom:.3rem;font-weight:600">⚠️ 注意</div>'+
+    '<div style="font-size:.85rem;color:#7F1D1D;line-height:1.5">'+
+    '將刪除商品 <strong>'+esc(itemName)+'</strong> 的交易記錄。<br>'+
+    '此動作無法復原，請確認後再繼續。'+
+    '</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:.5rem">'+
+    '<button class="btn btn-s" style="flex:1" onclick="closeModal()">✕ 取消</button>'+
+    '<button class="btn btn-danger" style="flex:1;background:#DC2626;color:#fff" onclick="deleteTx(\''+esc(id)+'\')">🗑️ 確認刪除</button>'+
+    '</div>'
+  );
+}
+async function deleteTx(id){
+  try{
+    await sb.from('transactions').delete().eq('id',id);
+    toast('✓ 交易記錄已刪除');
+    closeModal();
+    await loadAll();
+  }catch(e){
+    toast('⚠ 刪除失敗: '+e.message);
+  }
 }
 function printQR(id){
   var item=DATA.items.find(function(i){return i.id==id;});
