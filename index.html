@@ -2276,14 +2276,16 @@ function proceedNewItem(){
 function showEdit(variantId){EDIT_ITEM=DATA.items.find(function(i){return i.variant_id==variantId;})||DATA.items.find(function(i){return i.id==variantId;});F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=(EDIT_ITEM&&EDIT_ITEM.tags)?EDIT_ITEM.tags.slice():[];var title=EDIT_ITEM?'✏️ '+('Edit')+': '+esc(EDIT_ITEM.name):'✏️ '+t('editItem');showModal(title,itemFormHTML(EDIT_ITEM));}
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
-  compressImg(f,function(d){
+  var p=document.getElementById('fph');if(p)p.innerHTML='<div class="prev" style="display:flex;align-items:center;justify-content:center;color:#6B7280">⏳</div>';
+  uploadImage(f,'items').then(function(d){
     F_PHOTO=d;
     var p=document.getElementById('fph');if(p)p.innerHTML='<img class="prev" src="'+d+'">';
   });
 }
 function onStoragePhoto(e){
   var f=e.target.files[0];if(!f)return;
-  compressImg(f,function(d){
+  var p=document.getElementById('fsp');if(p)p.innerHTML='<div class="prev" style="display:flex;align-items:center;justify-content:center;color:#6B7280">⏳</div>';
+  uploadImage(f,'storage').then(function(d){
     F_STORAGE_PHOTO=d;
     var p=document.getElementById('fsp');if(p)p.innerHTML='<img class="prev" src="'+d+'">';
   });
@@ -2607,7 +2609,9 @@ function onReqItemSel(){
 var REQ_PHOTO='';
 function onReqPhoto(e){
   var f=e.target.files[0];if(!f)return;
-  compressImg(f,function(d){
+  var p=document.getElementById('req-photo-prev');
+  if(p)p.innerHTML='<div class="prev" style="display:flex;align-items:center;justify-content:center;color:#6B7280">⏳</div>';
+  uploadImage(f,'requests').then(function(d){
     REQ_PHOTO=d;
     var p=document.getElementById('req-photo-prev');
     if(p)p.innerHTML='<img class="prev" src="'+d+'">';
@@ -2775,6 +2779,32 @@ function compressImg(file,cb){
     img.src=e.target.result;
   };
   rd.readAsDataURL(file);
+}
+// Supabase Storage bucket untuk foto barang. Foto di-upload ke sini lalu kita
+// simpan URL-nya (bukan base64) supaya baris DB kecil & tidak kena "payload too large".
+var PHOTO_BUCKET='item-photos';
+// Kompres dulu, lalu upload ke Storage. Kembalikan public URL.
+// Kalau Storage belum siap / gagal (bucket hilang, policy, offline), fallback ke
+// data URL base64 supaya simpan barang tetap jalan dan tidak pernah error fatal.
+function uploadImage(file,prefix){
+  return new Promise(function(resolve){
+    compressImg(file,function(dataUrl){
+      (async function(){
+        try{
+          var blob=await (await fetch(dataUrl)).blob();
+          var path=(prefix||'img')+'/'+Date.now()+'_'+Math.random().toString(36).slice(2)+'.jpg';
+          var up=await sb.storage.from(PHOTO_BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:false});
+          if(up.error)throw up.error;
+          var pub=sb.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+          var url=pub&&pub.data&&pub.data.publicUrl;
+          resolve(url||dataUrl);
+        }catch(err){
+          console.warn('uploadImage fallback ke base64:',err&&err.message);
+          resolve(dataUrl);
+        }
+      })();
+    });
+  });
 }
 function showImg(url,name,icon){
   var ov=document.createElement('div');
