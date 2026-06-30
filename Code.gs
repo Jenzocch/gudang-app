@@ -42,6 +42,7 @@ function doGet(e) {
         case 'identify':   result = identifyPhoto(body);    break;
         case 'addItem':    result = addItem(body);          break;
         case 'updateItem': result = updateItem(body);       break;
+        case 'importFromSheet': result = importFromSheet(body); break;
         default:           result = {ok:false, error:'Unknown action'};
       }
     } else {
@@ -51,6 +52,7 @@ function doGet(e) {
         case 'people':   result = getPeople();      break;
         case 'requests': result = getRequests();    break;
         case 'trx':      result = getTransactions(); break;
+        case 'exportItems': result = exportItemsCSV(); break;
         default:         result = {ok:true, msg:'Gudang API ready'};
       }
     }
@@ -90,6 +92,7 @@ function doPost(e) {
       case 'identify':   return cors(identifyPhoto(body));
       case 'addItem':    return cors(addItem(body));
       case 'updateItem': return cors(updateItem(body));
+      case 'importFromSheet': return cors(importFromSheet(body));
       default:           return cors({ok:false, error:'Unknown action'});
     }
   } catch(err) {
@@ -386,4 +389,69 @@ function initSheets() {
   }
 
   SpreadsheetApp.getActiveSpreadsheet().toast('✅ Sheets sudah siap!', 'Gudang Init', 5);
+}
+
+// ── 導出商品成 CSV ──
+function exportItemsCSV() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SH_ITEMS);
+  var rows = sheet.getDataRange().getValues();
+
+  var headers = rows[0];
+  var csv = headers.map(function(h){ return '"' + (h||'').toString().replace(/"/g,'""') + '"'; }).join(',') + '\n';
+
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    if (!row[0] || row[14] === false || row[14] === 'FALSE') continue;
+    csv += row.map(function(c){
+      return '"' + (c||'').toString().replace(/"/g,'""') + '"';
+    }).join(',') + '\n';
+  }
+
+  return {ok: true, csv: csv};
+}
+
+// ── 從其他 Google Sheet 匯入商品 ──
+function importFromSheet(body) {
+  var sourceSheetId = body.source_sheet_id || '';
+  var sourceSheetName = body.source_sheet_name || 'Sheet1';
+  var idCol = body.id_col || 0;      // 'code' 欄位位置 (0-based)
+  var nameCol = body.name_col || 1;  // 'name' 欄位位置
+
+  if (!sourceSheetId) return {ok:false, error:'missing source_sheet_id'};
+
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var destSheet = ss.getSheetByName(SH_ITEMS);
+  var destRows = destSheet.getDataRange().getValues();
+
+  var sourceSheet = SpreadsheetApp.openById(sourceSheetId).getSheetByName(sourceSheetName);
+  var sourceRows = sourceSheet.getDataRange().getValues();
+
+  var added = 0;
+
+  for (var i = 1; i < sourceRows.length; i++) {
+    var row = sourceRows[i];
+    var code = row[idCol] || '';
+    var name = row[nameCol] || '';
+
+    if (!name || !code) continue;
+
+    // 檢查是否已存在 (by code)
+    var exists = false;
+    for (var j = 1; j < destRows.length; j++) {
+      if (String(destRows[j][2]).toLowerCase() === String(code).toLowerCase()) {
+        exists = true;
+        break;
+      }
+    }
+
+    if (exists) continue;
+
+    // 新增
+    var itemId = 'ITM-' + new Date().getTime() + '-' + code;
+    destSheet.appendRow([itemId, name, code, '📦', '', '', 0, 'pcs', 5, '', '', 'Perusahaan', '', '', true]);
+    added++;
+  }
+
+  return {ok: true, added: added};
 }
