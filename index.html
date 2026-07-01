@@ -318,6 +318,27 @@ function verifyStaffPin(personId,pin){
     },function(){resolve({ok:false});});
   });
 }
+// 記在記憶體(非 localStorage)的 admin PIN；登入時填入，用來授權 people 寫入。
+// 重新整理後會消失，屆時 managePeople 會再 prompt 一次。
+var ADMIN_PIN_MEM='';
+// people 的新增/更新/刪除全部改走後端 manage-people（service_role + admin PIN 授權），
+// 前端不再直接寫 people，避免任何人用公開 anon key 把自己設成 admin。
+async function managePeople(action,opts){
+  if(!ADMIN_PIN_MEM){
+    var p=prompt('PIN Admin (6 digit)');
+    if(p===null||p==='')throw new Error('Dibatalkan');
+    ADMIN_PIN_MEM=String(p);
+  }
+  var body=Object.assign({admin_pin:ADMIN_PIN_MEM,action:action},opts||{});
+  var r=await sb.functions.invoke('manage-people',{body:body});
+  if(r.error)throw new Error(r.error.message||'Gagal');
+  if(!r.data||!r.data.ok){
+    var msg=(r.data&&r.data.error)||'Gagal';
+    if(msg==='unauthorized'){ADMIN_PIN_MEM='';throw new Error('PIN Admin salah, coba lagi');}
+    throw new Error(msg);
+  }
+  return r.data;
+}
 // Telegram token/chat-id 已移到後端 Supabase Edge Function (notify-telegram) 的 secret，
 // 前端不再持有任何 token，sendTelegram() 改為呼叫該 Edge Function。
 // ══════════════════════════════════
@@ -425,6 +446,7 @@ async function adminLogin(){
   if(pin===null)return;
   var ok=await verifyAdminPin(pin);
   if(ok){
+    ADMIN_PIN_MEM=String(pin); // 記住供 people 寫入授權用
     localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now()}));
     CURRENT_USER={id:0,name:'Admin',initials:'AD'};
     IS_ADMIN=true;IS_SUPER=true;
@@ -619,7 +641,7 @@ function autoLogin(type,data){
     showWarehouseSelect(savedWh);
   }
 }
-function clearSessions(){localStorage.removeItem('admin_sess');localStorage.removeItem('staff_sess');localStorage.removeItem('current_warehouse');}
+function clearSessions(){ADMIN_PIN_MEM='';localStorage.removeItem('admin_sess');localStorage.removeItem('staff_sess');localStorage.removeItem('current_warehouse');}
 window.addEventListener('DOMContentLoaded',function(){
   var adminS=null,staffS=null;
   try{adminS=JSON.parse(localStorage.getItem('admin_sess')||'null');}catch(e){}
@@ -1668,7 +1690,7 @@ function pk(k){
     var entered=PIN_ENT;PIN_ENT='';
     var errEl=document.getElementById('perr');if(errEl)errEl.textContent='...';
     verifyAdminPin(entered).then(function(ok){
-      if(ok){IS_ADMIN=true;IS_SUPER=true;renderAdminFull();return;}
+      if(ok){ADMIN_PIN_MEM=entered;IS_ADMIN=true;IS_SUPER=true;renderAdminFull();return;}
       var e=document.getElementById('perr');if(e)e.textContent=t('wrongPin');
       document.querySelectorAll('.pin-dot').forEach(function(d){d.className='pin-dot'});
       setTimeout(function(){
@@ -1827,7 +1849,7 @@ function showEditPersonName(id){
 async function savePersonName(id){
   var nm=(document.getElementById('pen').value||'').trim();
   if(!nm){toast('⚠ '+('Nama harus diisi'));return;}
-  try{var {error}=await sb.from('people').update({name:nm}).eq('id',id);if(error)throw error;toast('✓ '+('Disimpan'));closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{name:nm}});toast('✓ '+('Disimpan'));closeModal();await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
 async function toggleAdmin(id){
@@ -1835,7 +1857,7 @@ async function toggleAdmin(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!p.is_admin;
   if(!confirm(nv?('Jadikan "'+p.name+'" Admin Gudang?\nDia bisa tambah/edit/hapus barang.'):('Cabut akses Admin dari "'+p.name+'"?')))return;
-  try{var {error}=await sb.from('people').update({is_admin:nv}).eq('id',id);if(error)throw error;toast(nv?'✓ '+p.name+' 👑 Admin':'✓ Admin dicabut');await loadAll();}
+  try{await managePeople('update',{id:id,patch:{is_admin:nv}});toast(nv?'✓ '+p.name+' 👑 Admin':'✓ Admin dicabut');await loadAll();}
   catch(e){
     if(/is_admin/i.test(e.message||''))toast('⚠ Kolom is_admin belum ada di DB. Jalankan SQL dulu.');
     else toast('⚠ '+e.message);
@@ -1846,7 +1868,7 @@ async function togglePricing(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var nv=!p.can_view_pricing;
   if(!confirm(nv?('允許 "'+p.name+'" 查看 HARDWARE 價格？'):('取消 "'+p.name+'" 查看 HARDWARE 價格？')))return;
-  try{var {error}=await sb.from('people').update({can_view_pricing:nv}).eq('id',id);if(error)throw error;toast(nv?'✓ '+p.name+' 💰 可查價':'✓ 查價權限已取消');await loadAll();}
+  try{await managePeople('update',{id:id,patch:{can_view_pricing:nv}});toast(nv?'✓ '+p.name+' 💰 可查價':'✓ 查價權限已取消');await loadAll();}
   catch(e){
     if(/can_view_pricing/i.test(e.message||''))toast('⚠ 先在 Supabase 加 can_view_pricing 欄位: ALTER TABLE people ADD COLUMN can_view_pricing BOOLEAN DEFAULT FALSE;');
     else toast('⚠ '+e.message);
@@ -2201,7 +2223,7 @@ function showSetPin(id){
 async function savePin(id){
   var pin=String(document.getElementById('sp-pin').value||'').trim();
   if(!/^\d{4}$/.test(pin)){toast('⚠ Masukkan 4 digit');return;}
-  try{var {error}=await sb.from('people').update({pin:pin}).eq('id',id);if(error)throw error;toast(t('saveOk'));closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{pin:pin}});toast(t('saveOk'));closeModal();await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
 
@@ -2560,14 +2582,8 @@ async function addPerson(){
   var isAdm=!!(document.getElementById('np-admin')&&document.getElementById('np-admin').checked);
   try{
     var row={name:name,pin:'1234',warehouses:whs,is_admin:isAdm};
-    var res=await sb.from('people').insert(row);
-    // Fallback: kolom is_admin belum dibuat di DB → simpan tanpa is_admin
-    if(res.error&&/is_admin/i.test(res.error.message||'')){
-      delete row.is_admin;res=await sb.from('people').insert(row);
-      if(isAdm)toast('⚠ Jalankan SQL is_admin dulu untuk set admin');
-    }
-    if(res.error)throw res.error;
-    toast('✓ '+name+' (PIN:1234)'+(isAdm&&!res.error?' 👑':''));
+    await managePeople('insert',{row:row});
+    toast('✓ '+name+' (PIN:1234)'+(isAdm?' 👑':''));
     document.getElementById('npn').value='';WAREHOUSES.forEach(function(w){var el=document.getElementById('np-wh-'+w);if(el)el.checked=false;});var ad=document.getElementById('np-admin');if(ad)ad.checked=false;await loadAll();
   }
   catch(e){toast('⚠ '+e.message);}
@@ -2584,7 +2600,7 @@ function showSetWarehouses(id){
 }
 async function saveWarehouses(id){
   var whs=WAREHOUSES.filter(function(w){var el=document.getElementById('pw-'+w);return el&&el.checked;});
-  try{var {error}=await sb.from('people').update({warehouses:whs}).eq('id',id);if(error)throw error;toast('✓ Disimpan');closeModal();await loadAll();}
+  try{await managePeople('update',{id:id,patch:{warehouses:whs}});toast('✓ Disimpan');closeModal();await loadAll();}
   catch(e){toast('⚠ '+e.message);}
 }
 function switchWarehouse(wid){
@@ -2603,8 +2619,7 @@ async function delPerson(id){
   if(!person)return;
   if(!confirm('Hapus karyawan "'+person.name+'"?\n\n⚠️ Transaksi yang terkait akan dihapus juga.'))return;
   try{
-    var {error}=await sb.from('people').delete().eq('id',id);
-    if(error)throw error;
+    await managePeople('delete',{id:id});
     toast(t('delOk'));
     await loadAll();
   }catch(e){toast('⚠ '+e.message);}

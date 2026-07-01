@@ -33,6 +33,11 @@
 
 ### 1. `people` 表寫入全開 → 任何人可變成管理員
 
+> ✅ **已備妥修復（待部署）**：新增 Edge Function `manage-people`（service_role + 6 位數
+> admin PIN 授權），前端 people 的新增/改 PIN/設 admin/刪除全改走它；搭配
+> `MIGRATION_LOCK_PEOPLE_WRITE.sql` 撤掉 anon 對 people 的 INSERT/UPDATE/DELETE。
+> 部署順序：先 `deploy manage-people` + 前端上線 → 再跑該 SQL。
+
 攻擊者不用密碼，直接對 REST API 發請求：
 
 ```
