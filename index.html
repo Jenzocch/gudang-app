@@ -308,6 +308,16 @@ function verifyAdminPin(pin){
     },function(){resolve(false);});
   });
 }
+// 呼叫後端驗證員工 PIN；成功回傳 {ok:true, person:{...不含pin}}，前端不再持有任何 pin
+function verifyStaffPin(personId,pin){
+  return new Promise(function(resolve){
+    initSupabase(function(){
+      sb.functions.invoke('verify-staff',{body:{person_id:personId,pin:String(pin||'')}})
+        .then(function(r){resolve(r&&r.data?r.data:{ok:false});})
+        .catch(function(){resolve({ok:false});});
+    },function(){resolve({ok:false});});
+  });
+}
 // Telegram token/chat-id 已移到後端 Supabase Edge Function (notify-telegram) 的 secret，
 // 前端不再持有任何 token，sendTelegram() 改為呼叫該 Edge Function。
 // ══════════════════════════════════
@@ -366,7 +376,7 @@ function renderLoginScreen(){
   renderLoginPeopleList();
   initSupabase(function(){
     var lsStatus=document.getElementById('ls-status');
-    sb.from('people').select('*').order('name').then(function(res){
+    sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name').then(function(res){
       if(res.data&&res.data.length){
         DATA.people=res.data;
         try{localStorage.setItem('cached_people',JSON.stringify(res.data));}catch(e){}
@@ -453,39 +463,51 @@ function lpk(k){
   if(k==='⌫')STAFF_PIN_ENT=STAFF_PIN_ENT.slice(0,-1);
   else if(STAFF_PIN_ENT.length<4)STAFF_PIN_ENT+=k;
   document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d,i){d.className='pin-dot'+(i<STAFF_PIN_ENT.length?' f':'');});
-  if(STAFF_PIN_ENT.length===4){
-    var pid=LOGIN_SEL;
-    var isNew=pid==='__new__';
-    var correct=isNew?GUEST_PIN:(function(){var p=DATA.people.find(function(p){return p.id==pid;});return p&&p.pin?p.pin:'1234';})();
-    if(STAFF_PIN_ENT===correct){
-      if(isNew){
-        var nm=(document.getElementById('ls-newname').value||'').trim();
-        if(!nm){
-          var err=document.getElementById('ls-err');if(err)err.textContent='Isi nama dulu';
-          STAFF_PIN_ENT='';
-          document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
-          return;
-        }
-        CURRENT_USER={id:null,name:nm,isGuest:true,warehouses:WAREHOUSES};
-      }else{
-        CURRENT_USER=DATA.people.find(function(p){return p.id==pid;})||{};
-        if(!CURRENT_USER.warehouses)CURRENT_USER.warehouses=[];
-      }
-      IS_SUPER=false;
-      IS_ADMIN=!!CURRENT_USER.is_admin;
-      localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,ts:Date.now()}));
-      var btn=document.getElementById('hdr-user-btn');
-      if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
-      showWarehouseSelect(null);
-    }else{
-      var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
+  if(STAFF_PIN_ENT.length!==4)return;
+  var pid=LOGIN_SEL;
+  var isNew=pid==='__new__';
+  var entered=STAFF_PIN_ENT;
+  if(isNew){
+    // Guest：GUEST_PIN 是刻意公開的臨時碼，維持前端比對即可
+    if(entered!==GUEST_PIN){staffLoginFail();return;}
+    var nm=(document.getElementById('ls-newname').value||'').trim();
+    if(!nm){
+      var err=document.getElementById('ls-err');if(err)err.textContent='Isi nama dulu';
       STAFF_PIN_ENT='';
-      setTimeout(function(){
-        var e=document.getElementById('ls-err');if(e)e.textContent='';
-        document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
-      },900);
+      document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
+      return;
     }
+    CURRENT_USER={id:null,name:nm,isGuest:true,warehouses:WAREHOUSES};
+    finishStaffLogin();
+    return;
   }
+  // 既有員工：PIN 交後端 verify-staff 驗證，前端不再持有任何 pin
+  var errEl=document.getElementById('ls-err');if(errEl)errEl.textContent='...';
+  verifyStaffPin(pid,entered).then(function(res){
+    if(res&&res.ok&&res.person){
+      CURRENT_USER=res.person;
+      if(!CURRENT_USER.warehouses)CURRENT_USER.warehouses=[];
+      finishStaffLogin();
+    }else{
+      staffLoginFail();
+    }
+  });
+}
+function finishStaffLogin(){
+  IS_SUPER=false;
+  IS_ADMIN=!!CURRENT_USER.is_admin;
+  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,ts:Date.now()}));
+  var btn=document.getElementById('hdr-user-btn');
+  if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
+  showWarehouseSelect(null);
+}
+function staffLoginFail(){
+  var err=document.getElementById('ls-err');if(err)err.textContent=t('wrongPin');
+  STAFF_PIN_ENT='';
+  setTimeout(function(){
+    var e=document.getElementById('ls-err');if(e)e.textContent='';
+    document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
+  },900);
 }
 function staffLogout(){
   if(!confirm('Keluar?'))return;
@@ -765,12 +787,12 @@ async function loadAll(afterCb,fromCache){
     // 新架構: item_variants (各倉庫庫存) + items (商品共享信息) + batches + requests
     if(CURRENT_WAREHOUSE){
       q1=sb.from('item_variants').select('*, items(*)').eq('warehouse_id',CURRENT_WAREHOUSE).order('items(name)');
-      q2=sb.from('people').select('*').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
       q3=sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('expiry_date',{ascending:true});
     }else{
       q1=sb.from('item_variants').select('*, items(*)').order('items(name)');
-      q2=sb.from('people').select('*').order('name');
+      q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
       q3=sb.from('requests').select('*').order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
     }
@@ -1784,7 +1806,7 @@ function peListHTML(){
     return '<div class="ai"><div class="av" style="flex-shrink:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
       '<div class="ai-info"><div class="ai-name">'+esc(p.name)+' '+admBadge+' '+priceBadge+'</div>'+
       '<div style="display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;margin:.15rem 0">'+whBadges+'</div>'+
-      '<div style="font-size:.73rem;color:#9CA3AF">PIN: '+(p.pin?'****':'tidak ada')+'</div></div>'+
+      '<div style="font-size:.73rem;color:#9CA3AF">PIN: •••• <span style="opacity:.7">(🔑 untuk atur)</span></div></div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="Ubah Nama" onclick="showEditPersonName(\''+esc(p.id)+'\')">✏️</button>'+
         '<button class="ib" title="'+(p.is_admin?'Cabut Admin':'Jadikan Admin')+'" onclick="toggleAdmin(\''+esc(p.id)+'\')" style="'+(p.is_admin?'opacity:1':'opacity:.4')+'">👑</button>'+
