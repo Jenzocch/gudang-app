@@ -293,8 +293,21 @@ if('serviceWorker' in navigator){
 // ══════════════════════════════════
 var SUPA_URL = 'https://klswfuzuhlowzrbncreu.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsc3dmdXp1aGxvd3pyYm5jcmV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MjM5NTEsImV4cCI6MjA5NzA5OTk1MX0.yfqyBjGFwMsryWZszo-nONINYG8QdcIAUGL97TEWgDk';
-var ADMIN_PIN = '123456'; // Admin PIN
-var GUEST_PIN = '0000';  // Guest PIN
+// Admin PIN 已移到後端 Supabase Edge Function (verify-admin) 的 secret，
+// 前端不再持有真正的 PIN，只保留「位數」給 UI 畫圓點用。
+var ADMIN_PIN_LEN = 6; // 只是 UI 顯示位數，非機密
+// GUEST_PIN 是刻意公開的臨時碼（畫面上會直接顯示給新使用者），非機密
+var GUEST_PIN = '0000';  // Guest PIN (sengaja publik)
+// 呼叫後端驗證 admin PIN，回傳 Promise<boolean>
+function verifyAdminPin(pin){
+  return new Promise(function(resolve){
+    initSupabase(function(){
+      sb.functions.invoke('verify-admin',{body:{pin:String(pin||'')}})
+        .then(function(r){resolve(!!(r&&r.data&&r.data.ok));})
+        .catch(function(){resolve(false);});
+    },function(){resolve(false);});
+  });
+}
 // Telegram token/chat-id 已移到後端 Supabase Edge Function (notify-telegram) 的 secret，
 // 前端不再持有任何 token，sendTelegram() 改為呼叫該 Edge Function。
 // ══════════════════════════════════
@@ -397,10 +410,11 @@ function selectLoginPerson(pid,name){
   }
   document.getElementById('ls-pin-area').style.display='block';
 }
-function adminLogin(){
+async function adminLogin(){
   var pin=prompt('PIN Admin (6 digit)');
   if(pin===null)return;
-  if(pin===ADMIN_PIN){
+  var ok=await verifyAdminPin(pin);
+  if(ok){
     localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now()}));
     CURRENT_USER={id:0,name:'Admin',initials:'AD'};
     IS_ADMIN=true;IS_SUPER=true;
@@ -1614,8 +1628,8 @@ function renderPin(){
     '<div class="pin-scr">'+
     '<div style="font-size:2.8rem;margin-bottom:.5rem">🔐</div>'+
     '<h2 style="font-size:1.1rem;margin-bottom:.3rem">'+t('pin')+'</h2>'+
-    '<p style="font-size:.8rem;color:#9CA3AF;margin-bottom:.8rem">'+ADMIN_PIN.length+' digits</p>'+
-    '<div class="pin-dots" id="pdots">'+Array(ADMIN_PIN.length).fill('<div class="pin-dot"></div>').join('')+'</div>'+
+    '<p style="font-size:.8rem;color:#9CA3AF;margin-bottom:.8rem">'+ADMIN_PIN_LEN+' digits</p>'+
+    '<div class="pin-dots" id="pdots">'+Array(ADMIN_PIN_LEN).fill('<div class="pin-dot"></div>').join('')+'</div>'+
     '<div id="perr" style="color:var(--danger);font-size:.82rem;min-height:1.2rem;margin:.3rem 0"></div>'+
     '<div class="pin-pad">'+
       [1,2,3,4,5,6,7,8,9,'','0','⌫'].map(function(k){
@@ -1626,18 +1640,19 @@ function renderPin(){
 }
 function pk(k){
   if(k==='⌫')PIN_ENT=PIN_ENT.slice(0,-1);
-  else if(PIN_ENT.length<ADMIN_PIN.length)PIN_ENT+=k;
+  else if(PIN_ENT.length<ADMIN_PIN_LEN)PIN_ENT+=k;
   document.querySelectorAll('.pin-dot').forEach(function(d,i){d.className='pin-dot'+(i<PIN_ENT.length?' f':'')});
-  if(PIN_ENT.length===ADMIN_PIN.length){
-    if(PIN_ENT===ADMIN_PIN){IS_ADMIN=true;IS_SUPER=true;renderAdminFull();}
-    else{
-      document.getElementById('perr').textContent=t('wrongPin');
-      PIN_ENT='';
+  if(PIN_ENT.length===ADMIN_PIN_LEN){
+    var entered=PIN_ENT;PIN_ENT='';
+    var errEl=document.getElementById('perr');if(errEl)errEl.textContent='...';
+    verifyAdminPin(entered).then(function(ok){
+      if(ok){IS_ADMIN=true;IS_SUPER=true;renderAdminFull();return;}
+      var e=document.getElementById('perr');if(e)e.textContent=t('wrongPin');
+      document.querySelectorAll('.pin-dot').forEach(function(d){d.className='pin-dot'});
       setTimeout(function(){
-        var e=document.getElementById('perr');if(e)e.textContent='';
-        document.querySelectorAll('.pin-dot').forEach(function(d){d.className='pin-dot'});
+        var e2=document.getElementById('perr');if(e2)e2.textContent='';
       },900);
-    }
+    });
   }
 }
 function renderAdminFull(){
@@ -2422,6 +2437,10 @@ async function delItem(variantId){
     // Delete only this specific variant row by its unique id
     var {error}=await sb.from('item_variants').delete().eq('id',variantId);
     if(error)throw error;
+    // 連帶清掉該商品在此倉的批次，避免留下孤兒 item_batches
+    if(item.id!=null&&item.warehouse_id){
+      try{await sb.from('item_batches').delete().eq('item_id',item.id).eq('warehouse_id',item.warehouse_id);}catch(e){}
+    }
     toast('✓ '+('Barang dihapus dari '+item.warehouse_id));
     await loadAll();
   }
