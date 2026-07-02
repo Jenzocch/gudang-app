@@ -1754,7 +1754,7 @@ function aiItemHTML(i){
     var nowT=Date.now();var t30=nowT+30*86400000;
     var expColor=nearExp?(nearExp._expT<nowT?'#DC2626':nearExp._expT<t30?'#D97706':'#059669'):'#9CA3AF';
     var stcEmoji={Ambient:'🌡️',Chilled:'❄️',Frozen:'🧊'}[i.storage_condition]||'🌡️';
-    return '<div class="ai">'+ph+
+    return '<div class="ai" id="ai-'+esc(i.variant_id)+'">'+ph+
       '<div class="ai-info">'+
         '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem">'+(i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.7rem;background:#E0F2FE;color:#0369A1;padding:.1rem .3rem;border-radius:6px;font-weight:700">🔕 Skip</span>':'')+
         '</div>'+
@@ -2489,12 +2489,16 @@ async function delItem(variantId){
       try{await sb.from('item_batches').delete().eq('item_id',item.id).eq('warehouse_id',item.warehouse_id);}catch(e){}
     }
     toast('✓ '+('Barang dihapus dari '+item.warehouse_id));
-    // 就地移除並只重繪清單，維持在原本的分頁、搜尋與捲動位置（不整頁重載）
+    // 就地移除：只拿掉這一列 DOM，畫面完全不重繪、不跳（保留分頁/搜尋/捲動位置）
     DATA.items=DATA.items.filter(function(v){return v.variant_id!=variantId;});
     if(typeof buildIndexes==='function')buildIndexes();
-    var aitc=document.getElementById('ait-content');
-    if(aitc){aitc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';}
-    else{await loadAll();}
+    var row=document.getElementById('ai-'+variantId);
+    if(row){row.remove();}
+    else{
+      var aitc=document.getElementById('ait-content');
+      if(aitc){aitc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';}
+      else{await loadAll();}
+    }
   }
   catch(e){toast('⚠ '+e.message);}
 }
