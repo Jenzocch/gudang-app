@@ -601,6 +601,7 @@ var CATG_FILTER='';
 var VIEW_AI='list';
 var STOCKTAKE={};
 var STK_CATG='';
+var STK_SEARCH='';
 var NOTIFIED_LOW_ITEMS={};
 var CATG_MODAL_CAT=null;
 var FORM_TAGS=[];
@@ -2135,9 +2136,8 @@ function renderStocktake(catFilter){
     (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderStocktake(catFilter);})();
     return;
   }
-  STOCKTAKE={};STK_CATG=catFilter||'';
+  STOCKTAKE={};STK_CATG=catFilter||'';STK_SEARCH='';
   var cats=getCategories();
-  var items=DATA.items.filter(function(i){return!STK_CATG||(i.tags||[]).includes(STK_CATG);});
   var html='<div style="position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
     '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+'</span>'+
@@ -2146,7 +2146,8 @@ function renderStocktake(catFilter){
     '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+('Cam')+'</button>'+
     '<button class="btn btn-s" style="padding:.28rem .65rem;font-size:.8rem" onclick="exitStocktake()">← '+('Kembali')+'</button>'+
     '</div>'+
-    '</div>';
+    '</div>'+
+    '<input id="stk-srch" type="search" placeholder="🔍 Cari nama / kode barang..." oninput="fltStk()" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;box-sizing:border-box;margin-bottom:.35rem">';
   if(cats.length){
     html+='<div style="display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.15rem">'+
       '<button class="catg-chip'+(STK_CATG===''?' act':'')+'" onclick="renderStocktake(\'\')">'+t('allCatg')+'</button>'+
@@ -2154,32 +2155,46 @@ function renderStocktake(catFilter){
       '</div>';
   }
   html+='</div>';
-  if(!items.length){
-    html+='<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+('Tidak ada barang')+'</div>';
-  }else{
-    html+='<div style="background:#F8FAFC;padding:.3rem .7rem;font-size:.75rem;color:#64748B;border-bottom:1px solid var(--border)">'+
-      ('Edit jumlah langsung, baris berubah warna kuning, lalu simpan')+
-    '</div>';
-    items.forEach(function(i){
-      var ph=i.image_url?'<img style="width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0" src="'+esc(i.image_url)+'">'
-        :'<div style="width:38px;height:38px;border-radius:6px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div>';
-      html+='<div class="stk-row" id="stk-'+esc(i.variant_id)+'">'+ph+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
-          (i.category?'<div style="font-size:.7rem;color:#64748B">🏷️ '+esc(i.category)+'</div>':'')+
-        '</div>'+
-        '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
-          '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+esc(i.variant_id)+'">'+('Sebelum')+':'+i.qty+'</span>'+
-          '<input type="number" class="stk-qty" id="sq-'+esc(i.variant_id)+'" value="'+i.qty+'" min="0" oninput="onStkChange(\''+esc(i.variant_id)+'\',this)">'+
-          '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
-        '</div>'+
-      '</div>';
-    });
-  }
+  html+='<div id="stk-list">'+stkRowsHTML()+'</div>';
   html+='<div style="padding:.7rem;background:#fff;border-top:1px solid var(--border)">'+
     '<button class="btn btn-ok btn-full" id="stk-save-btn" onclick="saveStocktake()" disabled>'+
     ('✓ Simpan (belum ada perubahan)')+'</button></div>';
   document.getElementById('ait-content').innerHTML=html;
+}
+// 清單另外抽出，讓搜尋只重繪清單、保留已輸入的清點值
+function stkRowsHTML(){
+  var items=DATA.items.filter(function(i){
+    if(STK_CATG&&!(i.tags||[]).includes(STK_CATG))return false;
+    if(STK_SEARCH&&!(i.name.toLowerCase().includes(STK_SEARCH)||(i.code&&i.code.toLowerCase().includes(STK_SEARCH))))return false;
+    return true;
+  });
+  if(!items.length)return'<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.85rem">'+('Tidak ada barang')+'</div>';
+  var html='<div style="background:#F8FAFC;padding:.3rem .7rem;font-size:.75rem;color:#64748B;border-bottom:1px solid var(--border)">'+
+    ('Edit jumlah langsung, baris berubah warna kuning, lalu simpan')+'</div>';
+  items.forEach(function(i){
+    var ph=i.image_url?'<img style="width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0" src="'+esc(i.image_url)+'">'
+      :'<div style="width:38px;height:38px;border-radius:6px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div>';
+    var edited=(i.variant_id in STOCKTAKE);
+    var val=edited?STOCKTAKE[i.variant_id]:i.qty;
+    html+='<div class="stk-row'+(edited?' changed':'')+'" id="stk-'+esc(i.variant_id)+'">'+ph+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
+        (i.code?'<div style="font-size:.7rem;color:#0F766E;font-weight:700">🏷️ '+esc(i.code)+'</div>':'')+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
+        '<span style="font-size:.75rem;color:#94A3B8" id="stk-orig-'+esc(i.variant_id)+'">'+('Sebelum')+':'+i.qty+'</span>'+
+        '<input type="number" class="stk-qty'+(edited?' changed':'')+'" id="sq-'+esc(i.variant_id)+'" value="'+val+'" min="0" oninput="onStkChange(\''+esc(i.variant_id)+'\',this)">'+
+        '<span style="font-size:.8rem;color:#64748B;min-width:24px">'+esc(i.unit)+'</span>'+
+      '</div>'+
+    '</div>';
+  });
+  return html;
+}
+function fltStk(){
+  var inp=document.getElementById('stk-srch');
+  STK_SEARCH=inp?(inp.value||'').toLowerCase():'';
+  var el=document.getElementById('stk-list');
+  if(el)el.innerHTML=stkRowsHTML();
 }
 function onStkChange(variantId,inp){
   var item=DATA.items.find(function(i){return i.variant_id==variantId;});if(!item)return;
