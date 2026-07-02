@@ -1758,6 +1758,7 @@ function aiItemHTML(i){
       '<div class="ai-info">'+
         '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem">'+(i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.7rem;background:#E0F2FE;color:#0369A1;padding:.1rem .3rem;border-radius:6px;font-weight:700">🔕 Skip</span>':'')+
         '</div>'+
+        (i.code?'<div style="font-size:.72rem;font-weight:800;color:#0F766E;letter-spacing:.04em;margin-bottom:.1rem">🏷️ '+esc(i.code)+'</div>':'')+
         '<div class="ai-name">'+esc(i.name)+'</div>'+
         '<div class="ai-detail">'+i.qty+' '+esc(i.unit)+' · min:'+i.critical_qty+'</div>'+
         '<div style="font-size:.73rem;color:#6B7280;margin-top:.15rem">'+(i.supplier_name?'🏢 '+esc(i.supplier_name)+' · ':'')+(i.storage_condition?stcEmoji+' '+esc(i.storage_condition):'')+'</div>'+
@@ -1799,7 +1800,7 @@ function aiListHTML(){
   }
   if(AI_SEARCH_FILTER){
     var q=AI_SEARCH_FILTER.toLowerCase();
-    items=items.filter(function(i){return i.name.toLowerCase().includes(q);});
+    items=items.filter(function(i){return i.name.toLowerCase().includes(q)||(i.code&&i.code.toLowerCase().includes(q));});
   }
   if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER?'找不到相符的產品 🚫':'-')+'</div>';
   // 先渲染前 50 筆，其餘異步載入
@@ -2243,6 +2244,7 @@ function itemFormHTML(item){
   var banner=twh?'<div style="background:'+(WH_COLORS[twh]||'#E2E8F0')+';color:'+(WH_TEXT[twh]||'#334155')+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||'#334155')+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
   return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
     '<div style="display:none" id="fn-dup-info"></div>'+
+    '<div class="ig"><label>🏷️ Kode Barang / 代號</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
     '<div class="fr">'+
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
@@ -2415,6 +2417,7 @@ async function saveItem(forceNew){
       return;
     }
   }
+  var code=(document.getElementById('fc')?document.getElementById('fc').value:'').trim();
   var qty=parseInt(document.getElementById('fq').value)||0;
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=parseInt(document.getElementById('fm').value)||10;
@@ -2430,7 +2433,7 @@ async function saveItem(forceNew){
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var u1=await sbUpdateSafe('items',{name:name,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
+      var u1=await sbUpdateSafe('items',{name:name,code:code||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
       if(u1.error)throw u1.error;
       var u2=await sbUpdateSafe('item_variants',{qty:qty,critical_qty:min,storage_photo_url:sp},'id',EDIT_ITEM.variant_id);
       if(u2.error)throw u2.error;
@@ -2439,7 +2442,7 @@ async function saveItem(forceNew){
       var whEl=document.getElementById('f-warehouse');
       var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
       if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
-      var ins=await sbInsertSafe('items',{name:name,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
+      var ins=await sbInsertSafe('items',{name:name,code:code||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('新增商品失敗');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
