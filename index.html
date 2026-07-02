@@ -808,19 +808,24 @@ async function loadAll(afterCb,fromCache){
     // supaya pemuatan awal lebih ringan & cepat
     var q1,q2,q3,q4;
     // 新架構: item_variants (各倉庫庫存) + items (商品共享信息) + batches + requests
+    var q5;
     if(CURRENT_WAREHOUSE){
       q1=sb.from('item_variants').select('*, items(*)').eq('warehouse_id',CURRENT_WAREHOUSE).order('items(name)');
       q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
       q3=sb.from('requests').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('expiry_date',{ascending:true});
+      q5=sb.from('categories').select('name').eq('warehouse_id',CURRENT_WAREHOUSE).order('name');
     }else{
       q1=sb.from('item_variants').select('*, items(*)').order('items(name)');
       q2=sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
       q3=sb.from('requests').select('*').order('created_at',{ascending:false});
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
+      q5=sb.from('categories').select('name').order('name');
     }
-    var results=await Promise.race([Promise.all([q1,q2,q3,q4]),tOut]);
-    var iv=results[0],p=results[1],r=results[2],bt=results[3];
+    var results=await Promise.race([Promise.all([q1,q2,q3,q4,q5]),tOut]);
+    var iv=results[0],p=results[1],r=results[2],bt=results[3],cg=results[4];
+    // categories 表若尚未建立(migration 前)，cg.error 會有值，容錯成空陣列
+    DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
     // Flatten item_variants + items: 合併成單一物件，便於現有程式碼使用
     DATA.items=(iv.data||[]).map(function(v){
@@ -1876,14 +1881,12 @@ async function togglePricing(id){
 }
 // Kategori bawaan Bahan Baku (BB): selalu tersedia untuk filter & tagging
 var DEFAULT_CATS=['Packing','Food Ingredient'];
-// 分類(tag)清單改為「每個倉庫各自一份」，避免 SJA 的分類跑到 HARDWARE
-function catsKey(){return 'cats_'+(CURRENT_WAREHOUSE||'_all');}
 function getCategories(){
   var seen={};var all=[];
   DEFAULT_CATS.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   DATA.items.forEach(function(i){var tags=i.tags||[];for(var k=0;k<tags.length;k++){var tg=tags[k];if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}}});
-  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
-  saved.forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
+  // 分類存在資料庫（categories 表，依倉庫分開），loadAll 已載入 DATA.categories
+  (DATA.categories||[]).forEach(function(tg){if(tg&&!seen[tg]){seen[tg]=1;all.push(tg);}});
   return all.sort();
 }
 function setCatgFilter(cat){
@@ -1934,18 +1937,22 @@ function catgPanelHTML(){
   html+='</div>';
   return html;
 }
-function addCatg(){
+async function addCatg(){
   var inp=document.getElementById('ncg');
   if(!inp)return;
   var v=inp.value.trim();
   if(!v){toast('⚠ '+('Isi nama tag'));return;}
+  if(!CURRENT_WAREHOUSE){toast('⚠ Pilih gudang dulu (kategori per gudang)');return;}
   if(getCategories().includes(v)){toast('⚠ '+('Tag sudah ada'));return;}
-  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
-  saved.push(v);localStorage.setItem(catsKey(),JSON.stringify(saved));
-  inp.value='';
-  document.getElementById('acg').innerHTML=catgPanelHTML();
-  setTimeout(function(){var ni=document.getElementById('ncg');if(ni)ni.focus();},100);
-  toast('✓ '+v);
+  try{
+    var {error}=await sb.from('categories').insert({warehouse_id:CURRENT_WAREHOUSE,name:v});
+    if(error)throw error;
+    DATA.categories=(DATA.categories||[]).concat([v]);
+    inp.value='';
+    document.getElementById('acg').innerHTML=catgPanelHTML();
+    setTimeout(function(){var ni=document.getElementById('ncg');if(ni)ni.focus();},100);
+    toast('✓ '+v);
+  }catch(e){toast('⚠ '+e.message);}
 }
 async function delCatg(cat){
   if(!confirm('Hapus tag "'+cat+'"? Barang tetap ada, tag hanya dihapus.'))return;
@@ -1957,8 +1964,8 @@ async function delCatg(cat){
       if(error)throw error;
       affected[ki].tags=nt;
     }
-    var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
-    localStorage.setItem(catsKey(),JSON.stringify(saved.filter(function(c){return c!==cat;})));
+    if(CURRENT_WAREHOUSE){var dc=await sb.from('categories').delete().eq('warehouse_id',CURRENT_WAREHOUSE).eq('name',cat);if(dc.error)throw dc.error;}
+    DATA.categories=(DATA.categories||[]).filter(function(c){return c!==cat;});
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('delOk'));
   }catch(e){toast('⚠ '+e.message);}
@@ -1975,9 +1982,8 @@ async function renameCatg(cat){
       if(error)throw error;
       affected[ki].tags=nt;
     }
-    var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
-    var idx=saved.indexOf(cat);if(idx>=0)saved[idx]=newName;
-    localStorage.setItem(catsKey(),JSON.stringify(saved));
+    if(CURRENT_WAREHOUSE){var rc=await sb.from('categories').update({name:newName}).eq('warehouse_id',CURRENT_WAREHOUSE).eq('name',cat);if(rc.error)throw rc.error;}
+    DATA.categories=(DATA.categories||[]).map(function(c){return c===cat?newName:c;});
     document.getElementById('acg').innerHTML=catgPanelHTML();
     toast(t('saveOk'));
   }catch(e){toast('⚠ '+e.message);}
@@ -2021,11 +2027,13 @@ function quickAssignTag(id){
   '<div style="padding:.7rem"><button class="btn btn-p btn-full" onclick="saveQuickTag('+id+')">✓ '+('Simpan')+'</button></div>';
   showModal('🏷️ '+esc(item.name),body);
 }
-function addNewTagInline(id){
+async function addNewTagInline(id){
   var v=(document.getElementById('qt-new').value||'').trim();
   if(!v)return;
-  var saved=JSON.parse(localStorage.getItem(catsKey())||'[]');
-  if(!saved.includes(v)){saved.push(v);localStorage.setItem(catsKey(),JSON.stringify(saved));}
+  if(!(DATA.categories||[]).includes(v)){
+    if(CURRENT_WAREHOUSE){try{await sb.from('categories').insert({warehouse_id:CURRENT_WAREHOUSE,name:v});}catch(e){}}
+    DATA.categories=(DATA.categories||[]).concat([v]);
+  }
   document.getElementById('qt-new').value='';
   refreshQtList(id);
   document.querySelectorAll('#qt-list input[type=checkbox]').forEach(function(cb){if(cb.value===v)cb.checked=true;});
