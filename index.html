@@ -2489,7 +2489,12 @@ async function delItem(variantId){
       try{await sb.from('item_batches').delete().eq('item_id',item.id).eq('warehouse_id',item.warehouse_id);}catch(e){}
     }
     toast('✓ '+('Barang dihapus dari '+item.warehouse_id));
-    await loadAll();
+    // 就地移除並只重繪清單，維持在原本的分頁、搜尋與捲動位置（不整頁重載）
+    DATA.items=DATA.items.filter(function(v){return v.variant_id!=variantId;});
+    if(typeof buildIndexes==='function')buildIndexes();
+    var aitc=document.getElementById('ait-content');
+    if(aitc){aitc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';}
+    else{await loadAll();}
   }
   catch(e){toast('⚠ '+e.message);}
 }
