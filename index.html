@@ -532,7 +532,7 @@ function lpk(k){
 function finishStaffLogin(){
   IS_SUPER=false;
   IS_ADMIN=!!CURRENT_USER.is_admin;
-  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,can_ambil:CURRENT_USER.can_ambil,can_masuk:CURRENT_USER.can_masuk,ts:Date.now()}));
+  localStorage.setItem('staff_sess',JSON.stringify({id:CURRENT_USER.id||null,name:CURRENT_USER.name,g:CURRENT_USER.isGuest||false,warehouses:CURRENT_USER.warehouses||[],is_admin:!!CURRENT_USER.is_admin,can_ambil:CURRENT_USER.can_ambil,can_masuk:CURRENT_USER.can_masuk,can_view_pricing:CURRENT_USER.can_view_pricing,ts:Date.now()}));
   var btn=document.getElementById('hdr-user-btn');
   if(btn){btn.textContent='▶ '+CURRENT_USER.name+(CURRENT_USER.isGuest?' 👤':'');btn.style.display='inline';}
   showWarehouseSelect(null);
@@ -653,6 +653,12 @@ function canMasuk(){
   if(CURRENT_USER.can_masuk===false)return false;
   return !!CURRENT_USER.is_admin;
 }
+// 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
+function goDefaultStaffTab(){
+  if(canAmbil())goTab('ambil',document.querySelectorAll('.tb')[1]);
+  else if(canMasuk())goTab('masuk',document.querySelectorAll('.tb')[2]);
+  else goTab('home',document.querySelectorAll('.tb')[0]);
+}
 function autoLogin(type,data){
   IS_SUPER=(type==='admin');
   IS_ADMIN=(type==='admin')||!!(data&&data.is_admin);
@@ -679,7 +685,9 @@ window.addEventListener('DOMContentLoaded',function(){
   if(adminS&&adminS.ts&&(Date.now()-adminS.ts)<7*86400000){
     autoLogin('admin',{id:0,name:'Admin'});
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
-    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.warehouses||[],is_admin:staffS.is_admin||false});
+    // 還原 session 時權限欄位(can_ambil/can_masuk/can_view_pricing)一定要帶回來，
+    // 少帶的話 reload 後會退回舊預設 → 被關掉的人重新拿到 Ambil、被開通的人 Masuk 分頁消失
+    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.warehouses||[],is_admin:staffS.is_admin||false,can_ambil:staffS.can_ambil,can_masuk:staffS.can_masuk,can_view_pricing:staffS.can_view_pricing});
   }else{
     clearSessions();renderLoginScreen();
   }
@@ -828,8 +836,7 @@ function tryRenderFromCache(wid){
     setDot('');
     renderAll();
     if(IS_ADMIN)goTab('admin',document.querySelectorAll('.tb')[5]);
-    else if(canAmbil())goTab('ambil',document.querySelectorAll('.tb')[1]);
-    else goTab('home',document.querySelectorAll('.tb')[0]);
+    else goDefaultStaffTab();
     return true;
   }catch(e){return false;}
 }
@@ -888,6 +895,23 @@ async function loadAll(afterCb,fromCache){
       p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing').order('name');
     }
     DATA.people=(p&&p.data)||[];
+    // 同步「目前登入者」的最新權限：super admin 剛切了 📤/📥/💰/👑 開關，
+    // 員工這邊下一次 loadAll（切倉/重整/交易後）就生效，不用登出重登
+    if(CURRENT_USER&&!IS_SUPER&&CURRENT_USER.id!=null){
+      var me=DATA.people.find(function(x){return x.id==CURRENT_USER.id;});
+      if(me){
+        CURRENT_USER.can_ambil=me.can_ambil;
+        CURRENT_USER.can_masuk=me.can_masuk;
+        CURRENT_USER.can_view_pricing=me.can_view_pricing;
+        CURRENT_USER.is_admin=!!me.is_admin;
+        if(me.warehouses)CURRENT_USER.warehouses=me.warehouses;
+        IS_ADMIN=!!me.is_admin;
+        try{
+          var ss=JSON.parse(localStorage.getItem('staff_sess')||'null');
+          if(ss){ss.can_ambil=me.can_ambil;ss.can_masuk=me.can_masuk;ss.can_view_pricing=me.can_view_pricing;ss.is_admin=!!me.is_admin;if(me.warehouses)ss.warehouses=me.warehouses;localStorage.setItem('staff_sess',JSON.stringify(ss));}
+        }catch(e){}
+      }
+    }
     DATA.requests=r.data||[];
     DATA.batches=bt?bt.data||[]:[];
     DATA.transactions=[];TX_LOADED=false;
@@ -937,7 +961,7 @@ function renderAll(){
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
-  if(!IS_ADMIN&&ACTIVE_TAB==='riwayat')ACTIVE_TAB='home';
+  if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
   document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
     return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
   }).join('');
@@ -1567,6 +1591,7 @@ function getAmbilBatches(itemId,qty){
 }
 async function doAmbilCart(){
   if(!CURRENT_USER){toast('⚠ Belum login');return;}
+  if(!canAmbil()){toast('⚠ Tidak ada akses Ambil');return;}
   var keys=Object.keys(CART);
   if(!keys.length){toast('Pilih barang dulu');return;}
   var pname=CURRENT_USER.name||'Unknown';
@@ -1795,6 +1820,7 @@ function onMskPersonChange(){
 }
 async function doMasukCart(){
   if(!CURRENT_USER){toast('⚠ Belum login');return;}
+  if(!canMasuk()){toast('⚠ Tidak ada akses Masuk');return;}
   var sel=document.getElementById('msk-p');
   var pname=(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
   var keys=Object.keys(CART_M);
@@ -2944,15 +2970,15 @@ function switchWarehouse(wid){
   if(!shown){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
-  // 員工回 Ambil（無權限則回首頁）、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
-  var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}
-    :function(){canAmbil()?goTab('ambil',document.querySelectorAll('.tb')[1]):goTab('home',document.querySelectorAll('.tb')[0]);};
+  // 員工回預設分頁（Ambil→Masuk→Home 依權限）、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
+  var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:goDefaultStaffTab;
   loadAll(cb,shown);
 }
 // 頂部倉庫快速切換 chips：有 2 個以上倉庫權限才顯示，目前倉庫用該倉顏色高亮
 function updateWhChips(){
   var el=document.getElementById('wh-chips');if(!el)return;
-  var whs=IS_SUPER?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
+  // 與 showWarehouseSelect 相同邏輯：admin(含 gudang admin)看全部倉庫，員工看被指派的
+  var whs=IS_ADMIN?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
   if(!CURRENT_USER||whs.length<2||!CURRENT_WAREHOUSE){
     el.style.display='none';document.body.classList.remove('has-chips');return;
   }
@@ -2981,6 +3007,7 @@ function logoutAdmin(){
 
 // ACTIONS
 async function doAmbil(){
+  if(!canAmbil()){toast('⚠ Tidak ada akses Ambil');return;}
   if(!sIA||!sPA){toast(t('selBoth'));return;}
   var q=parseInt(document.getElementById('a-q').value)||1;
   if(q>sIA.qty){showLow(sIA,q);return;}
@@ -2994,6 +3021,7 @@ async function doAmbil(){
   btn.disabled=false;btn.textContent=t('doTake');
 }
 async function doMasuk(){
+  if(!canMasuk()){toast('⚠ Tidak ada akses Masuk');return;}
   if(!sIM||!sPM){toast(t('selBoth'));return;}
   var q=parseInt(document.getElementById('m-q').value)||1;
   var btn=event.target;btn.disabled=true;btn.textContent='...';
@@ -3419,7 +3447,7 @@ var PRELOAD_TS=0;
 function preloadAllWarehouses(){
   // Background: cache gudang lain supaya switch cepat (silent, no toast)
   // 開放給「有多個倉庫權限」的使用者（不只 super admin），chips 快速切換才會秒切
-  var whs=IS_SUPER?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
+  var whs=IS_ADMIN?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
   if(whs.length<2)return;
   var now=Date.now();
   if(now-PRELOAD_TS<120000)return; // 節流：2 分鐘內不重複預載（之前每次 loadAll 都狂打 9 個請求）
@@ -3482,8 +3510,8 @@ function selectWarehouse(wid){
   }
   initSupabase(function(){
     var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:function(){
-      if(!canAmbil()){goTab('home',document.querySelectorAll('.tb')[0]);return;}
-      goTab('ambil',document.querySelectorAll('.tb')[1]);setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);
+      goDefaultStaffTab();
+      if(canAmbil())setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);
     };
     loadAll(cb,shown);
   },function(e){
