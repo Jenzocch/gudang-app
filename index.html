@@ -651,6 +651,7 @@ function pWhPerm(p,w,kind){
   if(wp&&typeof wp[kind]==='boolean')return wp[kind];
   if(!p)return false;
   if(kind==='ambil')return p.can_ambil!==false;
+  if(kind==='opname')return !!p.is_admin; // 盤點預設只有 admin，其他人要另外開
   if(p.can_masuk===true)return true;
   if(p.can_masuk===false)return false;
   return !!p.is_admin;
@@ -664,6 +665,11 @@ function canMasuk(){
   if(IS_SUPER)return true;
   if(!CURRENT_USER)return false;
   return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'masuk');
+}
+function canOpname(){
+  if(IS_SUPER)return true;
+  if(!CURRENT_USER)return false;
+  return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'opname');
 }
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
@@ -1020,6 +1026,10 @@ function renderHome(){
 
   if(CURRENT_USER&&CURRENT_USER.isGuest){
     h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
+  }
+  // 有 🔢 Opname 權限的員工：首頁給盤點入口（admin 從 Kelola Barang 進，不重複顯示）
+  if(!IS_ADMIN&&CURRENT_WAREHOUSE&&canOpname()){
+    h+='<div style="margin:.7rem"><button class="btn btn-warn btn-full" style="padding:.7rem;font-size:.95rem" onclick="openStocktake(\'home\')">🔢 Stock Check / Opname — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</button></div>';
   }
   // Expiry warnings (uses pre-computed _expT timestamps from buildIndexes)
   var nowTime=Date.now();var d30Time=nowTime+30*86400000;
@@ -2005,7 +2015,7 @@ function renderAdminFull(){
     '<div id="ait" class="tc'+(sub==='ait'?' active':'')+'">'+
       '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
         (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Add Item</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Add Item</button>')+
-        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="renderStocktake(\'\')">🔢 Stock Check</button>'+
+        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Stock Check</button>'+
         '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.4rem;opacity:1;font-size:.85rem" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
         '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.4rem;opacity:.5;font-size:.85rem" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
       '</div>'+
@@ -2124,11 +2134,12 @@ function peListHTML(){
     var id=esc(p.id);
     var permRows=pwhs.length?pwhs.map(function(w){
       var wcol=WH_TEXT[w]||'#334155';var wbg=WH_COLORS[w]||'#E2E8F0';
-      var a=pWhPerm(p,w,'ambil'),m=pWhPerm(p,w,'masuk');
-      return '<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.4rem">'+
+      var a=pWhPerm(p,w,'ambil'),m=pWhPerm(p,w,'masuk'),o=pWhPerm(p,w,'opname');
+      return '<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.4rem;flex-wrap:wrap">'+
         '<span style="flex-shrink:0;width:82px;text-align:center;background:'+wbg+';border:1.5px solid '+wcol+';border-radius:8px;padding:.35rem .3rem;font-size:.78rem;font-weight:800;color:'+wcol+'">'+(WH_SHORT[w]||w)+'</span>'+
         peToggleBtn(a,'#DC2626','📤','Ambil',"toggleWhPerm('"+id+"','"+esc(w)+"','ambil')")+
         peToggleBtn(m,'#059669','📥','Masuk',"toggleWhPerm('"+id+"','"+esc(w)+"','masuk')")+
+        peToggleBtn(o,'#0D9488','🔢','Opname',"toggleWhPerm('"+id+"','"+esc(w)+"','opname')")+
       '</div>';
     }).join(''):'<div style="font-size:.82rem;color:#D97706;font-weight:700;padding:.3rem 0 .5rem">⚠ Belum ada akses gudang — klik 🏭 Gudang dulu</div>';
     return '<div style="background:#fff;padding:.75rem .85rem;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
@@ -2184,15 +2195,16 @@ async function toggleWhPerm(id,w,kind){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var cur=pWhPerm(p,w,kind);var nv=!cur;
-  var label=(kind==='ambil'?'📤 Ambil (keluar barang)':'📥 Masuk (terima barang)');
+  var LBL={ambil:'📤 Ambil (keluar barang)',masuk:'📥 Masuk (terima barang)',opname:'🔢 Opname (stock check)'};
+  var SHORT={ambil:'📤 Ambil',masuk:'📥 Masuk',opname:'🔢 Opname'};
   var whName=WH_SHORT[w]||w;
-  if(!confirm((nv?'Izinkan':'Matikan')+' '+label+'\n"'+p.name+'" di gudang '+whName+'?'))return;
+  if(!confirm((nv?'Izinkan':'Matikan')+' '+(LBL[kind]||kind)+'\n"'+p.name+'" di gudang '+whName+'?'))return;
   var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
   if(!perms[w])perms[w]={};
   perms[w][kind]=nv;
   try{
     await managePeople('update',{id:id,patch:{perms:perms}});
-    toast('✓ '+p.name+' · '+whName+' · '+(kind==='ambil'?'📤 Ambil':'📥 Masuk')+' '+(nv?'AKTIF':'nonaktif'));
+    toast('✓ '+p.name+' · '+whName+' · '+(SHORT[kind]||kind)+' '+(nv?'AKTIF':'nonaktif'));
     await loadAll();
   }catch(e){
     if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
@@ -2463,14 +2475,22 @@ async function saveCatgItems(){
     var tc=document.getElementById('ait-content');tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';updateAIViewBtns();
   }catch(e){toast('⚠ '+e.message);}
 }
+// 盤點入口：admin 從 Kelola Barang 進（渲染在 ait-content），
+// 有 🔢 Opname 權限的員工從首頁進（渲染在 home 區塊）
+var STK_HOST='admin';
+function openStocktake(from){STK_HOST=from||'admin';renderStocktake('');}
+function stkHostEl(){
+  return STK_HOST==='home'?document.getElementById('home'):document.getElementById('ait-content');
+}
 function renderStocktake(catFilter){
+  if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
+  var host=stkHostEl();if(!host)return;
   if(!CURRENT_WAREHOUSE){
-    document.getElementById('opname').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+    host.innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
     return;
   }
   if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
-    var opEl=document.getElementById('opname');
-    if(opEl)opEl.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ Memuat '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
+    host.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:#64748B;margin-bottom:1rem">⏳ Memuat '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
     (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderStocktake(catFilter);})();
     return;
   }
@@ -2490,7 +2510,7 @@ function renderStocktake(catFilter){
   html+='<div style="padding:.7rem;background:#fff;border-top:1px solid var(--border)">'+
     '<button class="btn btn-ok btn-full" id="stk-save-btn" onclick="saveStocktake()" disabled>'+
     ('✓ Simpan (belum ada perubahan)')+'</button></div>';
-  document.getElementById('ait-content').innerHTML=html;
+  host.innerHTML=html;
 }
 // 單列（一個商品）的清點列
 function stkItemRow(i){
@@ -2572,6 +2592,7 @@ function onStkChange(variantId,inp){
   if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+('Simpan ('+n+' perubahan)'):('✓ Simpan (belum ada perubahan)');}
 }
 async function saveStocktake(){
+  if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
   var keys=Object.keys(STOCKTAKE);if(!keys.length)return;
   var btn=document.getElementById('stk-save-btn');btn.disabled=true;btn.textContent='Menyimpan...';
   try{
@@ -2591,7 +2612,9 @@ async function saveStocktake(){
 }
 function exitStocktake(){
   STOCKTAKE={};
-  document.getElementById('ait-content').innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
+  if(STK_HOST==='home'){renderHome();return;}
+  var el=document.getElementById('ait-content');
+  if(el)el.innerHTML='<div class="ai-list">'+aiListHTML()+'</div>';
 }
 function showSetPin(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
