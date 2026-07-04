@@ -2150,53 +2150,95 @@ function peActBtn(icon,label,onclick,danger){
     (danger?'border:1.5px solid #FCA5A5;color:#DC2626':'border:1.5px solid var(--border);color:#334155')+'">'+
     icon+' '+label+'</button>';
 }
+// 人員列表：一行一個人（乾淨），權限點 🔐 打開表格設定
 function peListHTML(){
-  var head='<div style="grid-column:1/-1;font-size:.8rem;color:#64748B;padding:.15rem .2rem .35rem">💡 Izin diatur <b>per gudang</b> — klik tombol: <b style="color:#059669">berwarna ✓ = aktif</b> · <span style="color:#94A3B8">abu-abu ✗ = nonaktif</span></div>';
+  var head='<div style="grid-column:1/-1;font-size:.8rem;color:#64748B;padding:.15rem .2rem .35rem">💡 Klik <b>🔐 Izin</b> untuk atur izin per gudang · <b>⚙️</b> untuk nama/PIN/gudang</div>';
   return head+DATA.people.map(function(p){
-    // gudang admin(is_admin) 可進所有倉庫（與 showWarehouseSelect 一致），一般員工看被指派的
-    var pwhs=p.is_admin?WAREHOUSES:(p.warehouses||[]);
     var id=esc(p.id);
-    var permRows=pwhs.length?pwhs.map(function(w){
-      var wcol=WH_TEXT[w]||'#334155';var wbg=WH_COLORS[w]||'#E2E8F0';
-      var a=pWhPerm(p,w,'ambil'),m=pWhPerm(p,w,'masuk'),o=pWhPerm(p,w,'opname');
-      // 生產/出貨權限開關：只有有生產模組的倉庫才顯示（目前 DIN）
-      var prodBtns='';
-      if(w==='DENIKIN'){
-        var pr=pWhPerm(p,w,'produksi'),ki=pWhPerm(p,w,'kirim');
-        prodBtns=peToggleBtn(pr,'#7C3AED','🏭','Produksi',"toggleWhPerm('"+id+"','"+esc(w)+"','produksi')")+
-          peToggleBtn(ki,'#2563EB','🚚','Kirim',"toggleWhPerm('"+id+"','"+esc(w)+"','kirim')");
-      }
-      return '<div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.4rem;flex-wrap:wrap">'+
-        '<span style="flex-shrink:0;width:82px;text-align:center;background:'+wbg+';border:1.5px solid '+wcol+';border-radius:8px;padding:.35rem .3rem;font-size:.78rem;font-weight:800;color:'+wcol+'">'+(WH_SHORT[w]||w)+'</span>'+
-        peToggleBtn(a,'#DC2626','📤','Ambil',"toggleWhPerm('"+id+"','"+esc(w)+"','ambil')")+
-        peToggleBtn(m,'#059669','📥','Masuk',"toggleWhPerm('"+id+"','"+esc(w)+"','masuk')")+
-        peToggleBtn(o,'#0D9488','🔢','Opname',"toggleWhPerm('"+id+"','"+esc(w)+"','opname')")+
-        prodBtns+
-      '</div>';
-    }).join(''):'<div style="font-size:.82rem;color:#D97706;font-weight:700;padding:.3rem 0 .5rem">⚠ Belum ada akses gudang — klik 🏭 Gudang dulu</div>';
-    return '<div style="background:#fff;padding:.75rem .85rem;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)">'+
-      '<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.55rem">'+
-        '<div class="av" style="flex-shrink:0;margin:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-weight:800;font-size:1.02rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'+
-          (p.is_admin?'<div style="font-size:.72rem;font-weight:700;color:#B45309;margin-top:.1rem">👑 Admin Gudang (semua gudang)</div>':'')+
-        '</div>'+
+    var pwhs=p.is_admin?WAREHOUSES:(p.warehouses||[]);
+    var whChips=pwhs.length?pwhs.map(function(w){
+      return '<span style="display:inline-block;background:'+(WH_COLORS[w]||'#E2E8F0')+';color:'+(WH_TEXT[w]||'#334155')+';border-radius:6px;padding:.1rem .4rem;font-size:.7rem;font-weight:800;margin-right:.25rem">'+(WH_SHORT[w]||w)+'</span>';
+    }).join(''):'<span style="font-size:.72rem;color:#D97706;font-weight:700">⚠ belum ada gudang</span>';
+    return '<div style="background:#fff;padding:.55rem .7rem;border-radius:12px;border:1.5px solid var(--border);display:flex;align-items:center;gap:.6rem">'+
+      '<div class="av" style="flex-shrink:0;margin:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-weight:800;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+(p.is_admin?' <span title="Admin Gudang">👑</span>':'')+(p.can_view_pricing?' <span title="Boleh lihat harga">💰</span>':'')+'</div>'+
+        '<div style="margin-top:.2rem">'+whChips+'</div>'+
       '</div>'+
-      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin-bottom:.3rem;letter-spacing:.03em">IZIN PER GUDANG (klik untuk ubah)</div>'+
-      permRows+
-      '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin:.15rem 0 .3rem;letter-spacing:.03em">UMUM</div>'+
-      '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.55rem">'+
-        peToggleBtn(!!p.is_admin,'#D97706','👑','Admin',"toggleAdmin('"+id+"')")+
-        peToggleBtn(!!p.can_view_pricing,'#4F46E5','💰','Harga',"togglePricing('"+id+"')")+
-      '</div>'+
-      '<div style="display:flex;gap:.45rem;flex-wrap:wrap">'+
-        peActBtn('✏️','Nama',"showEditPersonName('"+id+"')")+
-        peActBtn('🏭','Gudang',"showSetWarehouses('"+id+"')")+
-        peActBtn('🔑','PIN',"showSetPin('"+id+"')")+
-        peActBtn('🗑️','Hapus',"delPerson('"+id+"')",true)+
-      '</div>'+
+      '<button onclick="showPermMatrix(\''+id+'\')" style="flex-shrink:0;min-height:40px;padding:.4rem .65rem;border-radius:10px;border:1.5px solid #4F46E5;background:#EEF2FF;color:#4F46E5;font-weight:800;font-size:.84rem;cursor:pointer">🔐 Izin</button>'+
+      '<button onclick="showPersonSettings(\''+id+'\')" style="flex-shrink:0;min-width:40px;min-height:40px;padding:.4rem .5rem;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:1rem;cursor:pointer">⚙️</button>'+
     '</div>';
   }).join('');
+}
+// 權限總表：橫 = 權限種類、直 = 倉庫，點格子直接開/關
+var PERM_KINDS=[
+  {k:'ambil',icon:'📤',lbl:'Ambil'},
+  {k:'masuk',icon:'📥',lbl:'Masuk'},
+  {k:'opname',icon:'🔢',lbl:'Opname'},
+  {k:'produksi',icon:'🏭',lbl:'Produksi',wh:['DENIKIN']},   // 生產模組目前僅 DIN
+  {k:'kirim',icon:'🚚',lbl:'Kirim',wh:['DENIKIN']}
+];
+function permMatrixHTML(p){
+  var pwhs=p.is_admin?WAREHOUSES:(p.warehouses||[]);
+  var id=esc(p.id);
+  if(!pwhs.length)return '<div style="font-size:.85rem;color:#D97706;font-weight:700;padding:.5rem 0">⚠ Belum ada akses gudang — atur lewat ⚙️ → 🏭 Gudang dulu</div>';
+  var h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'+
+    '<tr><th style="text-align:left;padding:.35rem .25rem;font-size:.7rem;color:#94A3B8;letter-spacing:.03em">GUDANG</th>'+
+    PERM_KINDS.map(function(k){return '<th style="padding:.35rem .1rem;font-size:.7rem;color:#64748B;font-weight:700">'+k.icon+'<br>'+k.lbl+'</th>';}).join('')+'</tr>';
+  pwhs.forEach(function(w){
+    h+='<tr style="border-top:1px solid var(--border)">'+
+      '<td style="padding:.4rem .25rem;font-weight:800;font-size:.82rem;color:'+(WH_TEXT[w]||'#334155')+'">'+(WH_SHORT[w]||w)+'</td>';
+    PERM_KINDS.forEach(function(k){
+      if(k.wh&&k.wh.indexOf(w)<0){h+='<td style="text-align:center;color:#E2E8F0;font-weight:800">—</td>';return;}
+      var on=pWhPerm(p,w,k.k);
+      h+='<td style="text-align:center;padding:.22rem .08rem">'+
+        '<button onclick="togglePermCell(\''+id+'\',\''+esc(w)+'\',\''+k.k+'\')" style="min-width:42px;min-height:38px;border-radius:9px;cursor:pointer;font-size:.95rem;font-weight:900;'+
+        (on?'border:2px solid #059669;background:#059669;color:#fff':'border:2px dashed #CBD5E1;background:#F8FAFC;color:#CBD5E1')+'">'+(on?'✓':'✗')+'</button></td>';
+    });
+    h+='</tr>';
+  });
+  h+='</table></div>'+
+    '<div style="font-size:.75rem;color:#94A3B8;margin-top:.55rem">💡 Klik kotak untuk aktif/nonaktif — langsung tersimpan · <b style="color:#059669">hijau ✓ aktif</b> · abu ✗ nonaktif · — tidak berlaku</div>';
+  return h;
+}
+function showPermMatrix(id){
+  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
+  showModal('🔐 Izin — '+esc(p.name),'<div id="perm-mx">'+permMatrixHTML(p)+'</div>');
+}
+// 點權限格子：直接寫入 DB + 就地更新表格（不整頁重載、不跳確認框）
+async function togglePermCell(id,w,kind){
+  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
+  var nv=!pWhPerm(p,w,kind);
+  var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
+  if(!perms[w])perms[w]={};
+  perms[w][kind]=nv;
+  try{
+    await managePeople('update',{id:id,patch:{perms:perms}});
+    p.perms=perms;
+    var mx=document.getElementById('perm-mx');
+    if(mx)mx.innerHTML=permMatrixHTML(p);
+  }catch(e){
+    if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
+    else toast('⚠ '+e.message);
+  }
+}
+// 個人設定：Admin/Harga 開關 + 改名/倉庫/PIN/刪除
+function showPersonSettings(id){
+  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
+  var eid=esc(id);
+  showModal('⚙️ '+esc(p.name),
+    '<div style="font-size:.72rem;font-weight:700;color:#94A3B8;margin-bottom:.3rem;letter-spacing:.03em">UMUM</div>'+
+    '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.7rem">'+
+      peToggleBtn(!!p.is_admin,'#D97706','👑','Admin',"closeModal();toggleAdmin('"+eid+"')")+
+      peToggleBtn(!!p.can_view_pricing,'#4F46E5','💰','Harga',"closeModal();togglePricing('"+eid+"')")+
+    '</div>'+
+    '<div style="display:flex;gap:.45rem;flex-wrap:wrap">'+
+      peActBtn('✏️','Nama',"showEditPersonName('"+eid+"')")+
+      peActBtn('🏭','Gudang',"showSetWarehouses('"+eid+"')")+
+      peActBtn('🔑','PIN',"showSetPin('"+eid+"')")+
+      peActBtn('🗑️','Hapus',"closeModal();delPerson('"+eid+"')",true)+
+    '</div>');
 }
 function showEditPersonName(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
