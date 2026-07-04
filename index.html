@@ -476,7 +476,7 @@ async function adminLogin(){
     document.getElementById('tabs').style.display='flex';
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat...')+'</p></div>';
     initSupabase(function(){
-      loadAll(function(){goTab('admin',document.querySelectorAll('.tb')[5]);});
+      loadAll(function(){goTab('admin',tbBtn('admin'));});
     },function(e){
       document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
     });
@@ -556,9 +556,9 @@ function staffLogout(){
   clearSessions();CURRENT_USER=null;IS_ADMIN=false;IS_SUPER=false;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   // reset tampilan tab
-  var tabMasuk=document.querySelectorAll('.tb')[2];
-  var tabRiwayat=document.querySelectorAll('.tb')[4];
-  var tabAdmin=document.querySelectorAll('.tb')[5];
+  var tabMasuk=tbBtn('masuk');
+  var tabRiwayat=tbBtn('riwayat');
+  var tabAdmin=tbBtn('admin');
   if(tabMasuk)tabMasuk.style.display='none';
   if(tabRiwayat)tabRiwayat.style.display='none';
   if(tabAdmin)tabAdmin.style.display='none';
@@ -629,6 +629,8 @@ var FORM_TAGS=[];
 var CURRENT_WAREHOUSE=null;
 var LAST_LOADED_WAREHOUSE=null;
 // HARDWARE = gudang bahan baku / sparepart (五金原料 - gudang asli/pertama)
+// 依分頁 id 找底部按鈕（不能用位置索引，新增分頁會移位）
+function tbBtn(id){var r=null;document.querySelectorAll('.tb').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0)r=b;});return r;}
 var WAREHOUSES=['HARDWARE','SJA','DENIKIN','OLENTIA'];
 var WH_COLORS={HARDWARE:'#E2E8F0',SJA:'#FFEDD5',DENIKIN:'#DCFCE7',OLENTIA:'#DBEAFE'};
 // Tanpa icon — hanya teks (font besar)
@@ -675,9 +677,9 @@ function canOpname(){
 }
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
-  if(canAmbil())goTab('ambil',document.querySelectorAll('.tb')[1]);
-  else if(canMasuk())goTab('masuk',document.querySelectorAll('.tb')[2]);
-  else goTab('home',document.querySelectorAll('.tb')[0]);
+  if(canAmbil())goTab('ambil',tbBtn('ambil'));
+  else if(canMasuk())goTab('masuk',tbBtn('masuk'));
+  else goTab('home',tbBtn('home'));
 }
 function autoLogin(type,data){
   IS_SUPER=(type==='admin');
@@ -855,7 +857,7 @@ function tryRenderFromCache(wid){
     buildIndexes();
     setDot('');
     renderAll();
-    if(IS_ADMIN)goTab('admin',document.querySelectorAll('.tb')[5]);
+    if(IS_ADMIN)goTab('admin',tbBtn('admin'));
     else goDefaultStaffTab();
     return true;
   }catch(e){return false;}
@@ -970,10 +972,15 @@ function renderAll(){
     hdrSub.textContent=whLabel;
   }
   updateWhChips();
-  var tabAmbil=document.querySelectorAll('.tb')[1];
-  var tabMasuk=document.querySelectorAll('.tb')[2];
-  var tabRiwayat=document.querySelectorAll('.tb')[4];
-  var tabAdmin=document.querySelectorAll('.tb')[5];
+  var tabAmbil=tbBtn('ambil');
+  var tabMasuk=tbBtn('masuk');
+  var tabRiwayat=tbBtn('riwayat');
+  var tabAdmin=tbBtn('admin');
+  var tabProduksi=tbBtn('produksi');
+  var tabShipment=tbBtn('shipment');
+  // 生產/出貨模組目前僅 DIN 上線
+  if(tabProduksi)tabProduksi.style.display=(CURRENT_WAREHOUSE==='DENIKIN')?'':'none';
+  if(tabShipment)tabShipment.style.display=(CURRENT_WAREHOUSE==='DENIKIN')?'':'none';
   // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
   if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
   if(tabMasuk)tabMasuk.style.display=canMasuk()?'':'none';
@@ -3038,7 +3045,7 @@ function switchWarehouse(wid){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
   // 員工回預設分頁（Ambil→Masuk→Home 依權限）、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
-  var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:goDefaultStaffTab;
+  var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:goDefaultStaffTab;
   loadAll(cb,shown);
 }
 // 頂部倉庫快速切換 chips：有 2 個以上倉庫權限才顯示，目前倉庫用該倉顏色高亮
@@ -3579,7 +3586,7 @@ function selectWarehouse(wid){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
   initSupabase(function(){
-    var cb=IS_ADMIN?function(){goTab('admin',document.querySelectorAll('.tb')[5]);}:function(){
+    var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:function(){
       goDefaultStaffTab();
       if(canAmbil())setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);
     };
@@ -3680,56 +3687,399 @@ function showToast(msg,actionLabel,cb){
   document.body.appendChild(el);
   setTimeout(function(){if(el.parentNode)el.remove();},8000);
 }
+// ═══════════════════════════════════════════════════════════
+// PRODUKSI & PENGIRIMAN — 每家公司有自己的生產模組
+// DIN (DENIKIN)：復水 Rehidrasi → 生產 Production → 出貨 Delivery
+// ═══════════════════════════════════════════════════════════
+var DIN={products:[],rehidrasi:[],production:[],delivery:[],stock:[],monthly:[]};
+var DIN_LOADED=false,DIN_SUBTAB='pr';
+function whPickMsg(id){
+  document.getElementById(id).innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
+}
+function comingSoon(id,label){
+  document.getElementById(id).innerHTML='<div style="padding:2.5rem 1.5rem;text-align:center"><div style="font-size:2.2rem;margin-bottom:.6rem">🏗️</div><div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">'+label+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div><div style="color:#64748B;font-size:.88rem">Modul untuk gudang ini segera hadir.<br>Saat ini tersedia untuk: DIN</div></div>';
+}
+async function dinEnsure(cb){
+  if(DIN_LOADED){cb();return;}
+  try{
+    var r=await Promise.all([
+      sb.from('din_products').select('*').order('customer_name').order('code'),
+      sb.from('din_rehidrasi').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(60),
+      sb.from('din_production').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(90),
+      sb.from('din_delivery').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(60),
+      sb.from('din_stock_summary').select('*'),
+      sb.from('din_monthly_report').select('*').limit(13)
+    ]);
+    for(var i=0;i<r.length;i++){if(r[i].error)throw new Error(r[i].error.message);}
+    DIN={products:r[0].data||[],rehidrasi:r[1].data||[],production:r[2].data||[],delivery:r[3].data||[],stock:r[4].data||[],monthly:r[5].data||[]};
+    DIN_LOADED=true;cb();
+  }catch(e){
+    var el=document.getElementById(ACTIVE_TAB);
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:#6B7280">Jika tabel belum ada, jalankan MIGRATION_DIN_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="DIN_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
+  }
+}
+function dinReload(cb){DIN_LOADED=false;dinEnsure(cb||function(){});}
+function dinProd(code){for(var i=0;i<DIN.products.length;i++)if(DIN.products[i].code===code)return DIN.products[i];return null;}
+function dinStockOf(code){for(var i=0;i<DIN.stock.length;i++)if(DIN.stock[i].product_code===code)return DIN.stock[i];return null;}
+function dinProdOptions(sel){
+  var byCust={};
+  DIN.products.forEach(function(p){if(p.is_active===false)return;(byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);});
+  var h='<option value="">-- Pilih Produk --</option>';
+  Object.keys(byCust).forEach(function(c){
+    h+='<optgroup label="'+esc(c)+'">';
+    byCust[c].forEach(function(p){h+='<option value="'+esc(p.code)+'"'+(sel===p.code?' selected':'')+'>'+esc(p.code)+' — '+esc(p.item_name)+'</option>';});
+    h+='</optgroup>';
+  });
+  return h;
+}
+function fmtD(s){if(!s)return'';return String(s).slice(5);} // MM-DD
+function fmtN(n){if(n==null||n==='')return'-';var v=Number(n);return(v%1?v.toFixed(1):String(v));}
+
+// ── PRODUKSI 主頁 ──
 function renderProduksi(){
-  if(!CURRENT_WAREHOUSE){
-    document.getElementById('produksi').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
-    return;
-  }
-  var col=WH_TEXT[CURRENT_WAREHOUSE]||'#DC2626';
-  var bg=WH_COLORS[CURRENT_WAREHOUSE]||'#FEF2F2';
-  document.getElementById('produksi').innerHTML='<div style="position:sticky;top:0;z-index:5;background:'+bg+';color:'+col+';padding:.7rem">'+
-    '<div style="font-weight:700;font-size:.98rem;color:'+col+'">🏭 '+('Produksi')+'</div>'+
-    '<div style="font-size:.72rem;opacity:.85;color:'+col+'">'+(CURRENT_WAREHOUSE?WH_SHORT[CURRENT_WAREHOUSE]:'')+' · '+('Catat produksi harian')+'</div>'+
-    '</div>'+
-    '<div style="padding:1rem">'+
-    '<div class="card"><div class="card-title">📝 '+('Produksi Baru')+'</div>'+
-    '<div class="ig"><label>'+('Tanggal Produksi')+'</label><input type="date" id="prod-date" value="'+today()+'"></div>'+
-    '<div class="ig"><label>'+('Pilih Barang')+'</label>'+
-    '<select id="prod-item"><option>-- '+('Pilih Barang')+'--</option></select></div>'+
-    '<div class="ig"><label>'+('Jumlah Produksi')+'</label><input type="number" id="prod-qty" placeholder="0" min="0"></div>'+
-    '<button class="btn btn-p btn-full" onclick="saveProduksi()">'+('Simpan Produksi')+'</button>'+
-    '</div>'+
-    '<div class="card" style="margin-top:1rem"><div class="card-title">📊 '+('Riwayat Produksi')+'</div>'+
-    '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.9rem">'+('Belum ada data')+'</div>'+
-    '</div>'+
-    '</div>';
+  if(!CURRENT_WAREHOUSE){whPickMsg('produksi');return;}
+  if(CURRENT_WAREHOUSE!=='DENIKIN'){comingSoon('produksi','🏭 Produksi');return;}
+  document.getElementById('produksi').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div></div>';
+  dinEnsure(function(){
+    var el=document.getElementById('produksi');
+    el.innerHTML='<div style="position:sticky;top:0;z-index:6;background:#DCFCE7;padding:.55rem .7rem .45rem">'+
+      '<div style="font-weight:800;font-size:.95rem;color:#166534">🏭 Produksi Nata — DIN</div></div>'+
+      '<div class="tab-nav" id="din-nav">'+
+      '<button class="tsw'+(DIN_SUBTAB==='pr'?' act':'')+'" onclick="dinSub(this,\'pr\')">🏭 Produksi</button>'+
+      '<button class="tsw'+(DIN_SUBTAB==='rh'?' act':'')+'" onclick="dinSub(this,\'rh\')">💧 Rehidrasi</button>'+
+      '<button class="tsw'+(DIN_SUBTAB==='stok'?' act':'')+'" onclick="dinSub(this,\'stok\')">📦 Stok</button>'+
+      '<button class="tsw'+(DIN_SUBTAB==='prod'?' act':'')+'" onclick="dinSub(this,\'prod\')">🏷️ Produk</button>'+
+      '<button class="tsw'+(DIN_SUBTAB==='rpt'?' act':'')+'" onclick="dinSub(this,\'rpt\')">📈 Laporan</button>'+
+      '</div><div id="din-body"></div>';
+    dinBody();
+  });
 }
+function dinSub(el,id){
+  DIN_SUBTAB=id;
+  document.getElementById('din-nav').querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});
+  if(el)el.classList.add('act');
+  dinBody();
+}
+function dinBody(){
+  var b=document.getElementById('din-body');if(!b)return;
+  if(DIN_SUBTAB==='pr')b.innerHTML=dinProduksiHTML();
+  else if(DIN_SUBTAB==='rh')b.innerHTML=dinRehidrasiHTML();
+  else if(DIN_SUBTAB==='stok')b.innerHTML=dinStokHTML();
+  else if(DIN_SUBTAB==='prod')b.innerHTML=dinProdukHTML();
+  else if(DIN_SUBTAB==='rpt')b.innerHTML=dinLaporanHTML();
+}
+
+// ── 生產 (Production：切割/包裝，同 Excel Production 分頁) ──
+function dinProduksiHTML(){
+  var h='<div class="card"><div class="card-title">📝 Produksi Baru</div>'+
+    '<div class="fr"><div class="ig"><label>Tanggal</label><input type="date" id="dp-date" value="'+today()+'"></div>'+
+    '<div class="ig"><label>Tank</label><input id="dp-tank" list="dp-tanks" placeholder="D4"><datalist id="dp-tanks"><option>D1</option><option>D2</option><option>D3</option><option>D4</option><option>D5</option><option>D6</option></datalist></div></div>'+
+    '<div class="ig"><label>Produk (kode pelanggan)</label><select id="dp-code" onchange="dinFillProd()">'+dinProdOptions()+'</select>'+
+    '<div id="dp-pinfo" style="font-size:.78rem;color:#64748B;margin-top:.3rem"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Batch No</label><input id="dp-batch" placeholder="A2613D4"></div>'+
+    '<div class="ig"><label>Lot No</label><input id="dp-lot" placeholder="260530A-29"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Bags</label><input type="number" id="dp-bags" min="0" placeholder="0" oninput="dinCalc()"></div>'+
+    '<div class="ig"><label>KG/Bag</label><input type="number" id="dp-kgbag" min="0" step="0.1" oninput="dinCalc()"></div>'+
+    '<div class="ig"><label>Total KG</label><input id="dp-total" disabled style="background:#F1F5F9;font-weight:700"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Pressed Bags</label><input type="number" id="dp-pbags" min="0" placeholder="0" oninput="dinCalc()"></div>'+
+    '<div class="ig"><label>Press KG/Bag</label><input type="number" id="dp-pkgbag" min="0" step="0.1" oninput="dinCalc()"></div>'+
+    '<div class="ig"><label>Press ×</label><input type="number" id="dp-pf" min="0" step="0.1" oninput="dinCalc()"></div></div>'+
+    '<div class="ig"><label>KG Original (sebelum press)</label><input id="dp-porig" disabled style="background:#F1F5F9;font-weight:700"></div>'+
+    '<div class="ig"><label>Catatan</label><input id="dp-note" placeholder="opsional"></div>'+
+    '<button class="btn btn-p btn-full" id="dp-save" onclick="dinSaveProduction()">💾 Simpan Produksi</button></div>';
+  h+='<div class="card"><div class="card-title">📊 Riwayat Produksi</div>';
+  if(!DIN.production.length)h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem;font-size:.85rem">Belum ada data</div>';
+  else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
+    '<tr style="color:#64748B;text-align:left"><th style="padding:.3rem .4rem">Tgl</th><th>Produk</th><th>Batch</th><th>Lot</th><th>Tank</th><th style="text-align:right">Bags</th><th style="text-align:right">KG</th><th></th></tr>'+
+    DIN.production.map(function(r){
+      var p=dinProd(r.product_code);
+      return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem">'+fmtD(r.date)+'</td>'+
+      '<td><b>'+esc(r.product_code)+'</b><br><span style="color:#94A3B8;font-size:.7rem">'+esc(p?p.customer_name:'')+'</span></td>'+
+      '<td>'+esc(r.batch_no||'-')+'</td><td>'+esc(r.lot_no||'-')+'</td><td>'+esc(r.tank_id||'-')+'</td>'+
+      '<td style="text-align:right">'+fmtN(r.bags)+'</td><td style="text-align:right;font-weight:700">'+fmtN(r.total_kg)+'</td>'+
+      '<td>'+(IS_ADMIN?'<button onclick="dinDel(\'din_production\',\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#DC2626">🗑</button>':'')+'</td></tr>';
+    }).join('')+'</table></div>';
+  h+='</div>';
+  return h;
+}
+function dinFillProd(){
+  var p=dinProd(document.getElementById('dp-code').value);
+  var info=document.getElementById('dp-pinfo');
+  if(!p){if(info)info.textContent='';return;}
+  document.getElementById('dp-kgbag').value=p.kg_per_bag||'';
+  document.getElementById('dp-pkgbag').value=p.kg_per_bag||'';
+  document.getElementById('dp-pf').value=p.press_factor||'';
+  if(info)info.textContent=p.customer_name+' · '+p.item_name+(p.label_item?' · '+p.label_item:'')+' · '+p.pack_ctn+' bag/ctn';
+  dinCalc();
+}
+function dinCalc(){
+  var bags=Number(document.getElementById('dp-bags').value)||0;
+  var kgb=Number(document.getElementById('dp-kgbag').value)||0;
+  document.getElementById('dp-total').value=bags*kgb?fmtN(bags*kgb)+' kg':'';
+  var pb=Number(document.getElementById('dp-pbags').value)||0;
+  var pkb=Number(document.getElementById('dp-pkgbag').value)||0;
+  var pf=Number(document.getElementById('dp-pf').value)||0;
+  document.getElementById('dp-porig').value=pb*pkb*pf?fmtN(pb*pkb*pf)+' kg':'';
+}
+async function dinSaveProduction(){
+  var code=document.getElementById('dp-code').value;
+  if(!code){toast('⚠ Pilih produk dulu');return;}
+  var bags=Number(document.getElementById('dp-bags').value)||0;
+  if(bags<=0){toast('⚠ Isi jumlah bags');return;}
+  var btn=document.getElementById('dp-save');btn.disabled=true;
+  var row={
+    date:document.getElementById('dp-date').value||today(),
+    product_code:code,
+    batch_no:document.getElementById('dp-batch').value.trim()||null,
+    lot_no:document.getElementById('dp-lot').value.trim()||null,
+    tank_id:document.getElementById('dp-tank').value.trim()||null,
+    bags:bags,
+    kg_per_bag:Number(document.getElementById('dp-kgbag').value)||0,
+    pressed_bags:Number(document.getElementById('dp-pbags').value)||null,
+    pressed_kg_per_bag:Number(document.getElementById('dp-pkgbag').value)||null,
+    press_factor:Number(document.getElementById('dp-pf').value)||null,
+    staff:CURRENT_USER?CURRENT_USER.name:null,
+    note:document.getElementById('dp-note').value.trim()||null
+  };
+  var r=await sb.from('din_production').insert(row);
+  btn.disabled=false;
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Produksi tersimpan');
+  dinReload(dinBody);
+}
+
+// ── 復水 (Rehidrasi 分頁) ──
+function dinRehidrasiHTML(){
+  var h='<div class="card"><div class="card-title">💧 Rehidrasi Baru</div>'+
+    '<div class="ig"><label>Tanggal</label><input type="date" id="dr-date" value="'+today()+'"></div>'+
+    '<div class="fr"><div class="ig"><label>Drum In</label><input type="number" id="dr-drum" min="0" placeholder="0"></div>'+
+    '<div class="ig"><label>Bag In</label><input type="number" id="dr-bag" min="0" placeholder="0"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Rehidrasi KG</label><input type="number" id="dr-in" min="0" step="0.1" placeholder="0" oninput="dinRhCalc()"></div>'+
+    '<div class="ig"><label>Jadi Basah KG</label><input type="number" id="dr-out" min="0" step="0.1" placeholder="0" oninput="dinRhCalc()"></div>'+
+    '<div class="ig"><label>Hasil %</label><input id="dr-pct" disabled style="background:#F1F5F9;font-weight:700"></div></div>'+
+    '<div class="ig"><label>Catatan</label><input id="dr-note" placeholder="opsional"></div>'+
+    '<button class="btn btn-p btn-full" id="dr-save" onclick="dinSaveRehidrasi()">💾 Simpan Rehidrasi</button></div>';
+  h+='<div class="card"><div class="card-title">📊 Riwayat Rehidrasi</div>';
+  if(!DIN.rehidrasi.length)h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem;font-size:.85rem">Belum ada data</div>';
+  else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
+    '<tr style="color:#64748B;text-align:left"><th style="padding:.3rem .4rem">Tgl</th><th style="text-align:right">Drum</th><th style="text-align:right">Bag</th><th style="text-align:right">Masuk KG</th><th style="text-align:right">Basah KG</th><th style="text-align:right">Hasil %</th><th>Staff</th><th></th></tr>'+
+    DIN.rehidrasi.map(function(r){
+      return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem">'+fmtD(r.date)+'</td>'+
+      '<td style="text-align:right">'+fmtN(r.drum_in)+'</td><td style="text-align:right">'+fmtN(r.bag_in)+'</td>'+
+      '<td style="text-align:right">'+fmtN(r.rehidrasi_kg)+'</td><td style="text-align:right;font-weight:700">'+fmtN(r.jadi_basah_kg)+'</td>'+
+      '<td style="text-align:right;color:'+((r.hasil_pct||0)>=100?'#059669':'#D97706')+';font-weight:700">'+fmtN(r.hasil_pct)+'%</td>'+
+      '<td>'+esc(r.staff||'-')+'</td>'+
+      '<td>'+(IS_ADMIN?'<button onclick="dinDel(\'din_rehidrasi\',\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#DC2626">🗑</button>':'')+'</td></tr>';
+    }).join('')+'</table></div>';
+  h+='</div>';
+  return h;
+}
+function dinRhCalc(){
+  var i=Number(document.getElementById('dr-in').value)||0;
+  var o=Number(document.getElementById('dr-out').value)||0;
+  document.getElementById('dr-pct').value=i>0?(o/i*100).toFixed(1)+' %':'';
+}
+async function dinSaveRehidrasi(){
+  var kgIn=Number(document.getElementById('dr-in').value)||0;
+  var kgOut=Number(document.getElementById('dr-out').value)||0;
+  if(kgIn<=0&&kgOut<=0){toast('⚠ Isi KG rehidrasi');return;}
+  var btn=document.getElementById('dr-save');btn.disabled=true;
+  var r=await sb.from('din_rehidrasi').insert({
+    date:document.getElementById('dr-date').value||today(),
+    drum_in:Number(document.getElementById('dr-drum').value)||0,
+    bag_in:Number(document.getElementById('dr-bag').value)||0,
+    rehidrasi_kg:kgIn,jadi_basah_kg:kgOut,
+    note:document.getElementById('dr-note').value.trim()||null,
+    staff:CURRENT_USER?CURRENT_USER.name:null
+  });
+  btn.disabled=false;
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Rehidrasi tersimpan');
+  dinReload(dinBody);
+}
+
+// ── 庫存 (Stock_Summary，自動 = 生產 − 出貨) ──
+function dinStokHTML(){
+  var rows=DIN.stock.filter(function(s){return(s.total_produced_kg||0)>0||(s.total_delivered_kg||0)>0||(s.stock_kg||0)!==0;});
+  var h='<div class="card"><div class="card-title">📦 Stok per Produk <span style="font-weight:400;font-size:.75rem;color:#94A3B8">(otomatis: produksi − kirim)</span></div>';
+  if(!rows.length)h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem;font-size:.85rem">Belum ada produksi</div>';
+  else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
+    '<tr style="color:#64748B;text-align:left"><th style="padding:.3rem .4rem">Produk</th><th>Pelanggan</th><th style="text-align:right">Produksi KG</th><th style="text-align:right">Kirim KG</th><th style="text-align:right">Stok KG</th><th style="text-align:right">Stok Bags</th></tr>'+
+    rows.map(function(s){
+      var neg=(s.stock_kg||0)<0;
+      return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem"><b>'+esc(s.product_code)+'</b><br><span style="color:#94A3B8;font-size:.7rem">'+esc(s.item_name||'')+'</span></td>'+
+      '<td>'+esc(s.customer_name||'')+'</td>'+
+      '<td style="text-align:right">'+fmtN(s.total_produced_kg)+'</td>'+
+      '<td style="text-align:right">'+fmtN(s.total_delivered_kg)+'</td>'+
+      '<td style="text-align:right;font-weight:800;color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_kg)+'</td>'+
+      '<td style="text-align:right">'+fmtN(s.stock_bags)+'</td></tr>';
+    }).join('')+'</table></div>';
+  h+='</div>';
+  return h;
+}
+
+// ── 產品主檔 (Products 分頁) ──
+function dinProdukHTML(){
+  var h='';
+  if(IS_ADMIN){
+    h+='<div class="card"><div class="card-title">➕ Produk Baru</div>'+
+    '<div class="fr"><div class="ig"><label>Kode Produk</label><input id="dpr-code" placeholder="ab6c4p7"></div>'+
+    '<div class="ig"><label>Kode Pelanggan</label><input id="dpr-ccode" placeholder="ab"></div></div>'+
+    '<div class="ig"><label>Nama Pelanggan</label><input id="dpr-cname" placeholder="AIBM" list="dpr-custs"><datalist id="dpr-custs">'+
+    Array.from(new Set(DIN.products.map(function(p){return p.customer_name;}))).map(function(c){return'<option>'+esc(c)+'</option>';}).join('')+'</datalist></div>'+
+    '<div class="ig"><label>Nama Item</label><input id="dpr-iname" placeholder="6-8mm Cube P7"></div>'+
+    '<div class="ig"><label>Label Item</label><input id="dpr-label" placeholder="D209350 (4kg/bag)"></div>'+
+    '<div class="fr"><div class="ig"><label>Bag/CTN</label><input type="number" id="dpr-ctn" value="4"></div>'+
+    '<div class="ig"><label>KG/Bag</label><input type="number" id="dpr-kgbag" value="4" step="0.1"></div>'+
+    '<div class="ig"><label>Press ×</label><input type="number" id="dpr-pf" value="7" step="0.1"></div></div>'+
+    '<button class="btn btn-p btn-full" id="dpr-save" onclick="dinSaveProduct()">💾 Simpan Produk</button></div>';
+  }
+  var byCust={};
+  DIN.products.forEach(function(p){(byCust[p.customer_name]=byCust[p.customer_name]||[]).push(p);});
+  h+='<div class="card"><div class="card-title">🏷️ Daftar Produk ('+DIN.products.length+')</div>';
+  Object.keys(byCust).forEach(function(c){
+    h+='<div style="font-weight:800;font-size:.82rem;color:#166534;margin:.6rem 0 .25rem">'+esc(c)+'</div>';
+    byCust[c].forEach(function(p){
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem'+(p.is_active===false?';opacity:.45':'')+'">'+
+      '<div><b>'+esc(p.code)+'</b> · '+esc(p.item_name)+'<br><span style="color:#94A3B8;font-size:.72rem">'+esc(p.label_item||'')+' · '+p.pack_ctn+' bag/ctn · '+fmtN(p.kg_per_bag)+'kg/bag · P'+fmtN(p.press_factor)+'</span></div>'+
+      (IS_ADMIN?'<button onclick="dinToggleProduct(\''+esc(p.code)+'\','+(p.is_active===false)+')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">'+(p.is_active===false?'aktifkan':'non-aktif')+'</button>':'')+
+      '</div>';
+    });
+  });
+  h+='</div>';
+  return h;
+}
+async function dinSaveProduct(){
+  var code=document.getElementById('dpr-code').value.trim();
+  var cname=document.getElementById('dpr-cname').value.trim();
+  if(!code||!cname){toast('⚠ Isi kode & pelanggan');return;}
+  var btn=document.getElementById('dpr-save');btn.disabled=true;
+  var r=await sb.from('din_products').insert({
+    code:code,customer_name:cname,
+    customer_code:document.getElementById('dpr-ccode').value.trim()||code.slice(0,2),
+    item_name:document.getElementById('dpr-iname').value.trim()||code,
+    label_item:document.getElementById('dpr-label').value.trim()||null,
+    pack_ctn:Number(document.getElementById('dpr-ctn').value)||4,
+    kg_per_bag:Number(document.getElementById('dpr-kgbag').value)||4,
+    press_factor:Number(document.getElementById('dpr-pf').value)||1
+  });
+  btn.disabled=false;
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Produk tersimpan');
+  dinReload(dinBody);
+}
+async function dinToggleProduct(code,activate){
+  var r=await sb.from('din_products').update({is_active:activate}).eq('code',code);
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  dinReload(dinBody);
+}
+
+// ── 月報 (Monthly Report：復水/濕重/得率/生產/損耗) ──
+function dinLaporanHTML(){
+  var h='<div class="card"><div class="card-title">📈 Laporan Bulanan</div>';
+  if(!DIN.monthly.length)h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem;font-size:.85rem">Belum ada data</div>';
+  else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
+    '<tr style="color:#64748B;text-align:left"><th style="padding:.3rem .4rem">Bulan</th><th style="text-align:right">Rehidrasi KG</th><th style="text-align:right">Basah KG</th><th style="text-align:right">Hasil %</th><th style="text-align:right">Produksi KG</th><th style="text-align:right">Susut KG</th></tr>'+
+    DIN.monthly.map(function(m){
+      return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem;font-weight:700">'+esc(m.bulan)+'</td>'+
+      '<td style="text-align:right">'+fmtN(m.rehidrasi_kg)+'</td><td style="text-align:right">'+fmtN(m.basah_kg)+'</td>'+
+      '<td style="text-align:right">'+fmtN(m.hasil_pct)+'</td><td style="text-align:right;font-weight:700">'+fmtN(m.produksi_kg)+'</td>'+
+      '<td style="text-align:right;color:'+((m.susut_kg||0)<0?'#DC2626':'#059669')+'">'+fmtN(m.susut_kg)+'</td></tr>';
+    }).join('')+'</table></div>';
+  h+='</div>';
+  return h;
+}
+
+// ── 出貨 (Delivery 分頁 → Kirim 頁籤) ──
 function renderShipment(){
-  if(!CURRENT_WAREHOUSE){
-    document.getElementById('shipment').innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
-    return;
-  }
-  var col=WH_TEXT[CURRENT_WAREHOUSE]||'#0891B2';
-  var bg=WH_COLORS[CURRENT_WAREHOUSE]||'#ECFDF5';
-  document.getElementById('shipment').innerHTML='<div style="position:sticky;top:0;z-index:5;background:'+bg+';color:'+col+';padding:.7rem">'+
-    '<div style="font-weight:700;font-size:.98rem;color:'+col+'">🚚 '+('Pengiriman')+'</div>'+
-    '<div style="font-size:.72rem;opacity:.85;color:'+col+'">'+(CURRENT_WAREHOUSE?WH_SHORT[CURRENT_WAREHOUSE]:'')+' · '+('Kelola pengiriman ke pelanggan')+'</div>'+
-    '</div>'+
-    '<div style="padding:1rem">'+
-    '<div class="card"><div class="card-title">📦 '+('Pengiriman Baru')+'</div>'+
-    '<div class="ig"><label>'+('Tanggal Pengiriman')+'</label><input type="date" id="ship-date" value="'+today()+'"></div>'+
-    '<div class="ig"><label>'+('Pelanggan')+'</label>'+
-    '<select id="ship-customer"><option>-- '+('Pilih Pelanggan')+'--</option></select></div>'+
-    '<div class="ig"><label>'+('Catatan')+'</label><textarea id="ship-notes" placeholder="'+('Catatan pengiriman')+'..."></textarea></div>'+
-    '<button class="btn btn-p btn-full" onclick="saveShipment()">'+('Simpan Pengiriman')+'</button>'+
-    '</div>'+
-    '<div class="card" style="margin-top:1rem"><div class="card-title">📊 '+('Riwayat Pengiriman')+'</div>'+
-    '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:.9rem">'+('Belum ada data')+'</div>'+
-    '</div>'+
-    '</div>';
+  if(!CURRENT_WAREHOUSE){whPickMsg('shipment');return;}
+  if(CURRENT_WAREHOUSE!=='DENIKIN'){comingSoon('shipment','🚚 Pengiriman');return;}
+  document.getElementById('shipment').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div></div>';
+  dinEnsure(function(){
+    var el=document.getElementById('shipment');
+    var h='<div style="position:sticky;top:0;z-index:6;background:#DCFCE7;padding:.55rem .7rem .45rem">'+
+      '<div style="font-weight:800;font-size:.95rem;color:#166534">🚚 Pengiriman — DIN</div></div>';
+    h+='<div class="card"><div class="card-title">📦 Kirim Baru</div>'+
+    '<div class="ig"><label>Tanggal</label><input type="date" id="dd-date" value="'+today()+'"></div>'+
+    '<div class="ig"><label>Produk</label><select id="dd-code" onchange="dinFillDeliv()">'+dinProdOptions()+'</select>'+
+    '<div id="dd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
+    '<div class="ig"><label>Lot No <span style="font-weight:400;color:#94A3B8">(boleh beberapa, pisah koma)</span></label><input id="dd-lot" placeholder="260530A-29,260531A-30"></div>'+
+    '<div class="fr"><div class="ig"><label>Bags</label><input type="number" id="dd-bags" min="0" placeholder="0" oninput="dinDelivCalc()"></div>'+
+    '<div class="ig"><label>CTN</label><input type="number" id="dd-ctn" min="0" placeholder="0"></div>'+
+    '<div class="ig"><label>KG</label><input type="number" id="dd-kg" min="0" step="0.1" placeholder="0"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Driver</label><input id="dd-driver" placeholder="Abdullah"></div>'+
+    '<div class="ig"><label>No Kendaraan</label><input id="dd-vehicle" placeholder="B 1234 XX"></div></div>'+
+    '<div class="ig"><label>Catatan</label><input id="dd-note" placeholder="opsional"></div>'+
+    '<button class="btn btn-ok btn-full" id="dd-save" onclick="dinSaveDelivery()">🚚 Simpan Pengiriman</button></div>';
+    h+='<div class="card"><div class="card-title">📊 Riwayat Pengiriman</div>';
+    if(!DIN.delivery.length)h+='<div style="text-align:center;color:#9CA3AF;padding:1.2rem;font-size:.85rem">Belum ada data</div>';
+    else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
+      '<tr style="color:#64748B;text-align:left"><th style="padding:.3rem .4rem">Tgl</th><th>Produk</th><th>Lot</th><th style="text-align:right">Bags</th><th style="text-align:right">CTN</th><th style="text-align:right">KG</th><th>Driver</th><th></th></tr>'+
+      DIN.delivery.map(function(r){
+        var p=dinProd(r.product_code);
+        return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem">'+fmtD(r.date)+'</td>'+
+        '<td><b>'+esc(r.product_code)+'</b><br><span style="color:#94A3B8;font-size:.7rem">'+esc(p?p.customer_name:'')+'</span></td>'+
+        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+esc(r.lot_no||'-')+'</td>'+
+        '<td style="text-align:right">'+fmtN(r.bags)+'</td><td style="text-align:right">'+fmtN(r.ctn)+'</td>'+
+        '<td style="text-align:right;font-weight:700">'+fmtN(r.kg)+'</td><td>'+esc(r.driver||'-')+'</td>'+
+        '<td>'+(IS_ADMIN?'<button onclick="dinDel(\'din_delivery\',\''+r.id+'\')" style="background:none;border:none;cursor:pointer;color:#DC2626">🗑</button>':'')+'</td></tr>';
+      }).join('')+'</table></div>';
+    h+='</div>';
+    el.innerHTML=h;
+  });
 }
-function saveProduksi(){toast('💾 '+('Menyimpan produksi')+'...');}
-function saveShipment(){toast('💾 '+('Menyimpan pengiriman')+'...');}
+function dinFillDeliv(){
+  var code=document.getElementById('dd-code').value;
+  var s=dinStockOf(code),el=document.getElementById('dd-stok');
+  if(!code||!el)return;
+  if(s){
+    var neg=(s.stock_kg||0)<=0;
+    el.innerHTML='Stok saat ini: <b style="color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_kg)+' kg / '+fmtN(s.stock_bags)+' bags</b>';
+  }else el.innerHTML='<span style="color:#94A3B8">Belum ada produksi untuk produk ini</span>';
+  // 最近的 lot 建議
+  var lots=[];
+  DIN.production.forEach(function(r){if(r.product_code===code&&r.lot_no&&lots.indexOf(r.lot_no)<0)lots.push(r.lot_no);});
+  if(lots.length)document.getElementById('dd-lot').placeholder=lots.slice(0,2).join(',');
+  dinDelivCalc();
+}
+function dinDelivCalc(){
+  var p=dinProd(document.getElementById('dd-code').value);if(!p)return;
+  var bags=Number(document.getElementById('dd-bags').value)||0;
+  if(bags>0){
+    document.getElementById('dd-kg').value=bags*(p.kg_per_bag||0)||'';
+    document.getElementById('dd-ctn').value=p.pack_ctn?Math.ceil(bags/p.pack_ctn):'';
+  }
+}
+async function dinSaveDelivery(){
+  var code=document.getElementById('dd-code').value;
+  if(!code){toast('⚠ Pilih produk dulu');return;}
+  var bags=Number(document.getElementById('dd-bags').value)||0;
+  var kg=Number(document.getElementById('dd-kg').value)||0;
+  if(bags<=0&&kg<=0){toast('⚠ Isi jumlah kirim');return;}
+  var s=dinStockOf(code);
+  if(s&&kg>(s.stock_kg||0)&&!confirm('⚠ Stok hanya '+fmtN(s.stock_kg)+' kg, kirim '+fmtN(kg)+' kg?\nLanjut simpan?'))return;
+  var btn=document.getElementById('dd-save');btn.disabled=true;
+  var r=await sb.from('din_delivery').insert({
+    date:document.getElementById('dd-date').value||today(),
+    product_code:code,
+    lot_no:document.getElementById('dd-lot').value.trim()||null,
+    bags:bags,ctn:Number(document.getElementById('dd-ctn').value)||0,kg:kg,
+    driver:document.getElementById('dd-driver').value.trim()||null,
+    vehicle_no:document.getElementById('dd-vehicle').value.trim()||null,
+    note:document.getElementById('dd-note').value.trim()||null
+  });
+  btn.disabled=false;
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Pengiriman tersimpan');
+  dinReload(function(){renderShipment();});
+}
+async function dinDel(table,id){
+  if(!confirm('Hapus data ini?'))return;
+  var r=await sb.from(table).delete().eq('id',id);
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Terhapus');
+  dinReload(function(){if(ACTIVE_TAB==='shipment')renderShipment();else dinBody();});
+}
 </script>
 </body>
 </html>
