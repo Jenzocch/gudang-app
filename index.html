@@ -632,6 +632,9 @@ var LAST_LOADED_WAREHOUSE=null;
 // 依分頁 id 找底部按鈕（不能用位置索引，新增分頁會移位）
 function tbBtn(id){var r=null;document.querySelectorAll('.tb').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0)r=b;});return r;}
 var WAREHOUSES=['HARDWARE','SJA','DENIKIN','OLENTIA'];
+// 有生產/出貨模組的倉庫（之後 OLENTIA 上線就加進來）
+var PRODUKSI_WH=['DENIKIN','SJA'];
+var KIRIM_WH=['DENIKIN'];
 var WH_COLORS={HARDWARE:'#E2E8F0',SJA:'#FFEDD5',DENIKIN:'#DCFCE7',OLENTIA:'#DBEAFE'};
 // Tanpa icon — hanya teks (font besar)
 var WH_EMOJI={HARDWARE:'',SJA:'',DENIKIN:'',OLENTIA:''};
@@ -989,9 +992,9 @@ function renderAll(){
   var tabAdmin=tbBtn('admin');
   var tabProduksi=tbBtn('produksi');
   var tabShipment=tbBtn('shipment');
-  // 生產/出貨模組目前僅 DIN 上線；且要有 Produksi/Kirim 權限（預設只有 admin，super admin 可在員工列表開給別人）
-  if(tabProduksi)tabProduksi.style.display=(CURRENT_WAREHOUSE==='DENIKIN'&&canProduksi())?'':'none';
-  if(tabShipment)tabShipment.style.display=(CURRENT_WAREHOUSE==='DENIKIN'&&canKirim())?'':'none';
+  // 生產/出貨模組：PRODUKSI_WH/KIRIM_WH 列出的倉庫才有；且要有 Produksi/Kirim 權限（預設只有 admin）
+  if(tabProduksi)tabProduksi.style.display=(PRODUKSI_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canProduksi())?'':'none';
+  if(tabShipment)tabShipment.style.display=(KIRIM_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canKirim())?'':'none';
   // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
   if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
   if(tabMasuk)tabMasuk.style.display=canMasuk()?'':'none';
@@ -2175,9 +2178,15 @@ var PERM_KINDS=[
   {k:'ambil',icon:'📤',lbl:'Ambil'},
   {k:'masuk',icon:'📥',lbl:'Masuk'},
   {k:'opname',icon:'🔢',lbl:'Opname'},
-  {k:'produksi',icon:'🏭',lbl:'Produksi',wh:['DENIKIN']},   // 生產模組目前僅 DIN
-  {k:'kirim',icon:'🚚',lbl:'Kirim',wh:['DENIKIN']}
+  {k:'produksi',icon:'🏭',lbl:'Produksi',whList:'PRODUKSI'},   // 依 PRODUKSI_WH 顯示
+  {k:'kirim',icon:'🚚',lbl:'Kirim',whList:'KIRIM'}
 ];
+function permKindApplies(k,w){
+  if(k.whList==='PRODUKSI')return PRODUKSI_WH.indexOf(w)>=0;
+  if(k.whList==='KIRIM')return KIRIM_WH.indexOf(w)>=0;
+  if(k.wh)return k.wh.indexOf(w)>=0;
+  return true;
+}
 function permMatrixHTML(p){
   var pwhs=p.is_admin?WAREHOUSES:(p.warehouses||[]);
   var id=esc(p.id);
@@ -2189,7 +2198,7 @@ function permMatrixHTML(p){
     h+='<tr style="border-top:1px solid var(--border)">'+
       '<td style="padding:.4rem .25rem;font-weight:800;font-size:.82rem;color:'+(WH_TEXT[w]||'#334155')+'">'+(WH_SHORT[w]||w)+'</td>';
     PERM_KINDS.forEach(function(k){
-      if(k.wh&&k.wh.indexOf(w)<0){h+='<td style="text-align:center;color:#E2E8F0;font-weight:800">—</td>';return;}
+      if(!permKindApplies(k,w)){h+='<td style="text-align:center;color:#E2E8F0;font-weight:800">—</td>';return;}
       var on=pWhPerm(p,w,k.k);
       h+='<td style="text-align:center;padding:.22rem .08rem">'+
         '<button onclick="togglePermCell(\''+id+'\',\''+esc(w)+'\',\''+k.k+'\')" style="min-width:42px;min-height:38px;border-radius:9px;cursor:pointer;font-size:.95rem;font-weight:900;'+
@@ -3762,7 +3771,7 @@ function whPickMsg(id){
   document.getElementById(id).innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:#64748B;font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
 }
 function comingSoon(id,label){
-  document.getElementById(id).innerHTML='<div style="padding:2.5rem 1.5rem;text-align:center"><div style="font-size:2.2rem;margin-bottom:.6rem">🏗️</div><div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">'+label+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div><div style="color:#64748B;font-size:.88rem">Modul untuk gudang ini segera hadir.<br>Saat ini tersedia untuk: DIN</div></div>';
+  document.getElementById(id).innerHTML='<div style="padding:2.5rem 1.5rem;text-align:center"><div style="font-size:2.2rem;margin-bottom:.6rem">🏗️</div><div style="font-weight:700;font-size:1rem;margin-bottom:.4rem">'+label+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div><div style="color:#64748B;font-size:.88rem">Modul untuk gudang ini segera hadir.<br>Saat ini tersedia untuk: DIN, SJA</div></div>';
 }
 async function dinEnsure(cb){
   if(DIN_LOADED){cb();return;}
