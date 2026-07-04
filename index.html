@@ -135,8 +135,17 @@ textarea{resize:vertical;min-height:75px}
 .txt{font-size:.75rem;color:#94A3B8;margin-top:.15rem}
 .st{font-size:1rem;font-weight:700;padding:.75rem .8rem .3rem;color:var(--dark)}
 .ai-list{display:flex;flex-direction:column;gap:.4rem;margin:.4rem .7rem}
-.ai-cat-hd{padding:.4rem .65rem;background:#F0FDFA;border:1px solid #CCFBF1;border-radius:10px;font-size:.78rem;font-weight:800;color:#0F766E;margin-top:.3rem}
-.ai-cat-hd:first-child{margin-top:0}
+/* Admin 分類群組：整條可點的展開/收合按鈕，右側有明確的「Lihat/Tutup」膠囊 */
+.ai-cat-hd{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.65rem .8rem;background:#fff;border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:.9rem;font-weight:800;color:#0F766E;box-shadow:var(--sh-sm);font-family:inherit;text-align:left;transition:.15s}
+.ai-cat-hd:hover{background:#F0FDFA;border-color:#99F6E4}
+.ai-cat{margin-top:.45rem}
+.ai-cat:first-child{margin-top:0}
+.ai-cat-n{background:#F0FDFA;border:1px solid #CCFBF1;color:#0F766E;border-radius:10px;padding:.02rem .5rem;font-size:.74rem;font-weight:700;margin-left:.25rem}
+.ai-cat-tg{display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:800;color:#fff;background:var(--p);border-radius:16px;padding:.3rem .75rem;flex-shrink:0}
+.ai-cat-hd.open .ai-cat-tg{background:#64748B}
+.ai-cat-ch{display:inline-block;transition:transform .2s}
+.ai-cat-hd.open .ai-cat-ch{transform:rotate(180deg)}
+.ai-grid{display:flex;flex-direction:column;gap:.4rem;margin-top:.45rem}
 .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ai-stat{display:inline-flex;align-items:center;gap:.25rem;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:.14rem .45rem;font-size:.74rem;color:var(--ink2);font-weight:600;white-space:nowrap}
 /* 員工卡片列表：電腦版空間大，改雙欄填滿 */
@@ -245,10 +254,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
   /* 桌面：Admin 商品清單改多欄卡片，不再一條佔整行 */
-  .ai-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:.7rem;align-items:start}
-  .ai-list .ai-cat-hd,.ai-list #ait-more{grid-column:1/-1}
-  .ai-list.grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.7rem;margin:.4rem .7rem}
-  .ai-list#pe-list{grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}
+  .ai-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:.7rem;align-items:start}
+  .ai-list.grid .ai-grid{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .ai-list#pe-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:.7rem;align-items:start}
   /* 桌面：Ambil 清單改雙欄卡片 */
   #amb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:.5rem .7rem;padding:.5rem .7rem;background:transparent!important}
   #amb-list .amb-row{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm)}
@@ -964,6 +972,7 @@ async function loadAll(afterCb,fromCache){
         variant_id:v.id,
         name:itm.name||'?',
         code:itm.code,
+        spec:itm.spec,
         description:itm.description,
         image_url:itm.image_url,
         supplier_name:itm.supplier_name,
@@ -1090,7 +1099,8 @@ function homeStockRowHTML(i){
   var ratio=i.critical_qty>0?i.qty/i.critical_qty:2;
   var dot=ratio<=0?'❌':ratio<=1?'🟠':'🟢';
   var meta=[];
-  if(i.description)meta.push(esc(i.description));           // 規格/包裝（每包幾公斤等）
+  if(i.spec)meta.push('📐 '+esc(i.spec));                   // 規格欄（每包幾公斤等）
+  else if(i.description)meta.push(esc(i.description));      // 沒填規格才退回描述
   if(i.supplier_name)meta.push('🏢 '+esc(i.supplier_name));
   return '<div class="srch-stock" data-name="'+esc((i.name||'').toLowerCase()+' '+(i.code||'').toLowerCase())+'" style="display:flex;align-items:center;padding:.45rem .9rem;border-bottom:1px solid #F3F4F6;gap:.4rem">'+
     '<span style="font-size:1rem;flex-shrink:0">'+dot+'</span>'+
@@ -1459,6 +1469,7 @@ function matchesSearch(i,q){
   if(i.name.toLowerCase().includes(q))return true;
   if(i.code&&i.code.toLowerCase().includes(q))return true;
   if((i.tags||[]).some(function(tg){return tg.toLowerCase().includes(q);}))return true;
+  if(i.spec&&i.spec.toLowerCase().includes(q))return true;
   if(i.description&&i.description.toLowerCase().includes(q))return true;
   return false;
 }
@@ -1482,7 +1493,7 @@ function ambRowHTML(i){
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:#0D9488;padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
     (i.code?'<div style="font-size:.7rem;color:#0F766E;font-weight:700;margin-top:.05rem">🏷️ '+esc(i.code)+'</div>':'')+
-    (i.description?'<div style="font-size:.7rem;color:#94A3B8;margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.description)+'</div>':'')+
+    ((i.spec||i.description)?'<div style="font-size:.7rem;color:#94A3B8;margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(i.spec?'📐 '+esc(i.spec):esc(i.description))+'</div>':'')+
     (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
     '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'#6B7280')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
     (iBats.length>1?'<div style="font-size:.7rem;color:#9CA3AF;margin-top:.05rem">📦 '+iBats.length+' batch</div>':'')+
@@ -2144,8 +2155,9 @@ function aiItemHTML(i){
           '<span class="ai-stat">📦 '+iBats.length+' lot</span>'+
           (nearExp?'<span class="ai-stat" style="color:'+expColor+'">⏰ '+nearExp.expiry_date+'</span>':'')+
         '</div>'+
-        ((i.supplier_name||i.storage_condition||i.description)?
+        ((i.spec||i.supplier_name||i.storage_condition||i.description)?
         '<div class="clamp2" style="font-size:.76rem;color:#6B7280;margin-top:.35rem;line-height:1.45">'+
+          (i.spec?'<span style="font-weight:700;color:#475467">📐 '+esc(i.spec)+'</span>  ':'')+
           (i.supplier_name?'🏢 '+esc(i.supplier_name)+'  ':'')+
           (i.storage_condition?stcEmoji+' '+esc(i.storage_condition)+'  ':'')+
           (i.description?'<span style="font-style:italic">'+esc(i.description)+'</span>':'')+
@@ -2195,6 +2207,16 @@ function aiSetCatg(c){
   var tc=document.getElementById('ait-content');
   if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
 }
+var AI_CAT_OPEN={}; // 記住哪些分類目前展開（同一次登入內有效）
+function aiToggleCat(btn,cat){
+  AI_CAT_OPEN[cat]=!AI_CAT_OPEN[cat];
+  var open=!!AI_CAT_OPEN[cat];
+  btn.classList.toggle('open',open);
+  var body=btn.parentElement.querySelector('.ai-grid');
+  if(body)body.style.display=open?'':'none';
+  var tt=btn.querySelector('.ai-cat-tgt');
+  if(tt)tt.textContent=open?'Tutup':'Lihat';
+}
 function aiListHTML(){
   var items=DATA.items;
   if(CURRENT_WAREHOUSE&&IS_ADMIN){
@@ -2207,32 +2229,27 @@ function aiListHTML(){
     items=items.filter(function(i){return i.name.toLowerCase().includes(q)||(i.code&&i.code.toLowerCase().includes(q));});
   }
   if(!items.length)return '<div style="text-align:center;color:#9CA3AF;padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER||AI_CATG?'Tidak ada yang cocok 🚫':'-')+'</div>';
-  // 依分類分組（每個商品只歸到第一個標籤，跟首頁一致）；選了單一分類或搜尋時不顯示組標題
-  var blocks=[];
-  if(!AI_CATG&&!AI_SEARCH_FILTER){
-    var grp={},noCat=[];
-    items.forEach(function(i){var tt=i.tags||[];if(tt.length){(grp[tt[0]]=grp[tt[0]]||[]).push(i);}else noCat.push(i);});
-    Object.keys(grp).sort().forEach(function(cat){
-      blocks.push('<div class="ai-cat-hd">🏷️ '+esc(cat)+' <span style="font-weight:600;opacity:.65">('+grp[cat].length+')</span></div>');
-      grp[cat].forEach(function(i){blocks.push(aiItemHTML(i));});
-    });
-    if(noCat.length){
-      blocks.push('<div class="ai-cat-hd" style="background:#F8FAFC;border-color:var(--border);color:#94A3B8">📭 Tanpa Kategori ('+noCat.length+')</div>');
-      noCat.forEach(function(i){blocks.push(aiItemHTML(i));});
-    }
-  }else{
-    items.forEach(function(i){blocks.push(aiItemHTML(i));});
+  // 選了分類晶片或有搜尋字 → 直接平鋪（不摺疊）
+  if(AI_CATG||AI_SEARCH_FILTER){
+    return '<div class="ai-grid" style="margin-top:0">'+items.map(aiItemHTML).join('')+'</div>';
   }
-  // 先渲染前 60 塊，其餘異步載入
-  var first=blocks.slice(0,60).join('');
-  if(blocks.length>60){
-    setTimeout(function(){
-      var el=document.getElementById('ait-more');
-      if(el)el.outerHTML=blocks.slice(60).join('');
-    },80);
-    return first+'<div id="ait-more" style="padding:.8rem;text-align:center;color:#9CA3AF;font-size:.82rem">⏳ Memuat… (+'+(blocks.length-60)+' lagi)</div>';
-  }
-  return first;
+  // 「全部」：依分類分組，預設收合，點整條標題展開（每個商品只歸到第一個標籤，跟首頁一致）
+  var grp={},noCat=[];
+  items.forEach(function(i){var tt=i.tags||[];if(tt.length){(grp[tt[0]]=grp[tt[0]]||[]).push(i);}else noCat.push(i);});
+  var h='';
+  var mkCat=function(key,label,arr,muted){
+    var open=!!AI_CAT_OPEN[key];
+    h+='<div class="ai-cat">'+
+      '<button class="ai-cat-hd'+(open?' open':'')+'"'+(muted?' style="color:#94A3B8"':'')+' onclick="aiToggleCat(this,\''+esc(key)+'\')">'+
+        '<span>'+label+'<span class="ai-cat-n">'+arr.length+' barang</span></span>'+
+        '<span class="ai-cat-tg"'+(muted?' style="background:#94A3B8"':'')+'><span class="ai-cat-tgt">'+(open?'Tutup':'Lihat')+'</span><span class="ai-cat-ch">▾</span></span>'+
+      '</button>'+
+      '<div class="ai-grid" style="display:'+(open?'':'none')+'">'+arr.map(aiItemHTML).join('')+'</div>'+
+    '</div>';
+  };
+  Object.keys(grp).sort().forEach(function(cat){mkCat(cat,'🏷️ '+esc(cat),grp[cat]);});
+  if(noCat.length)mkCat('__none__','📭 Tanpa Kategori',noCat,true);
+  return h;
 }
 function aiSearchItems(){
   var inp=document.getElementById('ai-search-inp');
@@ -2834,6 +2851,7 @@ function itemFormHTML(item){
       '<div class="ig"><label>'+t('initQ')+'</label><input id="fq" type="number" value="'+(item?item.qty:0)+'" min="0"></div>'+
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
+    '<div class="ig"><label>📐 Spesifikasi / Kemasan</label><input id="f-spec" type="text" value="'+(item&&item.spec?esc(item.spec):'')+'" placeholder="cth: 1 sak = 50 kg · 1 box = 100 pcs"></div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
     '<div class="ig"><label>'+('Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
@@ -3003,6 +3021,7 @@ async function saveItem(forceNew){
     }
   }
   var code=(document.getElementById('fc')?document.getElementById('fc').value:'').trim();
+  var spec=(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim();
   var qty=parseInt(document.getElementById('fq').value)||0;
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=parseInt(document.getElementById('fm').value)||10;
@@ -3018,7 +3037,7 @@ async function saveItem(forceNew){
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var u1=await sbUpdateSafe('items',{name:name,code:code||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
+      var u1=await sbUpdateSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
       if(u1.error)throw u1.error;
       var u2=await sbUpdateSafe('item_variants',{qty:qty,critical_qty:min,storage_photo_url:sp},'id',EDIT_ITEM.variant_id);
       if(u2.error)throw u2.error;
@@ -3027,7 +3046,7 @@ async function saveItem(forceNew){
       var whEl=document.getElementById('f-warehouse');
       var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
       if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
-      var ins=await sbInsertSafe('items',{name:name,code:code||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
+      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
@@ -3722,6 +3741,7 @@ function preloadAllWarehouses(){
             variant_id:v.id,
             name:itm.name||'?',
             code:itm.code,
+            spec:itm.spec,
             description:itm.description,
             image_url:itm.image_url,
             supplier_name:itm.supplier_name,
