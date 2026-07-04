@@ -4458,8 +4458,10 @@ function renderSjaShipment(){
     '<div class="ig"><label>Customer</label><select id="sd-cust">'+custOpts+'</select></div></div>'+
     '<div class="ig"><label>Produk</label><select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions()+'</select>'+
     '<div id="sd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
-    '<div class="fr"><div class="ig"><label>Qty <span id="sd-unit" style="font-weight:400;color:#94A3B8"></span></label><input type="number" id="sd-qty" min="0" step="0.1" placeholder="0" oninput="sjaFillDeliv()"></div>'+
-    '<div class="ig"><label>Batch No <span style="font-weight:400;color:#94A3B8">(opsional)</span></label><input id="sd-batch" placeholder="SJA-2607-01"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Boxes <span id="sd-ctn-label" style="font-weight:400;color:#94A3B8"></span></label><input type="number" id="sd-boxes" min="0" step="1" placeholder="0" oninput="sjaConvertBoxes()"></div>'+
+    '<div class="ig"><label>Units <span id="sd-unit" style="font-weight:400;color:#94A3B8"></span></label><input type="number" id="sd-units" min="0" step="0.1" placeholder="0" oninput="sjaConvertUnits()"></div></div>'+
+    '<div id="sd-total" style="font-size:.82rem;margin-top:.3rem;padding:.5rem;background:#F0FDFA;border-radius:6px;border-left:3px solid var(--p);display:none"><strong>Total:</strong> <span id="sd-total-val">0</span> <span id="sd-total-unit"></span></div>'+
+    '<div class="fr"><div class="ig" style="flex:2"><label>Batch No <span style="font-weight:400;color:#94A3B8">(opsional)</span></label><input id="sd-batch" placeholder="SJA-2607-01"></div></div>'+
     '<div class="fr"><div class="ig"><label>Driver</label><input id="sd-driver" placeholder="Abdullah"></div>'+
     '<div class="ig"><label>No Kendaraan</label><input id="sd-vehicle" placeholder="B 1234 XX"></div></div>'+
     '<div class="ig"><label>Catatan</label><input id="sd-note" placeholder="opsional"></div>'+
@@ -4484,33 +4486,85 @@ function renderSjaShipment(){
 function sjaFillDeliv(){
   var code=document.getElementById('sd-code').value;
   var p=sjaProd(code);
-  var el=document.getElementById('sd-stok'),unit=document.getElementById('sd-unit');
-  if(unit)unit.textContent=p?'('+(p.unit||'')+')':'';
+  var el=document.getElementById('sd-stok'),unit=document.getElementById('sd-unit'),ctnLabel=document.getElementById('sd-ctn-label');
+  if(unit)unit.textContent=p?'('+esc(p.unit||'')+')':'';
+  if(ctnLabel)ctnLabel.textContent=p&&p.pcs_per_ctn?'('+p.pcs_per_ctn+'/box)':'';
   if(!el)return;
   if(!p){el.innerHTML='';return;}
   var s=sjaStockOf(code);
-  var qty=Number(document.getElementById('sd-qty').value)||0;
-  var ctnInfo=(p.pcs_per_ctn&&qty>0)?' · ≈ '+(Math.ceil(qty/p.pcs_per_ctn*10)/10)+' CTN ('+p.pcs_per_ctn+'/ctn)':'';
   if(s){
     var neg=(s.stock_qty||0)<=0;
-    el.innerHTML='Stok saat ini: <b style="color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_qty)+' '+esc(p.unit||'')+'</b>'+ctnInfo;
-  }else el.innerHTML='<span style="color:#94A3B8">Belum ada produksi untuk produk ini</span>'+ctnInfo;
+    el.innerHTML='Stok saat ini: <b style="color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_qty)+' '+esc(p.unit||'')+'</b>';
+  }else el.innerHTML='<span style="color:#94A3B8">Belum ada produksi untuk produk ini</span>';
+  sjaUpdateTotal();
+}
+function sjaConvertBoxes(){
+  var code=document.getElementById('sd-code').value;
+  var p=sjaProd(code);
+  if(!p||!p.pcs_per_ctn)return;
+  var boxes=Number(document.getElementById('sd-boxes').value)||0;
+  if(boxes>0){
+    document.getElementById('sd-units').value=boxes*p.pcs_per_ctn;
+  }
+  sjaUpdateTotal();
+}
+function sjaConvertUnits(){
+  var code=document.getElementById('sd-code').value;
+  var p=sjaProd(code);
+  if(!p||!p.pcs_per_ctn)return;
+  var units=Number(document.getElementById('sd-units').value)||0;
+  if(units>0){
+    var calc_boxes=units/p.pcs_per_ctn;
+    document.getElementById('sd-boxes').value=(calc_boxes===Math.floor(calc_boxes)?calc_boxes:'');
+  }
+  sjaUpdateTotal();
+}
+function sjaUpdateTotal(){
+  var code=document.getElementById('sd-code').value;
+  var p=sjaProd(code);
+  var boxes=Number(document.getElementById('sd-boxes').value)||0;
+  var units=Number(document.getElementById('sd-units').value)||0;
+  var loose=units;
+  if(p&&p.pcs_per_ctn&&boxes>0){
+    loose=units%p.pcs_per_ctn;
+  }
+  var totalQty=boxes*(p&&p.pcs_per_ctn?p.pcs_per_ctn:0)+loose;
+  var totalEl=document.getElementById('sd-total');
+  if(boxes>0||units>0){
+    if(boxes>0&&loose>0){
+      totalEl.style.display='block';
+      document.getElementById('sd-total-val').textContent=fmtN(boxes)+' boxes + '+fmtN(loose)+' = '+fmtN(totalQty);
+    }else if(boxes>0){
+      totalEl.style.display='block';
+      document.getElementById('sd-total-val').textContent=fmtN(totalQty);
+    }else{
+      totalEl.style.display='block';
+      document.getElementById('sd-total-val').textContent=fmtN(totalQty);
+    }
+    document.getElementById('sd-total-unit').textContent=p?esc(p.unit||'pcs'):'pcs';
+  }else{
+    totalEl.style.display='none';
+  }
 }
 async function sjaSaveDelivery(){
   var code=document.getElementById('sd-code').value;
   if(!code){toast('⚠ Pilih produk dulu');return;}
-  var qty=Number(document.getElementById('sd-qty').value)||0;
-  if(qty<=0){toast('⚠ Isi qty kirim');return;}
+  var p=sjaProd(code);
+  var boxes=Number(document.getElementById('sd-boxes').value)||0;
+  var units=Number(document.getElementById('sd-units').value)||0;
+  if(boxes<=0&&units<=0){toast('⚠ Isi jumlah boxes atau units');return;}
+  var totalQty=boxes*(p&&p.pcs_per_ctn?p.pcs_per_ctn:0)+units;
+  if(totalQty<=0){toast('⚠ Total qty harus > 0');return;}
   var custId=document.getElementById('sd-cust').value;
   var cust=SJA.customers.find(function(x){return x.id==custId;});
   if(!cust){toast('⚠ Pilih customer dulu');return;}
   var s=sjaStockOf(code);
-  if(s&&qty>(s.stock_qty||0)&&!confirm('⚠ Stok hanya '+fmtN(s.stock_qty)+', kirim '+fmtN(qty)+'?\nLanjut simpan?'))return;
+  if(s&&totalQty>(s.stock_qty||0)&&!confirm('⚠ Stok hanya '+fmtN(s.stock_qty)+', kirim '+fmtN(totalQty)+'?\nLanjut simpan?'))return;
   var btn=document.getElementById('sd-save');btn.disabled=true;
   var r=await sb.from('sja_delivery').insert({
     date:document.getElementById('sd-date').value||today(),
     customer_code:cust.code,customer_name:cust.name,
-    product_code:code,qty:qty,
+    product_code:code,qty:totalQty,
     batch_lot_no:document.getElementById('sd-batch').value.trim()||null,
     driver:document.getElementById('sd-driver').value.trim()||null,
     vehicle_no:document.getElementById('sd-vehicle').value.trim()||null,
