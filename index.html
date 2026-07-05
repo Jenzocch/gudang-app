@@ -2289,10 +2289,8 @@ function renderAdminFull(){
   var col=CURRENT_WAREHOUSE?(WH_TEXT[CURRENT_WAREHOUSE]||WH_FB_TEXT):'var(--s)';
   var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||WH_FB_BG):'#EEF2FF';
   document.getElementById('admin').innerHTML=
-    '<div style="padding:.8rem .7rem;background:'+bg+';border-bottom:2.5px solid '+col+';margin-bottom:.5rem">'+
-    '<div style="font-size:.8rem;font-weight:600;color:'+col+';opacity:.85;margin-bottom:.15rem">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+'</div>'+
-    '<div style="font-size:2.1rem;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;gap:.5rem;color:'+col+'">'+whShort+(CURRENT_WAREHOUSE?'<span style="font-size:.7rem;font-weight:700;opacity:.7">('+esc(CURRENT_WAREHOUSE)+')</span>':'')+'</div>'+
-    '</div>'+
+    // 精簡成一行：倉庫名頂部已置中顯示，這裡不再重複大字，只留 Admin 身份提示
+    '<div style="margin:.5rem .7rem;padding:.4rem .7rem;border-left:4px solid '+col+';background:'+bg+';border-radius:0 8px 8px 0;font-size:.82rem;font-weight:700;color:'+col+'">⚙️ Admin Panel'+(IS_SUPER?'':' · 👑 Admin Gudang')+(!CURRENT_WAREHOUSE?' · Semua Gudang':'')+'</div>'+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw'+(sub==='ait'?' act':'')+'" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       (IS_SUPER?'<button class="tsw'+(sub==='ape'?' act':'')+'" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
