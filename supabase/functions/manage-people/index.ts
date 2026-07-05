@@ -109,6 +109,19 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // 全站設定（例如臨時開放 office 看出貨）— 只有 super 能改
+    if (action === "set_config") {
+      if (role !== "super") return json({ ok: false, error: "hanya super admin" }, 403);
+      const key = body && body.key ? String(body.key) : "";
+      if (!key) return json({ ok: false, error: "key kosong" }, 400);
+      const value = body && body.value != null ? String(body.value) : "";
+      const { error } = await admin
+        .from("app_config")
+        .upsert({ key, value, updated_at: new Date().toISOString() });
+      if (error) return json({ ok: false, error: error.message }, 500);
+      return json({ ok: true });
+    }
+
     return json({ ok: false, error: "action tidak dikenal" }, 400);
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message || e) }, 500);

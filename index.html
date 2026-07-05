@@ -1101,8 +1101,11 @@ async function loadAll(afterCb,fromCache){
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').order('name');
     }
-    var results=await Promise.race([Promise.all([q1,q2,q3,q4,q5]),tOut]);
-    var iv=results[0],p=results[1],r=results[2],bt=results[3],cg=results[4];
+    // q6：全站設定（office 臨時開放旗標）；表未建時容錯
+    var q6=sb.from('app_config').select('key,value').eq('key','office_view_delivery');
+    var results=await Promise.race([Promise.all([q1,q2,q3,q4,q5,q6]),tOut]);
+    var iv=results[0],p=results[1],r=results[2],bt=results[3],cg=results[4],cfg=results[5];
+    OFFICE_VIEW_DELIVERY=!!(cfg&&!cfg.error&&cfg.data&&cfg.data[0]&&cfg.data[0].value==='1');
     // categories 表若尚未建立(migration 前)，cg.error 會有值，容錯成空陣列
     DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
@@ -2339,6 +2342,7 @@ function renderAdminFull(){
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
     '<div id="ape" class="tc'+(sub==='ape'?' active':'')+'">'+
+      (IS_SUPER?officeDeliveryToggleHTML():'')+
       (canPeople?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addPerson()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"></div>'+
       '<div class="ig"><label>🏭 Akses Gudang</label><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+WAREHOUSES.map(function(w){return'<label style="display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.88rem;background:#fff"><input type="checkbox" id="np-wh-'+w+'"> '+WH_EMOJI[w]+' '+w+'</label>';}).join('')+'</div></div>'+
@@ -2571,6 +2575,26 @@ async function togglePermCell(id,w,kind){
   }
 }
 // 個人設定：Admin/Harga 開關 + 改名/倉庫/PIN/刪除
+// super 專用：臨時開放 Admin Office 看出貨數據的開關（存 app_config）
+function officeDeliveryToggleHTML(){
+  var on=OFFICE_VIEW_DELIVERY;
+  return '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:#FFFBEB;border-color:#FDE68A">'+
+    '<div style="min-width:0"><div style="font-weight:700;font-size:.88rem">🚚 Admin Office lihat pengiriman</div>'+
+    '<div style="font-size:.74rem;color:var(--ink2);margin-top:.15rem">Buka sementara saat butuh bantuan cek/isi data pengiriman</div></div>'+
+    '<button onclick="toggleOfficeDelivery(this)" style="flex-shrink:0;min-width:66px;min-height:34px;border-radius:999px;border:none;cursor:pointer;font-weight:800;font-size:.8rem;'+(on?'background:var(--ok);color:#fff':'background:var(--border);color:var(--ink2)')+'">'+(on?'ON':'OFF')+'</button>'+
+  '</div>';
+}
+async function toggleOfficeDelivery(btn){
+  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  var nv=!OFFICE_VIEW_DELIVERY;
+  if(btn)btn.disabled=true;
+  try{
+    await managePeople('set_config',{key:'office_view_delivery',value:nv?'1':'0'});
+    OFFICE_VIEW_DELIVERY=nv;
+    toast(nv?'✓ Office bisa lihat pengiriman':'✓ Office tidak bisa lihat pengiriman');
+    renderAdminFull();
+  }catch(e){toast('⚠ '+e.message);if(btn)btn.disabled=false;}
+}
 function showPersonSettings(id){
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
   var eid=esc(id);
