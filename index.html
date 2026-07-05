@@ -4193,11 +4193,12 @@ async function sjaEnsure(cb){
 }
 function sjaReload(cb){SJA_LOADED=false;sjaEnsure(cb||function(){});}
 function sjaProd(code){for(var i=0;i<SJA.products.length;i++)if(SJA.products[i].code===code)return SJA.products[i];return null;}
-function sjaProdOptions(sel){
+function sjaProdOptions(sel,cat){
   var byCat={},order=[];
   SJA.products.forEach(function(p){
     if(p.is_active===false)return;
     var c=p.category||'Lainnya';
+    if(cat&&c!==cat)return; // 只列選中的分類
     if(!byCat[c]){byCat[c]=[];order.push(c);}
     byCat[c].push(p);
   });
@@ -4208,6 +4209,56 @@ function sjaProdOptions(sel){
     h+='</optgroup>';
   });
   return h;
+}
+// ── SJA 分類標籤（生產/出貨共用）：點分類→產品下拉只剩該分類，下拉變短更好選 ──
+var SJA_CAT={sp:'',sd:''}; // 各前綴目前選的分類（''=全部）
+function sjaCatList(){
+  var seen={},order=[];
+  SJA.products.forEach(function(p){if(p.is_active===false)return;var c=p.category||'Lainnya';if(!seen[c]){seen[c]=1;order.push(c);}});
+  return order;
+}
+function sjaCatChipsHTML(prefix){
+  var cur=SJA_CAT[prefix]||'';
+  var h='<div id="'+prefix+'-catchips" style="display:flex;gap:.4rem;overflow-x:auto;padding:.15rem 0 .55rem;-webkit-overflow-scrolling:touch">';
+  h+='<button type="button" class="catg-chip'+(cur===''?' act':'')+'" style="flex-shrink:0" onclick="sjaPickCat(\''+prefix+'\',\'\')">Semua</button>';
+  sjaCatList().forEach(function(c){
+    h+='<button type="button" class="catg-chip'+(cur===c?' act':'')+'" style="flex-shrink:0" onclick="sjaPickCat(\''+prefix+'\',\''+esc(c).replace(/'/g,"\\'")+'\')">'+esc(c)+'</button>';
+  });
+  return h+'</div>';
+}
+function sjaPickCat(prefix,cat){
+  SJA_CAT[prefix]=cat;
+  var chipEl=document.getElementById(prefix+'-catchips');
+  if(chipEl)chipEl.outerHTML=sjaCatChipsHTML(prefix); // 重繪 chips（更新 act 高亮）
+  var sel=document.getElementById(prefix+'-code');
+  if(sel){sel.innerHTML=sjaProdOptions('',cat);sel.value='';} // 下拉只剩該分類、清空選擇
+  if(prefix==='sp')sjaFillProd();else if(prefix==='sd')sjaFillDeliv();
+}
+// ── Box+Eceran 總計（生產/出貨共用）：總數 = 箱數×每箱件數 + 散件 ──
+function sjaBoxTotal(prefix){
+  var p=sjaProd((document.getElementById(prefix+'-code')||{}).value);
+  var ppc=(p&&p.pcs_per_ctn)||0;
+  var boxes=Number((document.getElementById(prefix+'-boxes')||{}).value)||0;
+  var units=Number((document.getElementById(prefix+'-units')||{}).value)||0;
+  var totalQty=boxes*ppc+units;
+  var totalEl=document.getElementById(prefix+'-total');
+  if(totalEl){
+    if(boxes<=0&&units<=0){totalEl.style.display='none';}
+    else{
+      totalEl.style.display='block';
+      var parts=[];
+      if(boxes>0)parts.push(fmtN(boxes)+' box'+(ppc?' ('+fmtN(boxes*ppc)+')':''));
+      if(units>0)parts.push(fmtN(units));
+      var txt=parts.join(' + ')+' = '+fmtN(totalQty);
+      if(boxes<=0&&units>0&&ppc>0){
+        if(units%ppc===0)txt+='（= '+(units/ppc)+' box）';
+        else if(units>ppc)txt+='（= '+Math.floor(units/ppc)+' box + '+(units%ppc)+'）';
+      }
+      document.getElementById(prefix+'-total-val').textContent=txt;
+      document.getElementById(prefix+'-total-unit').textContent=p?(p.unit||'pcs'):'pcs';
+    }
+  }
+  return totalQty;
 }
 
 function fmtD(s){if(!s)return'';return String(s).slice(5);} // MM-DD
@@ -4515,10 +4566,14 @@ function dinLaporanHTML(){
 function sjaProduksiHTML(){
   var h='<div class="card"><div class="card-title">📝 Produksi Baru</div>'+
     '<div class="ig"><label>Tanggal</label><input type="date" id="sp-date" value="'+today()+'"></div>'+
-    '<div class="ig"><label>Produk</label><select id="sp-code" onchange="sjaFillProd()">'+sjaProdOptions()+'</select>'+
+    '<div class="ig"><label>Produk</label>'+
+    sjaCatChipsHTML('sp')+
+    '<select id="sp-code" onchange="sjaFillProd()">'+sjaProdOptions('',SJA_CAT.sp)+'</select>'+
     '<div id="sp-pinfo" style="font-size:.78rem;color:var(--ink2);margin-top:.3rem"></div></div>'+
-    '<div class="fr"><div class="ig"><label>Qty <span id="sp-unit" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sp-qty" min="0" step="0.1" placeholder="0"></div>'+
-    '<div class="ig"><label>Batch No <span style="font-weight:400;color:var(--muted)">(opsional)</span></label><input id="sp-batch" placeholder="SJA-2607-01"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Box (kotak) <span id="sp-ctn-label" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sp-boxes" min="0" step="1" placeholder="0" oninput="sjaBoxTotal(\'sp\')"></div>'+
+    '<div class="ig"><label>Eceran <span id="sp-unit" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sp-units" min="0" step="0.1" placeholder="0" oninput="sjaBoxTotal(\'sp\')"></div></div>'+
+    '<div id="sp-total" style="font-size:.82rem;margin-top:.3rem;padding:.5rem;background:#EEF2FF;border-radius:8px;border-left:3px solid var(--p);display:none"><strong>Total:</strong> <span id="sp-total-val">0</span> <span id="sp-total-unit"></span></div>'+
+    '<div class="ig"><label>Batch No <span style="font-weight:400;color:var(--muted)">(opsional)</span></label><input id="sp-batch" placeholder="SJA-2607-01"></div>'+
     '<div class="ig"><label>Catatan</label><input id="sp-note" placeholder="opsional"></div>'+
     '<button class="btn btn-p btn-full" id="sp-save" onclick="sjaSaveProduction()">💾 Simpan Produksi</button></div>';
   h+='<div class="card"><div class="card-title">📊 Riwayat Produksi</div>';
@@ -4538,18 +4593,23 @@ function sjaProduksiHTML(){
 }
 function sjaFillProd(){
   var p=sjaProd(document.getElementById('sp-code').value);
-  var info=document.getElementById('sp-pinfo'),unit=document.getElementById('sp-unit');
+  var info=document.getElementById('sp-pinfo'),unit=document.getElementById('sp-unit'),ctnLabel=document.getElementById('sp-ctn-label');
+  if(ctnLabel)ctnLabel.textContent=p&&p.pcs_per_ctn?'('+p.pcs_per_ctn+'/box)':'';
   if(!p){if(info)info.textContent='';if(unit)unit.textContent='';return;}
   if(unit)unit.textContent='('+(p.unit||'')+')';
   var s=sjaStockOf(p.code);
-  if(info)info.innerHTML=esc(p.category||'')+' · '+esc(p.unit||'')+(p.pcs_per_ctn?' · 1 CTN = '+p.pcs_per_ctn+' pcs':'')+
+  if(info)info.innerHTML=esc(p.category||'')+' · '+esc(p.unit||'')+(p.pcs_per_ctn?' · 1 box = '+p.pcs_per_ctn+' pcs':'')+
     (s?' · Stok: <b>'+fmtN(s.stock_qty)+' '+esc(p.unit||'')+'</b>':'');
+  sjaBoxTotal('sp');
 }
 async function sjaSaveProduction(){
   var code=document.getElementById('sp-code').value;
   if(!code){toast('⚠ Pilih produk dulu');return;}
-  var qty=Number(document.getElementById('sp-qty').value)||0;
-  if(qty<=0){toast('⚠ Isi qty');return;}
+  var p=sjaProd(code);var ppc=(p&&p.pcs_per_ctn)||0;
+  var boxes=Number(document.getElementById('sp-boxes').value)||0;
+  var units=Number(document.getElementById('sp-units').value)||0;
+  var qty=boxes*ppc+units; // 總數 = 箱數×每箱件數 + 散件（與畫面總計一致）
+  if(qty<=0){toast('⚠ Isi Box atau Eceran');return;}
   var btn=document.getElementById('sp-save');btn.disabled=true;
   var r=await sb.from('sja_production').insert({
     date:document.getElementById('sp-date').value||today(),
@@ -4845,10 +4905,12 @@ function renderSjaShipment(){
     h+='<div class="card"><div class="card-title">📦 Kirim Baru</div>'+
     '<div class="fr"><div class="ig"><label>Tanggal</label><input type="date" id="sd-date" value="'+today()+'"></div>'+
     '<div class="ig"><label>Customer</label><select id="sd-cust">'+custOpts+'</select></div></div>'+
-    '<div class="ig"><label>Produk</label><select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions()+'</select>'+
+    '<div class="ig"><label>Produk</label>'+
+    sjaCatChipsHTML('sd')+
+    '<select id="sd-code" onchange="sjaFillDeliv()">'+sjaProdOptions('',SJA_CAT.sd)+'</select>'+
     '<div id="sd-stok" style="font-size:.78rem;margin-top:.3rem"></div></div>'+
-    '<div class="fr"><div class="ig"><label>Box (utuh) <span id="sd-ctn-label" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-boxes" min="0" step="1" placeholder="0" oninput="sjaConvertBoxes()"></div>'+
-    '<div class="ig"><label>Eceran <span id="sd-unit" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-units" min="0" step="0.1" placeholder="0" oninput="sjaConvertUnits()"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Box (kotak) <span id="sd-ctn-label" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-boxes" min="0" step="1" placeholder="0" oninput="sjaBoxTotal(\'sd\')"></div>'+
+    '<div class="ig"><label>Eceran <span id="sd-unit" style="font-weight:400;color:var(--muted)"></span></label><input type="number" id="sd-units" min="0" step="0.1" placeholder="0" oninput="sjaBoxTotal(\'sd\')"></div></div>'+
     '<div id="sd-total" style="font-size:.82rem;margin-top:.3rem;padding:.5rem;background:#EEF2FF;border-radius:6px;border-left:3px solid var(--p);display:none"><strong>Total:</strong> <span id="sd-total-val">0</span> <span id="sd-total-unit"></span></div>'+
     '<div class="fr"><div class="ig" style="flex:2"><label>Batch No <span style="font-weight:400;color:var(--muted)">(opsional)</span></label><input id="sd-batch" placeholder="SJA-2607-01"></div></div>'+
     '<div class="fr"><div class="ig"><label>Driver</label><input id="sd-driver" placeholder="Abdullah"></div>'+
@@ -4885,34 +4947,7 @@ function sjaFillDeliv(){
     var neg=(s.stock_qty||0)<=0;
     el.innerHTML='Stok saat ini: <b style="color:'+(neg?'#DC2626':'#059669')+'">'+fmtN(s.stock_qty)+' '+esc(p.unit||'')+'</b>';
   }else el.innerHTML='<span style="color:var(--muted)">Belum ada produksi untuk produk ini</span>';
-  sjaUpdateTotal();
-}
-// 兩個欄位都是「實際要出的貨」：箱數（整箱）＋ 散件。互不覆寫，換算用提示顯示，
-// 總量公式與 sjaSaveDelivery 完全一致（之前自動覆寫件數欄會造成儲存時重複計算）。
-function sjaConvertBoxes(){sjaUpdateTotal();}
-function sjaConvertUnits(){sjaUpdateTotal();}
-function sjaUpdateTotal(){
-  var code=document.getElementById('sd-code').value;
-  var p=sjaProd(code);
-  var ppc=(p&&p.pcs_per_ctn)||0;
-  var boxes=Number(document.getElementById('sd-boxes').value)||0;
-  var units=Number(document.getElementById('sd-units').value)||0;
-  var totalQty=boxes*ppc+units; // ＝儲存時的公式
-  var totalEl=document.getElementById('sd-total');
-  if(!totalEl)return;
-  if(boxes<=0&&units<=0){totalEl.style.display='none';return;}
-  totalEl.style.display='block';
-  var parts=[];
-  if(boxes>0)parts.push(fmtN(boxes)+' box'+(ppc?' ('+fmtN(boxes*ppc)+')':''));
-  if(units>0)parts.push(fmtN(units));
-  var txt=parts.join(' + ')+' = '+fmtN(totalQty);
-  // 換算提示：只填散件且可整除 → 提示等於幾箱；超過一箱 → 提示可拆成 X 箱 + 零頭
-  if(boxes<=0&&units>0&&ppc>0){
-    if(units%ppc===0)txt+='（= '+(units/ppc)+' box）';
-    else if(units>ppc)txt+='（= '+Math.floor(units/ppc)+' box + '+(units%ppc)+'）';
-  }
-  document.getElementById('sd-total-val').textContent=txt;
-  document.getElementById('sd-total-unit').textContent=p?(p.unit||'pcs'):'pcs';
+  sjaBoxTotal('sd');
 }
 async function sjaSaveDelivery(){
   var code=document.getElementById('sd-code').value;
