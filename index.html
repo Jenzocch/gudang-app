@@ -1200,7 +1200,7 @@ function renderAll(){
   var tabProduksi=tbBtn('produksi');
   var tabShipment=tbBtn('shipment');
   // 生產/出貨模組：PRODUKSI_WH/KIRIM_WH 列出的倉庫才有；且要有 Produksi/Kirim 權限（預設只有 admin）
-  if(tabProduksi)tabProduksi.style.display=(PRODUKSI_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canProduksi())?'':'none';
+  if(tabProduksi)tabProduksi.style.display=(PRODUKSI_WH.indexOf(CURRENT_WAREHOUSE)>=0&&(canProduksi()||IS_OFFICE))?'':'none';
   if(tabShipment)tabShipment.style.display=(KIRIM_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canKirim())?'':'none';
   // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
   if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
@@ -1215,7 +1215,7 @@ function renderAll(){
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
-  if(ACTIVE_TAB==='produksi'&&!canProduksi())ACTIVE_TAB='home';
+  if(ACTIVE_TAB==='produksi'&&!canProduksi()&&!IS_OFFICE)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='shipment'&&!canKirim())ACTIVE_TAB='home';
   if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
   if(!IS_SUPER&&ACTIVE_TAB==='analisa')ACTIVE_TAB='home';
@@ -4321,35 +4321,37 @@ function fmtN(n){if(n==null||n==='')return'-';var v=Number(n);return(v%1?v.toFix
 function renderProduksi(){
   if(!CURRENT_WAREHOUSE){whPickMsg('produksi');return;}
   if(CURRENT_WAREHOUSE==='DENIKIN'){
-    if(!canProduksi()){document.getElementById('produksi').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Produksi</div>';return;}
+    if(!canProduksi()&&!IS_OFFICE){document.getElementById('produksi').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Produksi</div>';return;}
     document.getElementById('produksi').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div><p style="margin-top:.8rem;font-size:.85rem;color:var(--muted)">⏳ Memuat…</p></div>';
     dinEnsure(function(){
       var el=document.getElementById('produksi');
+      if(IS_OFFICE)DIN_SUBTAB='prod'; // Admin Office 只能管產品清單，其餘子分頁隱藏
       el.innerHTML='<div style="position:sticky;top:0;z-index:6;background:'+WH_COLORS.DENIKIN+';padding:.55rem .7rem .45rem">'+
         '<div style="font-weight:800;font-size:.95rem;color:'+WH_TEXT.DENIKIN+'">🏭 Produksi Nata — DIN</div></div>'+
         '<div class="tab-nav" id="din-nav">'+
-        '<button class="tsw'+(DIN_SUBTAB==='pr'?' act':'')+'" onclick="dinSub(this,\'pr\')">🏭 Produksi</button>'+
-        '<button class="tsw'+(DIN_SUBTAB==='rh'?' act':'')+'" onclick="dinSub(this,\'rh\')">💧 Rehidrasi</button>'+
-        '<button class="tsw'+(DIN_SUBTAB==='stok'?' act':'')+'" onclick="dinSub(this,\'stok\')">📦 Stok</button>'+
+        (!IS_OFFICE?'<button class="tsw'+(DIN_SUBTAB==='pr'?' act':'')+'" onclick="dinSub(this,\'pr\')">🏭 Produksi</button>':'')+
+        (!IS_OFFICE?'<button class="tsw'+(DIN_SUBTAB==='rh'?' act':'')+'" onclick="dinSub(this,\'rh\')">💧 Rehidrasi</button>':'')+
+        (!IS_OFFICE?'<button class="tsw'+(DIN_SUBTAB==='stok'?' act':'')+'" onclick="dinSub(this,\'stok\')">📦 Stok</button>':'')+
         '<button class="tsw'+(DIN_SUBTAB==='prod'?' act':'')+'" onclick="dinSub(this,\'prod\')">🏷️ Produk</button>'+
-        '<button class="tsw'+(DIN_SUBTAB==='cust'?' act':'')+'" onclick="dinSub(this,\'cust\')">👥 Pelanggan</button>'+
-        '<button class="tsw'+(DIN_SUBTAB==='rpt'?' act':'')+'" onclick="dinSub(this,\'rpt\')">📈 Laporan</button>'+
+        (!IS_OFFICE?'<button class="tsw'+(DIN_SUBTAB==='cust'?' act':'')+'" onclick="dinSub(this,\'cust\')">👥 Pelanggan</button>':'')+
+        (!IS_OFFICE?'<button class="tsw'+(DIN_SUBTAB==='rpt'?' act':'')+'" onclick="dinSub(this,\'rpt\')">📈 Laporan</button>':'')+
         '</div><div id="din-body"></div>';
       dinBody();
     });
   }else if(CURRENT_WAREHOUSE==='SJA'){
-    if(!canProduksi()){document.getElementById('produksi').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Produksi</div>';return;}
+    if(!canProduksi()&&!IS_OFFICE){document.getElementById('produksi').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses Produksi</div>';return;}
     document.getElementById('produksi').innerHTML='<div style="padding:2rem;text-align:center"><div class="spin" style="width:36px;height:36px;margin:0 auto"></div><p style="margin-top:.8rem;font-size:.85rem;color:var(--muted)">⏳ Memuat…</p></div>';
     sjaEnsure(function(){
       var el=document.getElementById('produksi');
+      if(IS_OFFICE)SJA_SUBTAB='prod'; // Admin Office 只能管產品清單，其餘子分頁隱藏
       el.innerHTML='<div style="position:sticky;top:0;z-index:6;background:'+WH_COLORS.SJA+';padding:.55rem .7rem .45rem">'+
         '<div style="font-weight:800;font-size:.95rem;color:'+WH_TEXT.SJA+'">🏭 Produksi — SJA</div></div>'+
         '<div class="tab-nav" id="sja-nav">'+
-        '<button class="tsw'+(SJA_SUBTAB==='pr'?' act':'')+'" onclick="sjaSub(this,\'pr\')">🏭 Produksi</button>'+
-        '<button class="tsw'+(SJA_SUBTAB==='stok'?' act':'')+'" onclick="sjaSub(this,\'stok\')">📦 Stok</button>'+
+        (!IS_OFFICE?'<button class="tsw'+(SJA_SUBTAB==='pr'?' act':'')+'" onclick="sjaSub(this,\'pr\')">🏭 Produksi</button>':'')+
+        (!IS_OFFICE?'<button class="tsw'+(SJA_SUBTAB==='stok'?' act':'')+'" onclick="sjaSub(this,\'stok\')">📦 Stok</button>':'')+
         '<button class="tsw'+(SJA_SUBTAB==='prod'?' act':'')+'" onclick="sjaSub(this,\'prod\')">🏷️ Produk</button>'+
-        '<button class="tsw'+(SJA_SUBTAB==='cust'?' act':'')+'" onclick="sjaSub(this,\'cust\')">👥 Customer</button>'+
-        '<button class="tsw'+(SJA_SUBTAB==='rpt'?' act':'')+'" onclick="sjaSub(this,\'rpt\')">📈 Laporan</button>'+
+        (!IS_OFFICE?'<button class="tsw'+(SJA_SUBTAB==='cust'?' act':'')+'" onclick="sjaSub(this,\'cust\')">👥 Customer</button>':'')+
+        (!IS_OFFICE?'<button class="tsw'+(SJA_SUBTAB==='rpt'?' act':'')+'" onclick="sjaSub(this,\'rpt\')">📈 Laporan</button>':'')+
         '</div><div id="sja-body"></div>';
       sjaBody();
     });
@@ -4365,6 +4367,7 @@ function dinSub(el,id){
 }
 function dinBody(){
   var b=document.getElementById('din-body');if(!b)return;
+  if(IS_OFFICE)DIN_SUBTAB='prod'; // Admin Office 只准看產品清單
   if(DIN_SUBTAB==='pr')b.innerHTML=dinProduksiHTML();
   else if(DIN_SUBTAB==='rh')b.innerHTML=dinRehidrasiHTML();
   else if(DIN_SUBTAB==='stok')b.innerHTML=dinStokHTML();
@@ -4414,6 +4417,7 @@ function sjaSub(el,id){
 }
 function sjaBody(){
   var b=document.getElementById('sja-body');if(!b)return;
+  if(IS_OFFICE)SJA_SUBTAB='prod'; // Admin Office 只准看產品清單
   if(SJA_SUBTAB==='pr')b.innerHTML=sjaProduksiHTML();
   else if(SJA_SUBTAB==='stok')b.innerHTML=sjaStokHTML();
   else if(SJA_SUBTAB==='prod')b.innerHTML=sjaProdukHTML();
