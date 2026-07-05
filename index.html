@@ -408,6 +408,48 @@ function verifyStaffPin(personId,pin){
     },function(){resolve({ok:false});});
   });
 }
+// ── Admin PIN 輸入盤（取代明碼 prompt，跟員工 PIN 盤同一套 UI）──
+var APIN_BUF='',APIN_CB=null,APIN_CANCEL=null;
+function showAdminPinPad(cb,onCancel){
+  APIN_BUF='';APIN_CB=cb;APIN_CANCEL=onCancel||null;
+  var dots='';for(var i=0;i<6;i++)dots+='<div class="pin-dot"></div>';
+  var keys=['1','2','3','4','5','6','7','8','9','⌫','0','✕'];
+  showModal('🔐 PIN Admin',
+    '<div style="text-align:center;padding:.3rem 0 .6rem">'+
+    '<div class="pin-dots" id="apin-dots">'+dots+'</div>'+
+    '<div id="apin-err" style="color:var(--danger);font-size:.85rem;font-weight:700;min-height:1.3em;margin:.2rem 0"></div>'+
+    '<div class="pin-pad" id="apin-pad">'+keys.map(function(k){
+      return '<button class="pk" onclick="apinKey(\''+k+'\')">'+k+'</button>';
+    }).join('')+'</div></div>');
+  // ✕（右上角/背景點擊）視為取消
+  var mcl=document.querySelector('#m-ov .mcl');
+  if(mcl)mcl.onclick=function(){apinAbort();};
+  var ov=document.getElementById('m-ov');
+  if(ov)ov.addEventListener('click',function(e){if(e.target===ov)apinAbort();});
+}
+function apinAbort(){var c=APIN_CANCEL;APIN_CB=null;APIN_CANCEL=null;closeModal();if(c)c();}
+function apinDots(){
+  var ds=document.querySelectorAll('#apin-dots .pin-dot');
+  ds.forEach(function(d,i){d.className='pin-dot'+(i<APIN_BUF.length?' f':'');});
+}
+function apinKey(k){
+  if(k==='✕'){apinAbort();return;}
+  if(k==='⌫'){APIN_BUF=APIN_BUF.slice(0,-1);apinDots();return;}
+  if(APIN_BUF.length>=6)return;
+  APIN_BUF+=k;apinDots();
+  if(APIN_BUF.length===6&&APIN_CB){
+    var pad=document.getElementById('apin-pad');
+    if(pad){pad.style.pointerEvents='none';pad.style.opacity='.5';}
+    var err=document.getElementById('apin-err');if(err)err.textContent='⏳ Memeriksa...';
+    APIN_CB(APIN_BUF);
+  }
+}
+function apinFail(msg){
+  APIN_BUF='';apinDots();
+  var pad=document.getElementById('apin-pad');
+  if(pad){pad.style.pointerEvents='';pad.style.opacity='';}
+  var err=document.getElementById('apin-err');if(err)err.textContent=msg||t('wrongPin');
+}
 // 記在記憶體(非 localStorage)的 admin PIN；登入時填入，用來授權 people 寫入。
 // 重新整理後會消失，屆時 managePeople 會再 prompt 一次。
 var ADMIN_PIN_MEM='';
@@ -415,8 +457,10 @@ var ADMIN_PIN_MEM='';
 // 前端不再直接寫 people，避免任何人用公開 anon key 把自己設成 admin。
 async function managePeople(action,opts){
   if(!ADMIN_PIN_MEM){
-    var p=prompt('PIN Admin (6 digit)');
-    if(p===null||p==='')throw new Error('Dibatalkan');
+    // 用 PIN 盤要求輸入（重新整理後記憶體 PIN 會消失時才會走到這）
+    var p=await new Promise(function(res,rej){
+      showAdminPinPad(function(pin){closeModal();res(pin);},function(){rej(new Error('Dibatalkan'));});
+    });
     ADMIN_PIN_MEM=String(p);
   }
   var body=Object.assign({admin_pin:ADMIN_PIN_MEM,action:action},opts||{});
@@ -571,11 +615,11 @@ function selectLoginPerson(pid,name){
   }
   document.getElementById('ls-pin-area').style.display='block';
 }
-async function adminLogin(){
-  var pin=prompt('PIN Admin (6 digit)');
-  if(pin===null)return;
-  var ok=await verifyAdminPin(pin);
-  if(ok){
+function adminLogin(){
+  showAdminPinPad(async function(pin){
+    var ok=await verifyAdminPin(pin);
+    if(!ok){apinFail('❌ '+t('wrongPin'));return;} // 留在 PIN 盤上重試
+    closeModal();
     ADMIN_PIN_MEM=String(pin); // 記住供 people 寫入授權用
     localStorage.setItem('admin_sess',JSON.stringify({ts:Date.now()}));
     CURRENT_USER={id:0,name:'Admin',initials:'AD'};
@@ -590,9 +634,7 @@ async function adminLogin(){
     },function(e){
       document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
     });
-  }else{
-    alert(t('wrongPin'));
-  }
+  });
 }
 function onLoginSel(){
   var sel=document.getElementById('ls-sel');
@@ -1725,11 +1767,10 @@ function lkRender(){
     '</div>';
   }).join('')+(items.length>40?'<div style="text-align:center;color:#9CA3AF;padding:.7rem;font-size:.78rem">+'+(items.length-40)+' lagi — persempit pencarian</div>':'');
 }
-function showTakeConfirm(keys){
-  var items_taken=keys.map(function(variantId){
-    var item=DATA.items.find(function(i){return i.variant_id==variantId;});
-    return item?'✓ '+esc(item.name)+' x'+CART[variantId]+' '+esc(item.unit):'';
-  }).filter(Boolean).join('<br>');
+function showTakeConfirm(taken){
+  var items_taken=taken.map(function(x){
+    return '✓ '+esc(x.name)+' x'+x.qty+' '+esc(x.unit);
+  }).join('<br>');
   var title=('✅ Ambil Selesai');
   var msg='<div style="text-align:center">'+
     '<p style="font-size:1.2rem;margin-bottom:1rem">'+title+'</p>'+
@@ -1737,8 +1778,8 @@ function showTakeConfirm(keys){
     items_taken+
     '</div>'+
     '<div style="display:flex;gap:.6rem">'+
-    '<button class="btn btn-p" style="flex:1" onclick="CART={};renderAmbil();">'+('Lanjut Ambil')+'</button>'+
-    '<button class="btn btn-s" style="flex:1" onclick="CART={};loadAll();goTab(\'home\',document.querySelector(\'.tb\'));">'+('Selesai')+'</button>'+
+    '<button class="btn btn-p" style="flex:1" onclick="closeModal();renderAmbil();">'+('Lanjut Ambil')+'</button>'+
+    '<button class="btn btn-s" style="flex:1" onclick="closeModal();goTab(\'home\',document.querySelector(\'.tb\'));">'+('Selesai')+'</button>'+
     '</div></div>';
   showModal(('Konfirmasi Ambil'),msg);
 }
@@ -1795,13 +1836,17 @@ async function executeAmbilCart(){
   var pname=CURRENT_USER.name;
   var pid=CURRENT_USER.id||null;
   var btn=document.getElementById('amb-btn');btn.disabled=true;btn.textContent='...';
+  var taken=[]; // 已成功落帳的品項（成功一項就從購物車移除，失敗重按不會重複入帳）
   try{
     for(var ki=0;ki<keys.length;ki++){
       var variantId=keys[ki];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=CART[variantId];
+      btn.textContent=(ki+1)+'/'+keys.length+'...';
       var newQty=item.qty-qty;
       // Update item_variants (per-warehouse) instead of items
-      await sb.from('item_variants').update({qty:newQty}).eq('id',variantId);
-      await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      var ru=await sb.from('item_variants').update({qty:newQty}).eq('id',variantId);
+      if(ru.error)throw ru.error;
+      var rt=await sb.from('transactions').insert({type:'ambil',item_id:item.id,item_name:item.name,person_id:pid||null,person_name:pname,qty:qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      if(rt.error)throw rt.error;
       // FIFO: deduct from batches in current warehouse (filter by item_id AND warehouse_id)
       var abat=DATA.batches.filter(function(b){return b.item_id==item.id&&b.warehouse_id==CURRENT_WAREHOUSE&&b.qty_remaining>0;}).sort(function(a,b){if(a.expiry_date&&b.expiry_date)return new Date(a.expiry_date)-new Date(b.expiry_date);if(a.expiry_date)return -1;if(b.expiry_date)return 1;return new Date(a.created_at)-new Date(b.created_at);});
       var remQ=qty;
@@ -1819,13 +1864,26 @@ async function executeAmbilCart(){
             '🕐 '+new Date().toLocaleString('id-ID'));
         }
       }
+      taken.push({name:item.name,qty:qty,unit:item.unit});
+      delete CART[variantId]; // 這一項已完整落帳
     }
-    showTakeConfirm(keys);
+    showTakeConfirm(taken);
     CART={};
     await loadAll();
     renderAmbil();
-  }catch(e){toast('⚠ '+e.message);}
-  btn.disabled=false;btn.textContent=t('doTake');
+  }catch(e){
+    // 部分成功：已落帳的不在購物車了，剩下的保留，重按只會送失敗的那些
+    toast('⚠ '+e.message+(taken.length?' — '+taken.length+' item tersimpan, sisanya masih di keranjang':''));
+    var keep=Object.assign({},CART);
+    await loadAll(); // 同步已扣的庫存（會重繪並清空 CART）
+    CART=keep;       // 還原未送出的項目
+    var cw=document.getElementById('amb-cart');if(cw)cw.innerHTML=cartRowsAmb();
+    updateCartBar();
+    var q=((document.getElementById('asrch')||{}).value||'').toLowerCase();
+    var el=document.getElementById('amb-list');if(el)el.innerHTML=AMB_GRID?ambGrid(q):ambRows(q);
+  }
+  btn=document.getElementById('amb-btn');
+  if(btn){btn.disabled=false;btn.textContent=t('doTake');}
 }
 
 // MASUK (cart mode)
@@ -1970,7 +2028,7 @@ function applyCartM(variantId,nv,firstAdd){
   var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=total?total+(' barang'):'';
   var btn=document.getElementById('msk-btn');if(btn)btn.textContent=total?t('doRcv')+' ('+total+(' item')+')':t('doRcv');
   updateCartBar();
-  if(firstAdd){setTimeout(function(){showLotInfoModal(variantId);},50);}
+  // 不再自動彈批次視窗（收 5 樣被打斷 5 次）；購物車列有「📋 Lot」鈕可自行點開
 }
 function cAdjM(variantId,d){
   var cur=CART_M[variantId]?CART_M[variantId].qty:0;
@@ -1998,9 +2056,11 @@ async function doMasukCart(){
   var person=DATA.people.find(function(p){return p.id==sel.value;});
   var pid=person?person.id:null;
   var btn=document.getElementById('msk-btn');btn.disabled=true;btn.textContent='...';
+  var done=0;
   try{
     for(var ki=0;ki<keys.length;ki++){
       var variantId=keys[ki];var ci=CART_M[variantId];var item=DATA.items.find(function(i){return i.variant_id==variantId;});var qty=ci.qty;
+      btn.textContent=(ki+1)+'/'+keys.length+'...';
       // Update item_variants (per-warehouse) instead of items
       var r1=await sb.from('item_variants').update({qty:item.qty+qty}).eq('id',variantId);
       if(r1.error)throw r1.error;
@@ -2009,11 +2069,21 @@ async function doMasukCart(){
       // 批次記錄失敗不能靜默吞掉（否則庫存加了、批號/效期/FIFO 卻沒建），用 safe insert 容錯缺欄位
       var r3=await sbInsertSafe('item_batches',{item_id:item.id,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:ci.lot_no||null,code_produksi:ci.code_produksi||null,po_no:ci.po_no||null,do_no:ci.do_no||null,production_date:ci.production_date||null,expiry_date:ci.expiry_date||null,shelf_life:ci.shelf_life||null,unit_price:ci.unit_price||null,supplier:ci.supplier||null,qty_initial:qty,qty_remaining:qty,received_date:today()});
       if(r3.error)throw r3.error;
+      delete CART_M[variantId];done++; // 這一項已完整落帳，失敗重送不會重複
     }
     // 留在 Masuk 頁（常常還要繼續收下一批），loadAll 會重繪當前分頁
     toast(t('rcvOk')+' ✓');CART_M={};await loadAll();
-  }catch(e){toast('⚠ '+e.message);}
-  btn.disabled=false;btn.textContent=t('doRcv');
+  }catch(e){
+    toast('⚠ '+e.message+(done?' — '+done+' item tersimpan, sisanya masih di keranjang':''));
+    var keep=Object.assign({},CART_M);
+    await loadAll(); // 同步庫存（重繪會清空 CART_M）
+    CART_M=keep;
+    var cw=document.getElementById('msk-cart');if(cw)cw.innerHTML=cartRowsMsk();
+    var cnt=document.getElementById('msk-cart-cnt');if(cnt)cnt.textContent=Object.keys(CART_M).length?Object.keys(CART_M).length+' barang':'';
+    updateCartBar();
+  }
+  btn=document.getElementById('msk-btn');
+  if(btn){btn.disabled=false;btn.textContent=t('doRcv');}
 }
 
 function iGrid(mode){
@@ -2891,8 +2961,25 @@ function showModal(title,body){
   ov.innerHTML='<div class="modal"><div class="modal-title">'+title+'<button class="mcl" onclick="closeModal()">✕</button></div>'+body+'</div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
+  armHist();
 }
 function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)o.remove();}
+// ── Android 返回鍵：有彈窗先關彈窗，不要直接退出 App ──
+// 開任何覆蓋層時押一層 history state（最多一層，不堆疊）；
+// 按返回 → popstate → 關最上層覆蓋層；底下還有覆蓋層就再押一層。
+var HIST_ARMED=false;
+function armHist(){if(!HIST_ARMED){try{history.pushState({ov:1},'');HIST_ARMED=true;}catch(e){}}}
+window.addEventListener('popstate',function(){
+  HIST_ARMED=false;
+  var img=document.querySelector('.img-ov');
+  var m=document.getElementById('m-ov');
+  var lo=document.getElementById('low-ov');
+  var loOpen=lo&&lo.classList.contains('open');
+  if(img){img.remove();if(m||loOpen)armHist();return;}
+  if(m){closeModal();if(loOpen)armHist();return;}
+  if(loOpen){lo.classList.remove('open');return;}
+  // 沒有覆蓋層 → 不攔截，讓返回自然發生
+});
 
 function itemFormHTML(item){
   var twh=item?item.warehouse_id:CURRENT_WAREHOUSE;
@@ -3491,6 +3578,7 @@ function showLow(item,need){
   lb.textContent=('🔗 Beli Sekarang');
   lb.style.display=item.supplier_url?'':'none';
   document.getElementById('low-ov').classList.add('open');
+  armHist();
 }
 function closeLow(){document.getElementById('low-ov').classList.remove('open');}
 function openLowLink(){if(LOW_ITEM&&LOW_ITEM.supplier_url)window.open(LOW_ITEM.supplier_url,'_blank');}
@@ -3602,6 +3690,7 @@ function showImg(url,name,icon){
     '<div style="color:#aaa;font-size:.75rem;margin-top:.2rem">'+('Tap untuk tutup')+'</div>'+
   '</div>';
   document.body.appendChild(ov);
+  armHist();
 }
 // === LOT / BATCH FUNCTIONS ===
 function showLotInfoModal(variantId){
