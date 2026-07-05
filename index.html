@@ -61,7 +61,7 @@ body{display:flex;flex-direction:column}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
 .content{flex:1;overflow-y:auto;padding-bottom:58px;-webkit-overflow-scrolling:touch}
 .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -1px 8px rgba(16,24,40,.05);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.tb{flex:1;min-width:60px;padding:.5rem .2rem .45rem;border:none;background:none;cursor:pointer;font-size:.64rem;font-weight:600;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative}
+.tb{flex:1;min-width:44px;padding:.5rem .1rem .45rem;border:none;background:none;cursor:pointer;font-size:.64rem;font-weight:600;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative}
 .tb-icon{font-size:1.25rem;transition:transform .2s}
 .tb.active{color:var(--p)}
 .tb.active .tb-icon{transform:translateY(-1px)}
@@ -95,7 +95,9 @@ textarea{resize:vertical;min-height:75px}
 .sr:last-child{border:none}
 .sl{color:#64748B;font-size:.9rem}
 .sv{font-weight:600;font-size:.95rem}
-.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:24px;z-index:500;white-space:nowrap;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s ease}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:18px;z-index:500;white-space:normal;max-width:88vw;width:max-content;text-align:center;line-height:1.45;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s ease}
+.toast-err{background:rgba(153,27,27,.95)}
+.toast-ok{background:rgba(6,95,70,.95)}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center}
 .modal-ov.open{display:flex}
@@ -246,7 +248,8 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .qb{width:44px;height:44px;font-size:1.3rem}
   .qc{width:116px}
   .amb-row{padding:.65rem .9rem}
-  .tb{padding:.8rem .2rem}
+  .tb{padding:.75rem .1rem}
+  .tb-icon{font-size:1.15rem}
 }
 /* 桌面响应式：>=768px 显示侧边栏，Admin 两列布局 */
 @media(min-width:768px){
@@ -559,7 +562,7 @@ function renderLoginScreen(){
     '<div id="ls-pin-hint" style="font-size:.75rem;color:#64748B;margin-bottom:.4rem;text-align:center"></div>'+
     '<div class="pin-dots" id="ls-dots">'+Array(4).fill('<div class="pin-dot"></div>').join('')+'</div>'+
     '<div id="ls-err" style="color:var(--danger);font-size:.82rem;min-height:1.2rem;margin:.25rem 0"></div>'+
-    '<div class="pin-pad">'+
+    '<div class="pin-pad" id="ls-pad">'+
       [1,2,3,4,5,6,7,8,9,'','0','⌫'].map(function(k){
         return k===''?'<div></div>':'<button class="pk" onclick="lpk(\''+k+'\')">'+k+'</button>';
       }).join('')+
@@ -676,8 +679,12 @@ function lpk(k){
     return;
   }
   // 既有員工：PIN 交後端 verify-staff 驗證，前端不再持有任何 pin
-  var errEl=document.getElementById('ls-err');if(errEl)errEl.textContent='...';
+  // 驗證期間鎖住鍵盤＋明確提示，避免網路慢時使用者重複按（B8）
+  var errEl=document.getElementById('ls-err');if(errEl){errEl.style.color='var(--muted)';errEl.textContent='⏳ Memeriksa...';}
+  var pad=document.getElementById('ls-pad');if(pad){pad.style.pointerEvents='none';pad.style.opacity='.45';}
   verifyStaffPin(pid,entered).then(function(res){
+    if(pad){pad.style.pointerEvents='';pad.style.opacity='';}
+    if(errEl)errEl.style.color='var(--danger)';
     if(res&&res.ok&&res.person){
       CURRENT_USER=res.person;
       if(!CURRENT_USER.warehouses)CURRENT_USER.warehouses=[];
@@ -1780,8 +1787,37 @@ function showTakeConfirm(taken){
     '<div style="display:flex;gap:.6rem">'+
     '<button class="btn btn-p" style="flex:1" onclick="closeModal();renderAmbil();">'+('Lanjut Ambil')+'</button>'+
     '<button class="btn btn-s" style="flex:1" onclick="closeModal();goTab(\'home\',document.querySelector(\'.tb\'));">'+('Selesai')+'</button>'+
-    '</div></div>';
+    '</div>'+
+    '<button onclick="undoLastTake(this)" style="margin-top:.7rem;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.82rem;font-weight:700;text-decoration:underline;padding:.3rem">↩ '+('Salah ambil? Batalkan')+'</button>'+
+    '</div>';
   showModal(('Konfirmasi Ambil'),msg);
+}
+// 一鍵回沖剛才的領料：庫存加回 + 補一筆 masuk 交易（FIFO 批次不回沖，管理員可在批次頁手動調整）
+var LAST_TAKE=[];
+async function undoLastTake(btn){
+  if(!LAST_TAKE.length){toast('⚠ Tidak ada yang bisa dibatalkan');return;}
+  if(!confirm('Batalkan pengambilan barusan?\nStok akan dikembalikan.'))return;
+  btn.disabled=true;btn.textContent='...';
+  try{
+    for(var i=0;i<LAST_TAKE.length;i++){
+      var x=LAST_TAKE[i];
+      var it=DATA.items.find(function(o){return o.variant_id==x.variantId;});
+      var cur;
+      if(it)cur=it.qty;
+      else{
+        var rv=await sb.from('item_variants').select('qty').eq('id',x.variantId).single();
+        cur=(rv.data&&Number(rv.data.qty))||0;
+      }
+      var r1=await sb.from('item_variants').update({qty:cur+x.qty}).eq('id',x.variantId);
+      if(r1.error)throw r1.error;
+      var r2=await sb.from('transactions').insert({type:'masuk',item_id:x.itemId,item_name:x.name,person_id:(CURRENT_USER&&CURRENT_USER.id)||null,person_name:(CURRENT_USER?CURRENT_USER.name:'')+' (batal ambil)',qty:x.qty,warehouse_id:CURRENT_WAREHOUSE||null});
+      if(r2.error)throw r2.error;
+    }
+    LAST_TAKE=[];
+    toast('✓ Dibatalkan — stok dikembalikan');
+    closeModal();
+    await loadAll();renderAmbil();
+  }catch(e){toast('⚠ '+e.message);btn.disabled=false;btn.textContent='↩ Salah ambil? Batalkan';}
 }
 function getAmbilBatches(itemId,qty){
   var result=[];
@@ -1810,6 +1846,13 @@ async function doAmbilCart(){
   var ok=true;
   keys.forEach(function(variantId){var item=DATA.items.find(function(i){return i.variant_id==variantId;});if(item&&CART[variantId]>item.qty){showLow(item,CART[variantId]);ok=false;}});
   if(!ok)return;
+
+  // 全部品項都沒有批次（例如五金類）→ 沒東西好確認，直接執行少按一步
+  var anyBatch=keys.some(function(variantId){
+    var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+    return item&&getAmbilBatches(item.id,CART[variantId]).length>0;
+  });
+  if(!anyBatch){executeAmbilCart();return;}
 
   // Show FIFO confirmation dialog
   var msg='<div style="margin-bottom:1rem"><strong>📋 FIFO Confirmation</strong> — Batch yang akan diambil:</div>';
@@ -1864,9 +1907,10 @@ async function executeAmbilCart(){
             '🕐 '+new Date().toLocaleString('id-ID'));
         }
       }
-      taken.push({name:item.name,qty:qty,unit:item.unit});
+      taken.push({variantId:variantId,itemId:item.id,name:item.name,qty:qty,unit:item.unit});
       delete CART[variantId]; // 這一項已完整落帳
     }
+    LAST_TAKE=taken; // 供「↩ Batalkan」復原用
     showTakeConfirm(taken);
     CART={};
     await loadAll();
@@ -1918,14 +1962,20 @@ function renderMasuk(){
     '<div id="msk-cart">'+cartRowsMsk()+'</div>'+
     '</div>'+
     '<div class="card" style="margin:.7rem">'+
-    '<div class="ig"><label>👤 '+t('myName')+'（'+('Karyawan atau nama baru')+'）</label>'+
-    '<select id="msk-p" onchange="onMskPersonChange()">'+(preselName?'<option value="'+preselName+'" selected>'+esc(preselName)+'</option>':'')+
-    '<option value="">-- '+t('selPerson')+' --</option>'+
-    DATA.people.map(function(p){return'<option value="'+p.id+'"'+(p.name===preselName?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+
-    '<option value="__new__">✏️ '+('Nama baru')+'...</option>'+
-    '</select>'+
-    '<input id="msk-pn" type="text" placeholder="'+t('pName')+'..." style="display:none;margin-top:.4rem;">'+
-    '</div>'+
+    // 一般員工：已登入就是本人，不用再選（少一步）；admin/訪客才顯示下拉（可代收）
+    (!IS_ADMIN&&CURRENT_USER&&!CURRENT_USER.isGuest?
+      '<div class="ig"><label>👤 '+t('myName')+'</label>'+
+      '<div style="padding:.68rem .75rem;border:1px solid var(--border);border-radius:10px;background:var(--light);font-weight:700">'+esc(CURRENT_USER.name)+'</div></div>'
+    :
+      '<div class="ig"><label>👤 '+t('myName')+'（'+('Karyawan atau nama baru')+'）</label>'+
+      '<select id="msk-p" onchange="onMskPersonChange()">'+
+      '<option value="">-- '+t('selPerson')+' --</option>'+
+      DATA.people.map(function(p){return'<option value="'+p.id+'"'+(p.name===preselName?' selected':'')+'>'+esc(p.name)+'</option>';}).join('')+
+      '<option value="__new__"'+(CURRENT_USER&&CURRENT_USER.isGuest?' selected':'')+'>✏️ '+('Nama baru')+'...</option>'+
+      '</select>'+
+      '<input id="msk-pn" type="text" placeholder="'+t('pName')+'..." value="'+(CURRENT_USER&&CURRENT_USER.isGuest?esc(CURRENT_USER.name):'')+'" style="display:'+(CURRENT_USER&&CURRENT_USER.isGuest?'block':'none')+';margin-top:.4rem;">'+
+      '</div>'
+    )+
     '<button class="btn btn-ok btn-full" id="msk-btn" onclick="doMasukCart()">'+t('doRcv')+'</button>'+
     '</div>';
 }
@@ -2049,12 +2099,17 @@ function onMskPersonChange(){
 async function doMasukCart(){
   if(!CURRENT_USER){toast('⚠ Belum login');return;}
   if(!canMasuk()){toast('⚠ Tidak ada akses Masuk');return;}
-  var sel=document.getElementById('msk-p');
-  var pname=(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
   var keys=Object.keys(CART_M);
+  var sel=document.getElementById('msk-p');
+  var pname,pid;
+  if(!sel){ // 一般員工：固定用登入者，不經下拉
+    pname=CURRENT_USER?CURRENT_USER.name:'';pid=(CURRENT_USER&&CURRENT_USER.id)||null;
+  }else{
+    pname=(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
+    var person=DATA.people.find(function(p){return p.id==sel.value;});
+    pid=person?person.id:null;
+  }
   if(!pname||!keys.length){toast(t('selBoth'));return;}
-  var person=DATA.people.find(function(p){return p.id==sel.value;});
-  var pid=person?person.id:null;
   var btn=document.getElementById('msk-btn');btn.disabled=true;btn.textContent='...';
   var done=0;
   try{
@@ -2829,8 +2884,9 @@ function renderStocktake(catFilter){
     '<input id="stk-srch" type="search" placeholder="🔍 Cari nama / kode barang..." oninput="fltStk()" style="width:100%;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;box-sizing:border-box">';
   html+='</div>';
   html+='<div id="stk-list">'+stkRowsHTML()+'</div>';
-  html+='<div style="padding:.7rem;background:#fff;border-top:1px solid var(--border)">'+
-    '<button class="btn btn-ok btn-full" id="stk-save-btn" onclick="saveStocktake()" disabled>'+
+  // 儲存鈕貼底：改完數量不用滑過整個清單才能存
+  html+='<div style="position:sticky;bottom:calc(58px + env(safe-area-inset-bottom));z-index:6;padding:.55rem .7rem;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-top:1px solid var(--border)">'+
+    '<button class="btn btn-ok btn-full" id="stk-save-btn" style="margin-top:0" onclick="saveStocktake()" disabled>'+
     ('✓ Simpan (belum ada perubahan)')+'</button></div>';
   host.innerHTML=html;
 }
@@ -2905,7 +2961,7 @@ function fltStk(){
 }
 function onStkChange(variantId,inp){
   var item=DATA.items.find(function(i){return i.variant_id==variantId;});if(!item)return;
-  var nv=parseInt(inp.value);
+  var nv=parseFloat(inp.value); // 支援小數盤點量（與批次/領料一致）
   if(isNaN(nv)||nv<0){inp.value=item.qty;delete STOCKTAKE[variantId];}
   else if(nv!==item.qty){STOCKTAKE[variantId]=nv;document.getElementById('stk-'+variantId).classList.add('changed');inp.classList.add('changed');}
   else{delete STOCKTAKE[variantId];document.getElementById('stk-'+variantId).classList.remove('changed');inp.classList.remove('changed');}
@@ -4033,7 +4089,14 @@ function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function toast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2800);}
+function toast(msg,dur){
+  var isErr=/^\s*[⚠❌]/.test(msg)||/gagal/i.test(msg);
+  var isOk=/^\s*[✓✅]/.test(msg);
+  var t=document.createElement('div');
+  t.className='toast'+(isErr?' toast-err':isOk?' toast-ok':'');
+  t.textContent=msg;document.body.appendChild(t);
+  setTimeout(function(){t.remove();},dur||(isErr?6000:2800)); // 錯誤停久一點，來得及讀
+}
 // Tappable toast with an action (dipakai pemberitahuan update Service Worker)
 function showToast(msg,actionLabel,cb){
   var el=document.createElement('div');el.className='toast';el.style.cursor='pointer';
@@ -4276,7 +4339,16 @@ async function dinSaveProduction(){
   btn.disabled=false;
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Produksi tersimpan');
-  dinReload(dinBody);
+  // 連續打同產品/同槽很常見：重繪後帶回剛才的選擇
+  var keepCode=row.product_code,keepTank=document.getElementById('dp-tank').value;
+  dinReload(function(){
+    dinBody();
+    setTimeout(function(){
+      var c=document.getElementById('dp-code'),tk=document.getElementById('dp-tank');
+      if(c){c.value=keepCode;dinFillProd();}
+      if(tk)tk.value=keepTank;
+    },50);
+  });
 }
 
 // ── 復水 (Rehidrasi 分頁) ──
@@ -4471,7 +4543,12 @@ async function sjaSaveProduction(){
   btn.disabled=false;
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Produksi tersimpan');
-  sjaReload(sjaBody);
+  // 連續打同產品：重繪後帶回剛才的選擇
+  var keepCode=document.getElementById('sp-code').value;
+  sjaReload(function(){
+    sjaBody();
+    setTimeout(function(){var c=document.getElementById('sp-code');if(c){c.value=keepCode;sjaFillProd();}},50);
+  });
 }
 // ── SJA 庫存（可搜尋）──
 function sjaStockOf(code){for(var i=0;i<SJA.stock.length;i++)if(SJA.stock[i].product_code===code)return SJA.stock[i];return null;}
@@ -4848,7 +4925,12 @@ async function sjaSaveDelivery(){
   if(r.error){toast('⚠ '+r.error.message);return;}
   toast('✓ Pengiriman tersimpan');
   ANA.loadedFor=0; // 新出貨 → 分析頁快取失效
-  sjaReload(function(){renderShipment();});
+  // 同一車常出多筆同客戶：重繪後帶回客戶選擇
+  var keepCust=custId;
+  sjaReload(function(){
+    renderShipment();
+    setTimeout(function(){var c=document.getElementById('sd-cust');if(c)c.value=keepCust;},80);
+  });
 }
 async function sjaDel(table,id){
   if(!confirm('Hapus data ini?'))return;
