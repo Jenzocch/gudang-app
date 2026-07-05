@@ -3854,10 +3854,7 @@ function selectWarehouse(wid){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
   initSupabase(function(){
-    var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:function(){
-      goDefaultStaffTab();
-      if(canAmbil())setTimeout(function(){var s=document.getElementById('asrch');if(s)s.focus();},300);
-    };
+    var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:goDefaultStaffTab;
     loadAll(cb,shown);
   },function(e){
     if(shown){toast('⚠ '+('Offline - data tersimpan'));return;}
