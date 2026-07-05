@@ -4510,9 +4510,14 @@ function dinProdukHTML(){
   Object.keys(byCust).forEach(function(c){
     h+='<div style="font-weight:800;font-size:.82rem;color:'+WH_TEXT.DENIKIN+';margin:.6rem 0 .25rem">'+esc(c)+'</div>';
     byCust[c].forEach(function(p){
-      h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem'+(p.is_active===false?';opacity:.45':'')+'">'+
-      '<div><b>'+esc(p.code)+'</b> · '+esc(p.item_name)+'<br><span style="color:var(--muted);font-size:.72rem">'+esc(p.label_item||'')+' · '+p.pack_ctn+' bag/ctn · '+fmtN(p.kg_per_bag)+'kg/bag · P'+fmtN(p.press_factor)+'</span></div>'+
-      (IS_ADMIN?'<button onclick="dinToggleProduct(\''+esc(p.code)+'\','+(p.is_active===false)+')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;cursor:pointer;font-size:.72rem">'+(p.is_active===false?'aktifkan':'non-aktif')+'</button>':'')+
+      var dc=esc(p.code).replace(/'/g,"\\'");
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;padding:.4rem 0;border-bottom:1px solid #F1F5F9;font-size:.82rem'+(p.is_active===false?';opacity:.45':'')+'">'+
+      '<div style="flex:1;min-width:0"><b>'+esc(p.code)+'</b> · '+esc(p.item_name)+'<br><span style="color:var(--muted);font-size:.72rem">'+esc(p.label_item||'')+' · '+p.pack_ctn+' bag/ctn · '+fmtN(p.kg_per_bag)+'kg/bag · P'+fmtN(p.press_factor)+'</span></div>'+
+      (IS_ADMIN?'<div style="display:flex;align-items:center;gap:.2rem;flex-shrink:0">'+
+        '<button onclick="dinToggleProduct(\''+dc+'\','+(p.is_active===false)+')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;cursor:pointer;font-size:.7rem">'+(p.is_active===false?'🔴':'🟢')+'</button>'+
+        '<button class="tedit" onclick="dinEditProduct(\''+dc+'\')">✏️</button>'+
+        '<button class="tdel" onclick="dinDeleteProduct(\''+dc+'\')">🗑</button>'+
+      '</div>':'')+
       '</div>';
     });
   });
@@ -4541,6 +4546,44 @@ async function dinSaveProduct(){
 async function dinToggleProduct(code,activate){
   var r=await sb.from('din_products').update({is_active:activate}).eq('code',code);
   if(r.error){toast('⚠ '+r.error.message);return;}
+  dinReload(dinBody);
+}
+function dinEditProduct(code){
+  var p=dinProd(code);if(!p){toast('⚠ Produk tidak ada');return;}
+  var custs=Array.from(new Set(DIN.products.map(function(x){return x.customer_name;}))).map(function(c){return'<option>'+esc(c)+'</option>';}).join('');
+  showModal('✏️ Edit Produk — '+esc(code),
+    '<div class="ig"><label>Kode</label><input value="'+esc(code)+'" disabled style="opacity:.6"></div>'+
+    '<div class="ig"><label>Nama Pelanggan</label><input id="dep-cname" value="'+esc(p.customer_name||'')+'" list="dep-custs"><datalist id="dep-custs">'+custs+'</datalist></div>'+
+    '<div class="ig"><label>Kode Pelanggan</label><input id="dep-ccode" value="'+esc(p.customer_code||'')+'"></div>'+
+    '<div class="ig"><label>Nama Item</label><input id="dep-iname" value="'+esc(p.item_name||'')+'"></div>'+
+    '<div class="ig"><label>Label Item</label><input id="dep-label" value="'+esc(p.label_item||'')+'"></div>'+
+    '<div class="fr"><div class="ig"><label>Bag/CTN</label><input type="number" id="dep-ctn" value="'+(p.pack_ctn||4)+'"></div>'+
+    '<div class="ig"><label>KG/Bag</label><input type="number" id="dep-kgbag" value="'+(p.kg_per_bag||4)+'" step="0.1"></div>'+
+    '<div class="ig"><label>Press ×</label><input type="number" id="dep-pf" value="'+(p.press_factor||1)+'" step="0.1"></div></div>'+
+    '<button class="btn btn-p btn-full" onclick="dinSaveProductEdit(\''+esc(code).replace(/'/g,"\\'")+'\')">💾 Simpan</button>');
+}
+async function dinSaveProductEdit(code){
+  var cname=(document.getElementById('dep-cname').value||'').trim();
+  if(!cname){toast('⚠ Isi nama pelanggan');return;}
+  var r=await sb.from('din_products').update({
+    customer_name:cname,
+    customer_code:(document.getElementById('dep-ccode').value||'').trim()||null,
+    item_name:(document.getElementById('dep-iname').value||'').trim()||code,
+    label_item:(document.getElementById('dep-label').value||'').trim()||null,
+    pack_ctn:Number(document.getElementById('dep-ctn').value)||4,
+    kg_per_bag:Number(document.getElementById('dep-kgbag').value)||4,
+    press_factor:Number(document.getElementById('dep-pf').value)||1,
+    updated_at:new Date().toISOString()
+  }).eq('code',code);
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Produk diperbarui');closeModal();
+  dinReload(dinBody);
+}
+async function dinDeleteProduct(code){
+  if(!confirm('Hapus produk '+code+'?\n\nKalau sudah dipakai di produksi/pengiriman, hapus akan gagal — pakai 🔴 nonaktif saja.'))return;
+  var r=await sb.from('din_products').delete().eq('code',code);
+  if(r.error){toast('⚠ Tidak bisa hapus (sudah dipakai). Pakai 🔴 nonaktif.');return;}
+  toast('✓ Produk dihapus');
   dinReload(dinBody);
 }
 
