@@ -4661,14 +4661,16 @@ function sjaProdukRows(q){
     if(!q)return true;
     return (p.code||'').toLowerCase().indexOf(q)>=0||(p.product_name||'').toLowerCase().indexOf(q)>=0||(p.category||'').toLowerCase().indexOf(q)>=0;
   });
-  if(!rows.length)return'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Tidak ada data</td></tr>';
+  if(!rows.length)return'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Tidak ada data</td></tr>';
   return rows.map(function(p){
+    var c=esc(p.code).replace(/'/g,"\\'");
     return'<tr style="border-top:1px solid #F1F5F9'+(p.is_active===false?';opacity:.45':'')+'">'+
     '<td style="padding:.35rem .4rem"><b>'+esc(p.code)+'</b></td>'+
-    '<td>'+esc(p.product_name)+'</td>'+
+    '<td>'+esc(p.product_name)+'<br><span style="color:var(--muted);font-size:.7rem">'+esc(p.category||'-')+'</span></td>'+
     '<td>'+esc(p.unit||'')+'</td>'+
     '<td style="text-align:right">'+(p.pcs_per_ctn||'-')+'</td>'+
-    '<td>'+(IS_ADMIN?'<button onclick="sjaToggleProduct(\''+esc(p.code)+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem">'+(p.is_active===false?'🔴':'🟢')+'</button>':'')+'</td></tr>';
+    '<td>'+(IS_ADMIN?'<button onclick="sjaToggleProduct(\''+c+'\')" style="background:none;border:none;cursor:pointer;font-size:.9rem" title="aktif/nonaktif">'+(p.is_active===false?'🔴':'🟢')+'</button>':'')+'</td>'+
+    '<td style="white-space:nowrap">'+(IS_ADMIN?'<button class="tedit" onclick="sjaEditProduct(\''+c+'\')">✏️</button><button class="tdel" onclick="sjaDeleteProduct(\''+c+'\')">🗑</button>':'')+'</td></tr>';
   }).join('');
 }
 function sjaProdukFilter(){var b=document.getElementById('pd-body');if(b)b.innerHTML=sjaProdukRows(document.getElementById('pd-q').value);}
@@ -4679,18 +4681,20 @@ function sjaProdukHTML(){
     '<div class="fr"><div class="ig"><label>Kode *</label><input id="np-code" placeholder="jga5"></div>'+
     '<div class="ig"><label>Unit</label><input id="np-unit" list="np-units" placeholder="KG"><datalist id="np-units"><option>KG</option><option>Jrg</option><option>Btl</option><option>Jar</option><option>Pouch</option><option>Bag</option><option>Pcs</option></datalist></div></div>'+
     '<div class="ig"><label>Nama Produk *</label><input id="np-name" placeholder="Syrup 5L-Apple"></div>'+
-    '<div class="fr"><div class="ig"><label>Kategori</label><input id="np-cat" placeholder="Syrup 5L"></div>'+
-    '<div class="ig"><label>Pcs/CTN</label><input type="number" id="np-ctn" min="0" placeholder="4"></div></div>'+
+    '<div class="fr"><div class="ig"><label>Kategori</label><input id="np-cat" list="sja-cats-dl" placeholder="pilih / ketik baru"></div>'+
+    '<div class="ig"><label>Pcs/CTN <span style="font-weight:400;color:var(--muted)">(1 box=?)</span></label><input type="number" id="np-ctn" min="0" placeholder="12"></div></div>'+
+    sjaCatsDatalist()+
     '<button class="btn btn-p btn-full" onclick="sjaAddProduct()">➕ Tambah</button></div>';
   }
   h+='<div class="card"><div class="card-title">🏷️ Daftar Produk ('+SJA.products.length+')</div>'+
     '<div class="ig"><input id="pd-q" placeholder="🔍 Cari kode / nama / kategori..." oninput="sjaProdukFilter()"></div>'+
     '<div style="overflow-x:auto;max-height:60vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
-    '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Kode</th><th>Nama</th><th>Unit</th><th style="text-align:right">Pcs/CTN</th><th></th></tr>'+
+    '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Kode</th><th>Nama / Kategori</th><th>Unit</th><th style="text-align:right">Pcs/CTN</th><th></th><th></th></tr>'+
     '<tbody id="pd-body">'+sjaProdukRows('')+'</tbody></table></div>'+
-    (IS_ADMIN?'<div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">🟢 aktif · 🔴 nonaktif — klik untuk ubah</div>':'')+'</div>';
+    (IS_ADMIN?'<div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">🟢/🔴 klik untuk aktif/nonaktif · ✏️ edit · 🗑 hapus</div>':'')+'</div>';
   return h;
 }
+function sjaCatsDatalist(){return '<datalist id="sja-cats-dl">'+sjaCatList().map(function(c){return'<option>'+esc(c)+'</option>';}).join('')+'</datalist>';}
 async function sjaAddProduct(){
   var code=(document.getElementById('np-code').value||'').trim();
   var name=(document.getElementById('np-name').value||'').trim();
@@ -4713,6 +4717,42 @@ async function sjaToggleProduct(code){
   p.is_active=nv;
   sjaProdukFilter();
   toast('✓ '+code+' '+(nv?'aktif':'nonaktif'));
+}
+function sjaEditProduct(code){
+  var p=sjaProd(code);if(!p){toast('⚠ Produk tidak ada');return;}
+  showModal('✏️ Edit Produk — '+esc(code),
+    '<div class="ig"><label>Kode</label><input value="'+esc(code)+'" disabled style="opacity:.6"></div>'+
+    '<div class="ig"><label>Nama Produk *</label><input id="ep-name" value="'+esc(p.product_name||'')+'"></div>'+
+    '<div class="fr"><div class="ig"><label>Unit</label><input id="ep-unit" list="np-units2" value="'+esc(p.unit||'')+'"><datalist id="np-units2"><option>KG</option><option>Jrg</option><option>Btl</option><option>Jar</option><option>Pouch</option><option>Bag</option><option>Pcs</option></datalist></div>'+
+    '<div class="ig"><label>Pcs/CTN <span style="font-weight:400;color:var(--muted)">(1 box=?)</span></label><input type="number" id="ep-ctn" min="0" value="'+(p.pcs_per_ctn||'')+'"></div></div>'+
+    '<div class="ig"><label>Kategori</label><input id="ep-cat" list="sja-cats-dl" value="'+esc(p.category||'')+'" placeholder="pilih / ketik baru"></div>'+
+    sjaCatsDatalist()+
+    '<button class="btn btn-p btn-full" onclick="sjaSaveProductEdit(\''+esc(code).replace(/'/g,"\\'")+'\')">💾 Simpan</button>');
+}
+async function sjaSaveProductEdit(code){
+  var name=(document.getElementById('ep-name').value||'').trim();
+  if(!name){toast('⚠ Isi nama');return;}
+  var r=await sb.from('sja_products').update({
+    product_name:name,
+    unit:(document.getElementById('ep-unit').value||'').trim()||'KG',
+    category:(document.getElementById('ep-cat').value||'').trim()||null,
+    pcs_per_ctn:Number(document.getElementById('ep-ctn').value)||null,
+    updated_at:new Date().toISOString()
+  }).eq('code',code);
+  if(r.error){toast('⚠ '+r.error.message);return;}
+  toast('✓ Produk diperbarui');closeModal();
+  sjaReload(sjaBody);
+}
+async function sjaDeleteProduct(code){
+  if(!confirm('Hapus produk '+code+'?\n\nKalau produk sudah pernah dipakai di produksi/pengiriman, hapus akan gagal — pakai 🔴 nonaktif saja.'))return;
+  var r=await sb.from('sja_products').delete().eq('code',code);
+  if(r.error){
+    // 外鍵擋下（已有生產/出貨記錄）→ 建議改停用
+    toast('⚠ Tidak bisa hapus (sudah dipakai). Pakai 🔴 nonaktif.');
+    return;
+  }
+  toast('✓ Produk dihapus');
+  sjaReload(sjaBody);
 }
 // ── SJA 客戶管理（新增/編輯/刪除）──
 function sjaCustomerHTML(){
