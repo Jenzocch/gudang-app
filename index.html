@@ -4767,8 +4767,8 @@ function sjaCustomerHTML(){
   else h+=SJA.customers.map(function(c){
     return'<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem .2rem;border-bottom:1px solid #F1F5F9">'+
     '<div style="flex:1;font-weight:700;font-size:.9rem">'+esc(c.name)+'</div>'+
-    (IS_ADMIN?'<button onclick="sjaEditCustomer(\''+c.id+'\')" style="background:none;border:none;cursor:pointer">✏️</button>'+
-    '<button onclick="sjaDelCustomer(\''+c.id+'\')" class="tdel">🗑</button>':'')+
+    (IS_ADMIN?'<button class="tedit" onclick="sjaEditCustomer(\''+c.id+'\')">✏️</button>'+
+    '<button class="tdel" onclick="sjaDelCustomer(\''+c.id+'\')">🗑</button>':'')+
     '</div>';
   }).join('');
   h+='</div>';
