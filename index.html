@@ -680,7 +680,7 @@ function lpk(k){
       document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
       return;
     }
-    CURRENT_USER={id:null,name:nm,isGuest:true,warehouses:WAREHOUSES};
+    CURRENT_USER={id:null,name:nm,isGuest:true,warehouses:GUEST_WAREHOUSES.slice()};
     finishStaffLogin();
     return;
   }
@@ -802,6 +802,9 @@ var WAREHOUSES=['HARDWARE','SJA','DENIKIN','OLENTIA'];
 // 有生產/出貨模組的倉庫（之後 OLENTIA 上線就加進來）
 var PRODUKSI_WH=['DENIKIN','SJA'];
 var KIRIM_WH=['DENIKIN','SJA'];
+// 訪客（Pengguna Baru，臨時帳號）只能看這裡列的倉庫，不再自動拿到全部倉庫。
+// 要調整：改這個陣列即可，例如 ['HARDWARE','SJA']。設空陣列 [] 代表訪客登入後看不到任何倉庫。
+var GUEST_WAREHOUSES=['HARDWARE'];
 var WH_COLORS={HARDWARE:'#E2E8F0',SJA:'#FFEDD5',DENIKIN:'#DCFCE7',OLENTIA:'#DBEAFE'};
 // Tanpa icon — hanya teks (font besar)
 var WH_EMOJI={HARDWARE:'',SJA:'',DENIKIN:'',OLENTIA:''};
@@ -892,7 +895,9 @@ window.addEventListener('DOMContentLoaded',function(){
   }else if(staffS&&staffS.ts&&(Date.now()-staffS.ts)<86400000){
     // 還原 session 時權限欄位(can_ambil/can_masuk/can_view_pricing)一定要帶回來，
     // 少帶的話 reload 後會退回舊預設 → 被關掉的人重新拿到 Ambil、被開通的人 Masuk 分頁消失
-    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.warehouses||[],is_admin:staffS.is_admin||false,can_ambil:staffS.can_ambil,can_masuk:staffS.can_masuk,can_view_pricing:staffS.can_view_pricing,perms:staffS.perms||null});
+    // 訪客的倉庫清單每次還原都重新夾到目前的 GUEST_WAREHOUSES，
+    // 這樣管理員改了設定，已登入中的訪客 session 也會立刻套用，不用等重新登入
+    autoLogin('staff',{id:staffS.id,name:staffS.name,isGuest:staffS.g||false,warehouses:staffS.g?GUEST_WAREHOUSES.slice():(staffS.warehouses||[]),is_admin:staffS.is_admin||false,can_ambil:staffS.can_ambil,can_masuk:staffS.can_masuk,can_view_pricing:staffS.can_view_pricing,perms:staffS.perms||null});
   }else{
     clearSessions();renderLoginScreen();
   }
