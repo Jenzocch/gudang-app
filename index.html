@@ -71,6 +71,24 @@ body{display:flex;flex-direction:column}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .card{background:#fff;border-radius:16px;padding:1.1rem;margin:.7rem;border:1px solid var(--border);box-shadow:var(--sh-sm)}
 .card-title{font-weight:700;font-size:1rem;margin-bottom:.8rem;letter-spacing:-.01em}
+/* 出貨/生產記錄卡片列表：手機/平板/電腦都清楚，編號與名稱分開 */
+.ship-list{display:flex;flex-direction:column;gap:.55rem}
+.ship-row{border:1px solid var(--border);border-radius:12px;padding:.7rem .8rem;background:#fff}
+.ship-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.ship-code{font-weight:800;font-size:.95rem;letter-spacing:.02em;color:var(--s);background:#EEF2FF;border:1px solid #E0E7FF;border-radius:7px;padding:.15rem .5rem}
+.ship-date{font-size:.8rem;color:var(--muted);font-weight:600}
+.ship-del{margin-left:auto}
+.ship-name{font-size:.95rem;font-weight:600;color:var(--dark);margin-top:.4rem;line-height:1.35}
+.ship-meta{display:flex;flex-wrap:wrap;gap:.4rem .55rem;margin-top:.5rem}
+.ship-tag{font-size:.82rem;color:var(--ink2);background:var(--light);border-radius:7px;padding:.2rem .5rem;white-space:nowrap}
+.ship-tag b{color:var(--dark);font-weight:700}
+.ship-qty{background:#ECFDF5;color:#065F46;font-weight:800;border:1px solid #A7F3D0}
+@media(min-width:768px){
+  .ship-row{padding:.85rem 1rem}
+  .ship-code{font-size:1rem}
+  .ship-name{font-size:1.02rem}
+  .ship-tag{font-size:.86rem}
+}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;padding:.7rem}
 .sc{background:#fff;padding:1.1rem;border-radius:16px;text-align:center;border:1px solid var(--border);box-shadow:var(--sh-sm)}
 .sc-val{font-size:2.1rem;font-weight:800;color:var(--p);line-height:1.2;letter-spacing:-.02em}
@@ -5172,17 +5190,25 @@ function renderShipment(){
     '<button class="btn btn-ok btn-full" id="dd-save" onclick="dinSaveDelivery()">🚚 Simpan Pengiriman</button></div>';
     h+='<div class="card"><div class="card-title">📊 Riwayat Pengiriman</div>';
     if(!DIN.delivery.length)h+='<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Belum ada data</div>';
-    else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
-      '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Tgl</th><th>Produk</th><th>Lot</th><th style="text-align:right">Bags</th><th style="text-align:right">CTN</th><th style="text-align:right">KG</th><th>Driver</th><th></th></tr>'+
+    else h+='<div class="ship-list">'+
       DIN.delivery.map(function(r){
         var p=dinProd(r.product_code);
-        return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem">'+fmtD(r.date)+'</td>'+
-        '<td><b>'+esc(r.product_code)+'</b><br><span style="color:var(--muted);font-size:.7rem">'+esc(p?p.customer_name:'')+'</span></td>'+
-        '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+esc(r.lot_no||'-')+'</td>'+
-        '<td style="text-align:right">'+fmtN(r.bags)+'</td><td style="text-align:right">'+fmtN(r.ctn)+'</td>'+
-        '<td style="text-align:right;font-weight:700">'+fmtN(r.kg)+'</td><td>'+esc(r.driver||'-')+'</td>'+
-        '<td>'+(IS_ADMIN?'<button onclick="dinDel(\'din_delivery\',\''+r.id+'\')" class="tdel">🗑</button>':'')+'</td></tr>';
-      }).join('')+'</table></div>';
+        return'<div class="ship-row">'+
+          '<div class="ship-head">'+
+            '<span class="ship-code">'+esc(r.product_code)+'</span>'+
+            '<span class="ship-date">'+esc(fmtD(r.date))+'</span>'+
+            (IS_ADMIN?'<button onclick="dinDel(\'din_delivery\',\''+r.id+'\')" class="tdel ship-del">🗑</button>':'')+
+          '</div>'+
+          (p&&p.customer_name?'<div class="ship-name">'+esc(p.customer_name)+'</div>':'')+
+          '<div class="ship-meta">'+
+            '<span class="ship-tag">📦 Lot: <b>'+esc(r.lot_no||'-')+'</b></span>'+
+            '<span class="ship-tag">Bags: <b>'+fmtN(r.bags)+'</b></span>'+
+            '<span class="ship-tag">CTN: <b>'+fmtN(r.ctn)+'</b></span>'+
+            '<span class="ship-tag ship-qty">'+fmtN(r.kg)+' kg</span>'+
+            '<span class="ship-tag">🚛 '+esc(r.driver||'-')+'</span>'+
+          '</div>'+
+        '</div>';
+      }).join('')+'</div>';
     h+='</div>';
     el.innerHTML=h;
   });
@@ -5280,17 +5306,23 @@ function renderSjaShipment(){
     '<button class="btn btn-ok btn-full" id="sd-save" onclick="sjaSaveDelivery()">🚚 Simpan Pengiriman</button></div>';
     h+='<div class="card"><div class="card-title">📊 Riwayat Pengiriman</div>';
     if(!SJA.delivery.length)h+='<div style="text-align:center;color:var(--muted);padding:1.2rem;font-size:.85rem">Belum ada data</div>';
-    else h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap">'+
-      '<tr style="color:var(--ink2);text-align:left"><th style="padding:.3rem .4rem">Tgl</th><th>Customer</th><th>Produk</th><th style="text-align:right">Qty</th><th>Driver</th><th></th></tr>'+
+    else h+='<div class="ship-list">'+
       SJA.delivery.map(function(r){
         var p=sjaProd(r.product_code);
-        return'<tr style="border-top:1px solid #F1F5F9"><td style="padding:.35rem .4rem">'+fmtD(r.date)+'</td>'+
-        '<td>'+esc(r.customer_name||'-')+'</td>'+
-        '<td><b>'+esc(r.product_code)+'</b><br><span style="color:var(--muted);font-size:.7rem">'+esc(p?p.product_name:'')+'</span></td>'+
-        '<td style="text-align:right;font-weight:700">'+fmtN(r.qty)+' '+esc(p?p.unit:'')+'</td>'+
-        '<td>'+esc(r.driver||'-')+'</td>'+
-        '<td>'+(IS_ADMIN?'<button onclick="sjaDel(\'sja_delivery\',\''+r.id+'\')" class="tdel">🗑</button>':'')+'</td></tr>';
-      }).join('')+'</table></div>';
+        return'<div class="ship-row">'+
+          '<div class="ship-head">'+
+            '<span class="ship-code">'+esc(r.product_code)+'</span>'+
+            '<span class="ship-date">'+esc(fmtD(r.date))+'</span>'+
+            (IS_ADMIN?'<button onclick="sjaDel(\'sja_delivery\',\''+r.id+'\')" class="tdel ship-del">🗑</button>':'')+
+          '</div>'+
+          (p&&p.product_name?'<div class="ship-name">'+esc(p.product_name)+'</div>':'')+
+          '<div class="ship-meta">'+
+            '<span class="ship-tag">👤 '+esc(r.customer_name||'-')+'</span>'+
+            '<span class="ship-tag ship-qty">'+fmtN(r.qty)+' '+esc(p?p.unit:'')+'</span>'+
+            '<span class="ship-tag">🚛 '+esc(r.driver||'-')+'</span>'+
+          '</div>'+
+        '</div>';
+      }).join('')+'</div>';
     h+='</div>';
     el.innerHTML=h;
   });
