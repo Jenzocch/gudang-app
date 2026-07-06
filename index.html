@@ -30,7 +30,7 @@ function initSupabase(ok,fail){
 }
 </script>
 <style>
-:root{--p:#4F46E5;--s:#4338CA;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#101828;--border:#E4E7EC;--border-input:#D0D5DD;--ink2:#475467;--muted:#98A2B3;--sh-sm:0 1px 2px rgba(16,24,40,.05);--sh-md:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);--sh-lg:0 8px 24px rgba(16,24,40,.10)}
+:root{--p:#4F46E5;--s:#4338CA;--ok:#059669;--warn:#D97706;--danger:#DC2626;--light:#F8FAFC;--dark:#101828;--border:#E4E7EC;--border-input:#D0D5DD;--ink2:#475467;--muted:#667085;--sh-sm:0 1px 2px rgba(16,24,40,.05);--sh-md:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);--sh-lg:0 8px 24px rgba(16,24,40,.10)}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#EEF1F4;color:var(--dark);font-size:16px}
 body{display:flex;flex-direction:column}
@@ -61,7 +61,7 @@ body{display:flex;flex-direction:column}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
 .content{flex:1;overflow-y:auto;padding-bottom:58px;-webkit-overflow-scrolling:touch}
 .tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -1px 8px rgba(16,24,40,.05);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.tb{flex:1;min-width:44px;padding:.5rem .1rem .45rem;border:none;background:none;cursor:pointer;font-size:.64rem;font-weight:600;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative}
+.tb{flex:1;min-width:44px;padding:.5rem .1rem .45rem;border:none;background:none;cursor:pointer;font-size:.7rem;font-weight:600;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative}
 .tb-icon{font-size:1.25rem;transition:transform .2s}
 .tb.active{color:var(--p)}
 .tb.active .tb-icon{transform:translateY(-1px)}
@@ -2265,14 +2265,22 @@ function renderRiwayat(){
     loadTransactions(renderRiwayat);
     return;
   }
-  var h=DATA.transactions.map(function(tx){
+  var txRow=function(tx){
     var out=tx.type==='ambil';
     return '<div class="tx'+(out?' out':'')+'">'+
       '<div class="txl"><div class="txp">'+esc(tx.person_name)+'</div><div class="txd">'+esc(tx.item_name)+'</div></div>'+
       '<div class="txr"><div class="txq '+(out?'out':'in')+'">'+(out?'−':'+')+tx.qty+'</div><div class="txt">'+fmtDate(tx.created_at)+'</div>'+(IS_ADMIN?'<button class="tedit" onclick="showEditTx(\''+esc(tx.id)+'\')">✏️</button><button class="tdel" onclick="confirmDeleteTx(\''+esc(tx.id)+'\',\''+esc(tx.item_name)+'\')">🗑️</button>':'')+'</div>'+
     '</div>';
-  }).join('')||'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';
-  document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div>'+h;
+  };
+  var all=DATA.transactions;
+  if(!all.length){document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div style="text-align:center;color:var(--muted);padding:2rem;font-size:.85rem">'+t('noTxn')+'</div>';return;}
+  // 先渲染前 40 筆（快速呈現），其餘分批補上避免一次性大 DOM 建構造成卡頓
+  var first=all.slice(0,40).map(txRow).join('');
+  document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div id="rw-list">'+first+(all.length>40?'<div id="rw-more" style="text-align:center;color:var(--muted);padding:.8rem;font-size:.8rem">⏳ '+('Memuat')+'… (+'+(all.length-40)+')</div>':'')+'</div>';
+  if(all.length>40)setTimeout(function(){
+    var more=document.getElementById('rw-more');
+    if(more)more.outerHTML=all.slice(40).map(txRow).join('');
+  },60);
 }
 
 // ADMIN
