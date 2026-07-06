@@ -664,23 +664,6 @@ function finishAdminLogin(role){
     document.getElementById('mc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+e.message+'</div>';
   });
 }
-function onLoginSel(){
-  var sel=document.getElementById('ls-sel');
-  var area=document.getElementById('ls-pin-area');
-  var nn=document.getElementById('ls-newname');
-  var hint=document.getElementById('ls-pin-hint');
-  STAFF_PIN_ENT='';
-  document.querySelectorAll('#ls-dots .pin-dot').forEach(function(d){d.className='pin-dot';});
-  if(!sel.value){area.style.display='none';if(nn)nn.style.display='none';return;}
-  if(sel.value==='__new__'){
-    if(nn)nn.style.display='block';
-    if(hint)hint.textContent='Pengguna baru masukkan PIN sementara: '+GUEST_PIN;
-  }else{
-    if(nn){nn.style.display='none';nn.value='';}
-    if(hint)hint.textContent='';
-  }
-  area.style.display='block';
-}
 function lpk(k){
   if(k==='⌫')STAFF_PIN_ENT=STAFF_PIN_ENT.slice(0,-1);
   else if(STAFF_PIN_ENT.length<4)STAFF_PIN_ENT+=k;
@@ -785,7 +768,6 @@ function buildIndexes(){
     return ra-rb;
   });
 }
-function batchesOf(itemId){return IDX.batchesByItem[itemId]||[];}
 function itemById(id){
   // 用 buildIndexes 建好的 item_id 索引 O(1) 查找（取代原本 O(n) 線性掃描）
   if(IDX.itemsById&&IDX.itemsById[id])return IDX.itemsById[id];
@@ -835,13 +817,6 @@ var WH_TEXT={HARDWARE:'#334155',SJA:'#EA580C',DENIKIN:'#15803D',OLENTIA:'#1D4ED8
 var WH_FB_TEXT='#101828',WH_FB_BG='#F1F5F9';
 // Nama pendek untuk judul (DENIKIN ditampilkan sebagai DIN)
 var WH_SHORT={HARDWARE:'Hardware',SJA:'SJA',DENIKIN:'DIN',OLENTIA:'OLENTIA'};
-function whTitleBanner(wid){
-  if(!wid)return '';
-  var col=WH_TEXT[wid]||WH_FB_TEXT;var bg=WH_COLORS[wid]||WH_FB_BG;
-  return '<div style="margin:.7rem;padding:1.3rem 1.4rem;border-radius:16px;background:'+bg+';border:2px solid '+col+';box-shadow:0 2px 10px rgba(0,0,0,.06)">'+
-    '<div style="font-size:2.9rem;font-weight:900;color:'+col+';letter-spacing:.5px;line-height:1.05">'+(WH_SHORT[wid]||wid)+'</div>'+
-  '</div>';
-}
 
 // 權限「按倉庫」各自設定：people.perms(jsonb) = {"SJA":{"ambil":true,"masuk":false},...}
 // 該倉庫沒設定時退回全域欄位(can_ambil/can_masuk)，再沒有就退回舊預設
@@ -885,7 +860,6 @@ function canKirim(){
   return pWhPerm(CURRENT_USER,CURRENT_WAREHOUSE,'kirim');
 }
 // office 能否看營運數據（出貨/月報/庫存明細）：預設否，super 臨時開放才可
-function officeCanData(){return !IS_OFFICE||OFFICE_VIEW_DELIVERY;}
 // 員工進倉庫後的預設分頁：可 Ambil → Ambil；只可 Masuk → Masuk；都不行 → Home
 function goDefaultStaffTab(){
   if(canAmbil())goTab('ambil',tbBtn('ambil'));
@@ -2189,23 +2163,6 @@ async function doMasukCart(){
   if(btn){btn.disabled=false;btn.textContent=t('doRcv');}
 }
 
-function iGrid(mode){
-  return DATA.items.map(function(i){
-    var low=i.qty<=i.critical_qty;
-    var ph=i.image_url?'<img class="ic-ph" src="'+esc(i.image_url)+'" onerror="this.style.display=\'none\'">'
-      :'<div class="ic-ph-pl">📦</div>';
-    return '<div class="ic'+(low?' low':'')+'" onclick="selI(this,\''+esc(i.id)+'\',\''+mode+'\')">'+
-      (low?'<div class="low-badge">Rendah</div>':'')+ph+
-      '<div class="ic-name">'+esc(i.name)+'</div>'+
-      '<div class="ic-qty'+(low?' low':'')+'">'+i.qty+' '+esc(i.unit)+'</div></div>';
-  }).join('');
-}
-function pGrid(mode){
-  return DATA.people.map(function(p){
-    return '<div class="pc" onclick="selP(this,\''+esc(p.id)+'\',\''+mode+'\')">'+
-      '<div class="av">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div><div class="pn">'+esc(p.name)+'</div></div>';
-  }).join('');
-}
 
 // PERMINTAAN
 function renderPermintaan(){
@@ -2646,26 +2603,6 @@ async function toggleAdmin(id){
   }
 }
 // 切換某人「在某倉庫」的 Ambil/Masuk 權限（寫進 people.perms jsonb）
-async function toggleWhPerm(id,w,kind){
-  if(!IS_SUPER&&!IS_OFFICE){toast('⚠ Tidak ada akses');return;} // office 也能設員工權限
-  var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
-  var cur=pWhPerm(p,w,kind);var nv=!cur;
-  var LBL={ambil:'📤 Ambil (keluar barang)',masuk:'📥 Masuk (terima barang)',opname:'🔢 Opname (stock check)',produksi:'🏭 Produksi (catat produksi)',kirim:'🚚 Kirim (pengiriman ke customer)'};
-  var SHORT={ambil:'📤 Ambil',masuk:'📥 Masuk',opname:'🔢 Opname',produksi:'🏭 Produksi',kirim:'🚚 Kirim'};
-  var whName=WH_SHORT[w]||w;
-  if(!confirm((nv?'Izinkan':'Matikan')+' '+(LBL[kind]||kind)+'\n"'+p.name+'" di gudang '+whName+'?'))return;
-  var perms={};try{perms=JSON.parse(JSON.stringify(p.perms||{}));}catch(e){}
-  if(!perms[w])perms[w]={};
-  perms[w][kind]=nv;
-  try{
-    await managePeople('update',{id:id,patch:{perms:perms}});
-    toast('✓ '+p.name+' · '+whName+' · '+(SHORT[kind]||kind)+' '+(nv?'AKTIF':'nonaktif'));
-    await loadAll();
-  }catch(e){
-    if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
-    else toast('⚠ '+friendlyErr(e));
-  }
-}
 async function togglePricing(id){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var p=DATA.people.find(function(x){return x.id==id;});if(!p)return;
@@ -2785,16 +2722,6 @@ async function renameCatg(cat){
     toast(t('saveOk'));
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
-function addFormTag(){
-  var inp=document.getElementById('ftag-inp');if(!inp)return;
-  var v=inp.value.trim();
-  if(!v)return;
-  if(FORM_TAGS.includes(v)){inp.value='';return;}
-  FORM_TAGS.push(v);
-  inp.value='';
-  refreshFormTagDisplay();
-  inp.focus();
-}
 function removeFormTag(idx){
   FORM_TAGS.splice(idx,1);
   refreshFormTagDisplay();
@@ -2802,12 +2729,6 @@ function removeFormTag(idx){
 function refreshFormTagDisplay(){
   var list=document.getElementById('ftag-list');
   if(list)list.innerHTML=FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem;background:#DBEAFE;color:#0369A1" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700">✕</span></span>';}).join('');
-}
-function addFormTagVal(v){
-  if(!v||FORM_TAGS.includes(v))return;
-  FORM_TAGS.push(v);
-  refreshFormTagDisplay();
-  var inp=document.getElementById('ftag-inp');if(inp)inp.focus();
 }
 
 function quickAssignTag(id){
@@ -3568,33 +3489,6 @@ function logoutAdmin(){
 }
 
 // ACTIONS
-async function doAmbil(){
-  if(!canAmbil()){toast('⚠ Tidak ada akses Ambil');return;}
-  if(!sIA||!sPA){toast(t('selBoth'));return;}
-  var q=parseInt(document.getElementById('a-q').value)||1;
-  if(q>sIA.qty){showLow(sIA,q);return;}
-  var btn=event.target;btn.disabled=true;btn.textContent='...';
-  try{
-    // Update item_variants (per-warehouse) instead of items
-    await sb.from('item_variants').update({qty:sIA.qty-q}).eq('id',sIA.variant_id);
-    await sb.from('transactions').insert({type:'ambil',item_id:sIA.id,item_name:sIA.name,person_id:sPA.id,person_name:sPA.name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
-    toast(t('takeOk'));await loadAll();goTab('home',document.querySelector('.tb'));
-  }catch(e){toast('⚠ '+friendlyErr(e));}
-  btn.disabled=false;btn.textContent=t('doTake');
-}
-async function doMasuk(){
-  if(!canMasuk()){toast('⚠ Tidak ada akses Masuk');return;}
-  if(!sIM||!sPM){toast(t('selBoth'));return;}
-  var q=parseInt(document.getElementById('m-q').value)||1;
-  var btn=event.target;btn.disabled=true;btn.textContent='...';
-  try{
-    // Update item_variants (per-warehouse) instead of items
-    await sb.from('item_variants').update({qty:sIM.qty+q}).eq('id',sIM.variant_id);
-    await sb.from('transactions').insert({type:'masuk',item_id:sIM.id,item_name:sIM.name,person_id:sPM.id,person_name:sPM.name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
-    toast(t('rcvOk'));await loadAll();goTab('home',document.querySelector('.tb'));
-  }catch(e){toast('⚠ '+friendlyErr(e));}
-  btn.disabled=false;btn.textContent=t('doRcv');
-}
 function onReqNameSel(){
   var sel=document.getElementById('rn-sel');
   var inp=document.getElementById('rn');
@@ -3735,7 +3629,6 @@ function selP(el,id,mode){
 }
 function updSumA(){if(!sIA||!sPA)return;document.getElementById('a-sum').style.display='block';document.getElementById('a-in').textContent=sIA.name;document.getElementById('a-pn').textContent=sPA.name;}
 function updSumM(){if(!sIM||!sPM)return;document.getElementById('m-sum').style.display='block';document.getElementById('m-in').textContent=sIM.name;document.getElementById('m-pn').textContent=sPM.name;}
-function cQ(m,d){var e=document.getElementById(m+'-q');e.value=Math.max(1,(parseInt(e.value)||1)+d);}
 function goTab(id,el){
   ACTIVE_TAB=id;
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active')});
@@ -3755,13 +3648,6 @@ function goTab(id,el){
     else if(id==='admin')renderAdmin();
   }
   updateCartBar();
-}
-function swTab(el,id){
-  var nav=el.closest('.tab-nav'),par=nav.parentElement;
-  nav.querySelectorAll('.tsw').forEach(function(b){b.classList.remove('act')});
-  el.classList.add('act');
-  par.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active')});
-  document.getElementById(id).classList.add('active');
 }
 function swATab(el,id){
   ADMIN_SUBTAB=id; // 記住目前子分頁，loadAll 重繪後不會被踢回 Kelola Barang
@@ -4144,27 +4030,7 @@ function exportToCSV(){
     });
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
-function escapeCSV(val){
-  if(!val)return'';
-  var s=String(val);
-  if(s.includes(',')||s.includes('"')||s.includes('\n')){
-    return'"'+s.replace(/"/g,'""')+'"';
-  }
-  return s;
-}
-function downloadCSV(csv,filename){
-  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url;
-  a.download=filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString('id-ID',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});}
-function fmtC(n){if(!n)return'-';return('Rp ')+Math.round(n).toLocaleString();}
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
