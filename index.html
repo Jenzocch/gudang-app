@@ -105,7 +105,7 @@ textarea{resize:vertical;min-height:75px}
 .modal{background:#fff;border-radius:22px 22px 0 0;padding:1.4rem;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;animation:mIn .25s ease;box-shadow:var(--sh-lg)}
 @keyframes mIn{from{transform:translateY(100%)}to{transform:none}}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
-.mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted)}
+.mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:8px}.mcl:active{background:var(--light)}
 .tab-nav{display:flex;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto}
 .tsw{flex:1;min-width:max-content;padding:.7rem .6rem;border:none;background:none;cursor:pointer;font-weight:600;color:var(--muted);font-size:.86rem;border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:.15s}
 .tsw.act{color:var(--p);border-bottom-color:var(--p)}
@@ -1266,7 +1266,7 @@ function renderHome(){
   }
   // 有 🔢 Opname 權限的員工：首頁給盤點入口（admin 從 Kelola Barang 進，不重複顯示）
   if(!IS_ADMIN&&CURRENT_WAREHOUSE&&canOpname()){
-    h+='<div style="margin:.7rem"><button class="btn btn-warn btn-full" style="padding:.7rem;font-size:.95rem" onclick="openStocktake(\'home\')">🔢 Stock Check / Opname — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</button></div>';
+    h+='<div style="margin:.7rem"><button class="btn btn-warn btn-full" style="padding:.7rem;font-size:.95rem" onclick="openStocktake(\'home\')">🔢 Cek Stok / Opname — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</button></div>';
   }
   // Expiry warnings (uses pre-computed _expT timestamps from buildIndexes)
   var nowTime=Date.now();var d30Time=nowTime+30*86400000;
@@ -1625,7 +1625,7 @@ function ambRowHTML(i){
     '</div></div>'+
     '<div class="qc" style="width:118px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
-    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:.9rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.2rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',1)" '+(empty?'disabled':'')+'>+</button>'+
     '</div></div>';
 }
@@ -2012,7 +2012,7 @@ function maskRowHTML(i){
     '</div></div>'+
     '<div class="qc" style="width:118px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',-1)">−</button>'+
-    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:.9rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.2rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',1)">+</button>'+
     '</div></div>';
 }
@@ -2295,8 +2295,8 @@ function renderAdminFull(){
     '</div>'+
     '<div id="ait" class="tc'+(sub==='ait'?' active':'')+'">'+
       '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
-        (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Add Item</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Add Item</button>')+
-        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Stock Check</button>'+
+        (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Tambah Barang</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Tambah Barang</button>')+
+        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Cek Stok</button>'+
         '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.4rem;opacity:1;font-size:.85rem" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
         '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.4rem;opacity:.5;font-size:.85rem" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
       '</div>'+
@@ -3067,10 +3067,10 @@ function itemFormHTML(item){
       '<input type="file" id="f-stor-fi" accept="image/*" style="display:none" onchange="onStoragePhoto(event)">'+
       '<div id="fsp">'+(item&&item.storage_photo_url?'<img class="prev" src="'+esc(item.storage_photo_url)+'">':'')+'</div>'+
     '</div>'+
-    '<div class="ig"><label>📅 Production Date</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
-    '<div class="ig"><label>📅 Expiry Date</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
-    '<div class="ig"><label>📝 Remarks</label><textarea id="frm" placeholder="Specifications, ingredients, grade..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
-    '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#fff;margin:.7rem 0"><input type="checkbox" id="f-no-alert" '+(item&&item.remark&&item.remark.includes('#noalert')?'checked':'')+' style="width:18px;height:18px;cursor:pointer"> 🔕 Jangan Ingatkan (Skip Low Stock Warning)</label>'+
+    '<div class="ig"><label>📅 Tanggal Produksi</label><input id="fpd" type="date" value="'+(item&&item.production_date?item.production_date:'')+'"></div>'+
+    '<div class="ig"><label>📅 Tanggal Kadaluarsa</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
+    '<div class="ig"><label>📝 Catatan</label><textarea id="frm" placeholder="Spesifikasi, bahan, grade..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
+    '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#fff;margin:.7rem 0"><input type="checkbox" id="f-no-alert" '+(item&&item.remark&&item.remark.includes('#noalert')?'checked':'')+' style="width:18px;height:18px;cursor:pointer"> 🔕 Jangan Ingatkan (Lewati Peringatan Stok)</label>'+
     (IS_ADMIN&&!CURRENT_WAREHOUSE?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':'')+(CURRENT_WAREHOUSE?'<input type="hidden" id="f-warehouse" value="'+CURRENT_WAREHOUSE+'">':'')+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
