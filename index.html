@@ -1145,6 +1145,14 @@ async function loadAll(afterCb,fromCache){
     renderAll(); // renderAll 內部已呼叫 renderHome，不要重複渲染（避免雙倍 DOM 建構導致卡頓）
     if(afterCb)setTimeout(afterCb,0);
     setTimeout(checkLowStock,800);
+    // 背景預熱本倉的生產資料，讓第一次點 Produksi / QC 不用等網路（ensure 內部有 *_LOADED 節流，重複呼叫安全）
+    setTimeout(function(){
+      try{
+        var canProd=(typeof canProduksi==='function'&&canProduksi())||IS_OFFICE;
+        if(canProd&&CURRENT_WAREHOUSE==='DENIKIN'&&typeof dinEnsure==='function'&&!DIN_LOADED)dinEnsure(function(){});
+        else if(canProd&&CURRENT_WAREHOUSE==='SJA'&&typeof sjaEnsure==='function'&&!SJA_LOADED)sjaEnsure(function(){});
+      }catch(_){}
+    },1200);
     // Preload gudang lain di background untuk switch cepat（函數內部自帶節流/新鮮度判斷）
     setTimeout(function(){preloadAllWarehouses();},2500);
   }catch(e){
