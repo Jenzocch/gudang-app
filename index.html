@@ -66,7 +66,8 @@ body{display:flex;flex-direction:column}
 .tb.active{color:var(--p)}
 .tb.active .tb-icon{transform:translateY(-1px)}
 .tb.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--p)}
-.sec{display:none}.sec.active{display:block;animation:fadeIn .2s ease}
+/* 切分頁不再對整個大區塊跑 fadeIn 動畫（大清單時是卡頓主因）；off-screen 區塊用 content-visibility 省下版面計算 */
+.sec{display:none;contain:layout style}.sec.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .card{background:#fff;border-radius:16px;padding:1.1rem;margin:.7rem;border:1px solid var(--border);box-shadow:var(--sh-sm)}
 .card-title{font-weight:700;font-size:1rem;margin-bottom:.8rem;letter-spacing:-.01em}
@@ -3436,7 +3437,7 @@ function printQR(id){
   var qData=encodeURIComponent('gudang:'+item.id+':'+item.name);
   var qUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+qData;
   var w=window.open('','_blank','width=420,height=520');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+item.name+'</title>'+
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(item.name)+'</title>'+
     '<style>body{font-family:sans-serif;margin:0;padding:24px;text-align:center;background:#fff}'+
     '.label{border:2.5px solid #222;border-radius:10px;padding:20px 24px;display:inline-block}'+
     '.label-img{max-width:180px;height:auto;border-radius:8px;margin-bottom:16px}'+
@@ -3449,10 +3450,10 @@ function printQR(id){
     '</style></head><body>'+
     '<div class="label">'+
     (item.image_url?'<img class="label-img" src="'+esc(item.image_url)+'">':'')+
-    '<h2>'+item.name+'</h2>'+
+    '<h2>'+esc(item.name)+'</h2>'+
     '<div class="qr"><img class="qr" src="'+qUrl+'" width="200" height="200"></div>'+
-    '<div class="info">'+item.qty+' '+item.unit+' · min: '+item.critical_qty+'</div>'+
-    (item.supplier_url?'<div class="url">🔗 '+item.supplier_url+'</div>':'')+
+    '<div class="info">'+esc(String(item.qty))+' '+esc(item.unit||'')+' · min: '+esc(String(item.critical_qty))+'</div>'+
+    (item.supplier_url?'<div class="url">🔗 '+esc(item.supplier_url)+'</div>':'')+
     '</div>'+
     '<br><button onclick="window.print()" style="margin-top:14px;padding:10px 28px;background:var(--p);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">🖨️ '+('Cetak')+'</button>'+
     '</body></html>');
