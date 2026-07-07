@@ -35,7 +35,7 @@
 
 > ✅ **已備妥修復（待部署）**：新增 Edge Function `manage-people`（service_role + 6 位數
 > admin PIN 授權），前端 people 的新增/改 PIN/設 admin/刪除全改走它；搭配
-> `MIGRATION_LOCK_PEOPLE_WRITE.sql` 撤掉 anon 對 people 的 INSERT/UPDATE/DELETE。
+> `migrations/MIGRATION_LOCK_PEOPLE_WRITE.sql` 撤掉 anon 對 people 的 INSERT/UPDATE/DELETE。
 > 部署順序：先 `deploy manage-people` + 前端上線 → 再跑該 SQL。
 
 攻擊者不用密碼，直接對 REST API 發請求：
@@ -58,7 +58,7 @@ PATCH .../people?id=eq.<某管理員>   { "pin":"0000" }
 
 舊版前端用 `select('*')`，任何人打開 console 就下載到所有人的 PIN + 權限。
 
-> 🟡 這條由 `verify-staff` + `MIGRATION_PROTECT_PIN.sql` 處理，
+> 🟡 這條由 `verify-staff` + `migrations/MIGRATION_PROTECT_PIN.sql` 處理，
 > **但要配合第 1 點的寫入收緊才有意義**。
 
 ### 3. 權限旗標在瀏覽器端判定 → 開 console 就能提權
@@ -109,7 +109,7 @@ PATCH .../people?id=eq.<某管理員>   { "pin":"0000" }
 
 1. **第 1 點（people 寫入）** —— 最痛、成本最低，先擋管理員接管。
 2. **第 4、5 點（庫存 / 異動表寫入刪除）** —— 防營運破壞與稽核造假。
-3. **第 2 點（people 讀取）** —— 搭配已備好的 `verify-staff` + `MIGRATION_PROTECT_PIN.sql`。
+3. **第 2 點（people 讀取）** —— 搭配已備好的 `verify-staff` + `migrations/MIGRATION_PROTECT_PIN.sql`。
 4. **第 6 點（讀取收斂）** —— 依業務需要決定哪些欄位對匿名開放。
 5. **第 3 點（前端旗標）** —— 在 RLS 收好後自然失去攻擊價值；治本仍是 RLS。
 

@@ -2290,7 +2290,7 @@ function renderRiwayat(){
 
 // ═══════════════════════════════════════════════════════════
 // QC / HACCP 模組（彈性：檢查項後台可編輯 · 備註欄 · CCP 放行閘門）
-// 資料表見 MIGRATION_QC_SYSTEM.sql
+// 資料表見 migrations/MIGRATION_QC_SYSTEM.sql
 // ═══════════════════════════════════════════════════════════
 var QC={templates:[],items:[],checks:[]},QC_LOADED=false,QC_SUBTAB='periksa';
 var QC_CTX=null,QC_FORM={bools:{}};
@@ -2306,7 +2306,7 @@ function qcEnsure(cb){
     QC_LOADED=true;cb&&cb();
   }).catch(function(e){
     var el=document.getElementById('qc');
-    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(friendlyErr(e))+'<br><br><span style="font-size:.8rem;color:var(--muted)">Jika tabel belum ada, jalankan MIGRATION_QC_SYSTEM.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="QC_LOADED=false;renderQC()">🔄 Coba lagi</button></div>';
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(friendlyErr(e))+'<br><br><span style="font-size:.8rem;color:var(--muted)">Jika tabel belum ada, jalankan migrations/MIGRATION_QC_SYSTEM.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="QC_LOADED=false;renderQC()">🔄 Coba lagi</button></div>';
   });
 }
 function qcReload(cb){QC_LOADED=false;qcEnsure(cb);}
@@ -2843,7 +2843,7 @@ async function togglePermCell(id,w,kind){
     var mx=document.getElementById('perm-mx');
     if(mx)mx.innerHTML=permMatrixHTML(p);
   }catch(e){
-    if(/perms/i.test(e.message||''))toast('⚠ Jalankan MIGRATION_PERMS_PER_GUDANG.sql dulu');
+    if(/perms/i.test(e.message||''))toast('⚠ Jalankan migrations/MIGRATION_PERMS_PER_GUDANG.sql dulu');
     else toast('⚠ '+friendlyErr(e));
   }
 }
@@ -4041,7 +4041,7 @@ async function arcAuditLoad(){
   var el=document.getElementById('arc-audit');
   el.innerHTML='<div style="text-align:center;padding:.6rem;color:var(--muted)">⏳ ...</div>';
   var r=await sb.from('audit_log').select('at,actor,action,table_name,summary').order('at',{ascending:false}).limit(50);
-  if(r.error){el.innerHTML='<div class="ab ab-d" style="font-size:.8rem">⚠ '+esc(friendlyErr(r.error))+'<br><span style="color:var(--muted)">Jika tabel belum ada, jalankan MIGRATION_AUDIT_LOG.sql di Supabase dulu.</span></div>';return;}
+  if(r.error){el.innerHTML='<div class="ab ab-d" style="font-size:.8rem">⚠ '+esc(friendlyErr(r.error))+'<br><span style="color:var(--muted)">Jika tabel belum ada, jalankan migrations/MIGRATION_AUDIT_LOG.sql di Supabase dulu.</span></div>';return;}
   if(!r.data||!r.data.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:.6rem;font-size:.85rem">Belum ada log</div>';return;}
   el.innerHTML=r.data.map(function(a){
     return '<div style="padding:.4rem .2rem;border-bottom:1px solid var(--border);font-size:.8rem">'+
@@ -4582,7 +4582,7 @@ async function dinEnsure(cb,silent){
   }catch(e){
     if(silent)return; // 背景預熱失敗時不要覆蓋使用者目前的畫面
     var el=document.getElementById(ACTIVE_TAB);
-    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_DIN_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="DIN_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan migrations/MIGRATION_DIN_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="DIN_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
   }
 }
 function dinReload(cb){DIN_LOADED=false;dinEnsure(cb||function(){});}
@@ -4645,7 +4645,7 @@ async function sjaEnsure(cb,silent){
   }catch(e){
     if(silent)return; // 背景預熱失敗時不要覆蓋使用者目前的畫面
     var el=document.getElementById(ACTIVE_TAB);
-    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_SJA_CLEAN.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="SJA_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan migrations/MIGRATION_SJA_CLEAN.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="SJA_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
   }
 }
 function sjaReload(cb){SJA_LOADED=false;sjaEnsure(cb||function(){});}
