@@ -8,7 +8,7 @@
 
 已經在代碼中實現了完整的 CORS 解決方案：
 
-### 1️⃣ Apps Script 端 (Code.gs)
+### 1️⃣ Apps Script 端 (apps-script/Code.gs)
 
 ✅ **已添加 CORS Headers：**
 - `doGet()` 、`doPost()` 、`doOptions()` 都支持 CORS headers
@@ -16,7 +16,7 @@
 - 支持 GET-based POST（JSON via URL parameter）
 
 ```javascript
-// Code.gs 中的 cors() 函數已支持：
+// apps-script/Code.gs 中的 cors() 函數已支持：
 output.addHeader('Access-Control-Allow-Origin', '*');
 output.addHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
 output.addHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -51,7 +51,7 @@ function apiPost(body) {
 1. 開啟 Google Sheet：https://docs.google.com/spreadsheets/d/1cyyNcaF_eQwdgytsG-U2UGkni8ibgjj4F4Uo2Kgbm-8
 2. **Extensions** → **Apps Script**
 3. 清空所有舊代碼 (Ctrl+A → Delete)
-4. 複製 **Code.gs** 的全部內容貼上
+4. 複製 **apps-script/Code.gs** 的全部內容貼上
 5. **Ctrl+S** 保存
 
 ### Step 2：部署為 Web App
@@ -84,7 +84,7 @@ var API_URL = 'https://script.google.com/macros/s/你的新ID/exec';
 ### Step 4：上傳到 Vercel
 
 1. 只上傳 **index.html** 到 Vercel
-2. 不需要上傳 Code.gs（已在 Apps Script 上）
+2. 不需要上傳 apps-script/Code.gs（已在 Apps Script 上）
 
 ## ✅ 測試連接
 

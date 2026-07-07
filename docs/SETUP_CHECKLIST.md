@@ -11,10 +11,10 @@
 
 | 順序 | 檔案 | 用途 | 不跑會怎樣 |
 |---|---|---|---|
-| 1 | `MIGRATION_SJA_CLEAN.sql` | 建 SJA 283 個產品＋20 客戶＋生產/出貨表 | SJA 模組整個不能用 |
-| 2 | `MIGRATION_ADD_SPEC.sql` | 商品加「規格」欄位 | 商品規格填了存不進去 |
-| 3 | `MIGRATION_SCHEMA_SAFETY.sql` | 批次補單價/供應商欄＋交易修改紀錄表 | 入庫的單價/供應商存不進、修改軌跡不留存 |
-| 4 | `MIGRATION_APP_CONFIG.sql` | Admin Office 臨時開放開關的設定表 | Super 的「開放 Office 看出貨」開關會報錯 |
+| 1 | `migrations/MIGRATION_SJA_CLEAN.sql` | 建 SJA 283 個產品＋20 客戶＋生產/出貨表 | SJA 模組整個不能用 |
+| 2 | `migrations/MIGRATION_ADD_SPEC.sql` | 商品加「規格」欄位 | 商品規格填了存不進去 |
+| 3 | `migrations/MIGRATION_SCHEMA_SAFETY.sql` | 批次補單價/供應商欄＋交易修改紀錄表 | 入庫的單價/供應商存不進、修改軌跡不留存 |
+| 4 | `migrations/MIGRATION_APP_CONFIG.sql` | Admin Office 臨時開放開關的設定表 | Super 的「開放 Office 看出貨」開關會報錯 |
 
 執行成功會顯示 `Success. No rows returned`。
 
@@ -55,7 +55,7 @@ supabase functions deploy manage-people
 
 ---
 
-## 早期 migration（如果系統已在用，這些應該早跑過了，列此備查）
+## 早期 migration（如果系統已在用，這些應該早跑過了，列此備查；檔案都在 `migrations/`）
 
 `MIGRATION_TABLES` `PRESERVE_DATA` `PROTECT_PIN` `PERMISSIONS` `PERMS_PER_GUDANG`
 `LOCK_PEOPLE_WRITE` `CATEGORIES` `migration_is_admin` `STORAGE_BUCKET` `DIN_PRODUCTION`

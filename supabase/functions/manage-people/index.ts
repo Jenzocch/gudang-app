@@ -2,7 +2,7 @@
 // people 表的「寫入 / 更新 / 刪除」全部改走這裡，用 service_role 執行。
 // 呼叫前必須通過 admin PIN 驗證（與 verify-admin 相同的 ADMIN_PIN secret）。
 //
-// 搭配 MIGRATION_LOCK_PEOPLE_WRITE.sql：對 anon/authenticated 撤掉 people 的
+// 搭配 migrations/MIGRATION_LOCK_PEOPLE_WRITE.sql：對 anon/authenticated 撤掉 people 的
 // INSERT/UPDATE/DELETE 權限後，前端就無法再直接寫 people（例如把自己設成 is_admin），
 // 只有握有 6 位數 admin PIN 的人（後端驗證）才能經由本函數變更員工資料。
 //
