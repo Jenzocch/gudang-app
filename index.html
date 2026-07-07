@@ -800,6 +800,7 @@ var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang &
 var IS_SUPER=false; // super admin (PIN master): 全部權限
 var IS_OFFICE=false; // admin office：可管人員權限＋填產品，但看不到出貨/分析，不能設別人為 admin
 var OFFICE_VIEW_DELIVERY=false; // super 臨時開放 office 看出貨數據的旗標（存 app_config）
+var ALERT_CFG={mode:'daily',scope:'zero'}; // 低庫存彈窗設定（後台可改）mode: daily=每天一次 / always=每次 / off=關閉; scope: zero=只有歸零 / low=低於最低
 var PIN_ENT='';
 var EDIT_ITEM=null;
 var LOW_ITEM=null;
@@ -1098,11 +1099,17 @@ async function loadAll(afterCb,fromCache){
       q4=sb.from('item_batches').select('*').order('expiry_date',{ascending:true});
       q5=sb.from('categories').select('name').order('name');
     }
-    // q6：全站設定（office 臨時開放旗標）；表未建時容錯
-    var q6=sb.from('app_config').select('key,value').eq('key','office_view_delivery');
+    // q6：全站設定（office 臨時開放旗標 + 低庫存彈窗設定）；表未建時容錯
+    var q6=sb.from('app_config').select('key,value').in('key',['office_view_delivery','alert_config']);
     var results=await Promise.race([Promise.all([q1,q2,q3,q4,q5,q6]),tOut]);
     var iv=results[0],p=results[1],r=results[2],bt=results[3],cg=results[4],cfg=results[5];
-    OFFICE_VIEW_DELIVERY=!!(cfg&&!cfg.error&&cfg.data&&cfg.data[0]&&cfg.data[0].value==='1');
+    var cfgRows=(cfg&&!cfg.error&&cfg.data)?cfg.data:[];
+    var ovdRow=cfgRows.find(function(r2){return r2.key==='office_view_delivery';});
+    OFFICE_VIEW_DELIVERY=!!(ovdRow&&ovdRow.value==='1');
+    // 低庫存彈窗設定：JSON 存在 app_config.alert_config，解析失敗時用預設值
+    var acRow=cfgRows.find(function(r2){return r2.key==='alert_config';});
+    ALERT_CFG={mode:'daily',scope:'zero'};
+    if(acRow&&acRow.value){try{var ac=JSON.parse(acRow.value);if(ac&&typeof ac==='object'){if(ac.mode)ALERT_CFG.mode=ac.mode;if(ac.scope)ALERT_CFG.scope=ac.scope;}}catch(e2){}}
     // categories 表若尚未建立(migration 前)，cg.error 會有值，容錯成空陣列
     DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
@@ -2590,7 +2597,7 @@ function renderAdminFull(){
       '<div id="ait-content"><div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">' +aiListHTML()+'</div></div>'+
     '</div>'+
     '<div id="ape" class="tc'+(sub==='ape'?' active':'')+'">'+
-      (IS_SUPER?officeDeliveryToggleHTML():'')+
+      (IS_SUPER?officeDeliveryToggleHTML():'')+(IS_SUPER?alertCfgHTML():'')+
       (canPeople?'<div class="card"><div class="card-title">👤 '+t('addPerson')+'</div>'+
       '<div class="ig"><label>'+t('pName')+'</label><input id="npn" type="text" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addPerson()}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"></div>'+
       '<div class="ig"><label>🏭 Akses Gudang</label><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+WAREHOUSES.map(function(w){return'<label style="display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.88rem;background:#fff"><input type="checkbox" id="np-wh-'+w+'"> '+WH_EMOJI[w]+' '+w+'</label>';}).join('')+'</div></div>'+
@@ -2832,6 +2839,35 @@ function officeDeliveryToggleHTML(){
     '<div style="font-size:.74rem;color:var(--ink2);margin-top:.15rem">Buka sementara saat butuh bantuan cek/isi data pengiriman</div></div>'+
     '<button onclick="toggleOfficeDelivery(this)" style="flex-shrink:0;min-width:66px;min-height:34px;border-radius:999px;border:none;cursor:pointer;font-weight:800;font-size:.8rem;'+(on?'background:var(--ok);color:#fff':'background:var(--border);color:var(--ink2)')+'">'+(on?'ON':'OFF')+'</button>'+
   '</div>';
+}
+// super 專用：低庫存彈窗設定卡片（存 app_config.alert_config，全裝置生效）
+function alertCfgHTML(){
+  var selStyle='padding:.55rem .7rem;border:1.5px solid var(--border-input);border-radius:8px;font-size:.95rem;width:100%';
+  function opt(v,label,cur){return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+label+'</option>';}
+  return '<div class="card">'+
+    '<div class="card-title">🔔 Peringatan Stok Rendah</div>'+
+    '<div style="font-size:.8rem;color:var(--muted);margin-bottom:.7rem">Pengaturan popup peringatan stok saat buka aplikasi. Berlaku untuk semua perangkat.</div>'+
+    '<div class="ig"><label>Frekuensi popup</label><select id="acfg-mode" style="'+selStyle+'">'+
+      opt('daily','1× sehari (disarankan)',ALERT_CFG.mode)+
+      opt('always','Setiap kali muat data',ALERT_CFG.mode)+
+      opt('off','Mati (hanya angka di Home)',ALERT_CFG.mode)+
+    '</select></div>'+
+    '<div class="ig"><label>Barang yang diperingatkan</label><select id="acfg-scope" style="'+selStyle+'">'+
+      opt('zero','Hanya stok habis (0)',ALERT_CFG.scope)+
+      opt('low','Semua stok ≤ minimum',ALERT_CFG.scope)+
+    '</select></div>'+
+    '<button class="btn btn-p" onclick="saveAlertCfg()" style="width:100%">💾 Simpan</button>'+
+  '</div>';
+}
+async function saveAlertCfg(){
+  if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
+  var m=document.getElementById('acfg-mode'),s=document.getElementById('acfg-scope');
+  var cfg={mode:(m?m.value:'daily'),scope:(s?s.value:'zero')};
+  try{
+    await managePeople('set_config',{key:'alert_config',value:JSON.stringify(cfg)});
+    ALERT_CFG=cfg;
+    toast('✓ Tersimpan');
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 async function toggleOfficeDelivery(btn){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
@@ -3870,10 +3906,23 @@ async function confirmApproveReqBuy(id){
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
-// LOW STOCK
+// LOW STOCK — 依 ALERT_CFG 決定要不要彈窗（off=不彈 / daily=每天一次 / always=每次）
 function checkLowStock(){
-  var zero=DATA.items.filter(function(i){return i.qty===0&&i.critical_qty>0});
-  if(zero.length)showLow(zero[0],1);
+  if(ALERT_CFG.mode==='off')return;
+  var pool=DATA.items.filter(function(i){
+    if(!(i.critical_qty>0))return false;
+    if(i.remark&&i.remark.includes('#noalert'))return false;
+    return ALERT_CFG.scope==='low'?i.qty<=i.critical_qty:i.qty===0;
+  });
+  if(!pool.length)return;
+  if(ALERT_CFG.mode!=='always'){
+    var k='lowseen_'+CURRENT_WAREHOUSE+'_'+today();
+    try{
+      if(localStorage.getItem(k))return;
+      localStorage.setItem(k,'1');
+    }catch(e){}
+  }
+  showLow(pool[0],1);
 }
 function showLow(item,need){
   LOW_ITEM=item;
@@ -4547,7 +4596,7 @@ async function sjaEnsure(cb,silent){
   }catch(e){
     if(silent)return; // 背景預熱失敗時不要覆蓋使用者目前的畫面
     var el=document.getElementById(ACTIVE_TAB);
-    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_SJA_PRODUCTION.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="SJA_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
+    if(el)el.innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ '+esc(e.message)+'<br><br><span style="font-size:.8rem;color:var(--ink2)">Jika tabel belum ada, jalankan MIGRATION_SJA_CLEAN.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="SJA_LOADED=false;renderProduksi()">🔄 Coba lagi</button></div>';
   }
 }
 function sjaReload(cb){SJA_LOADED=false;sjaEnsure(cb||function(){});}
