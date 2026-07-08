@@ -18,7 +18,7 @@ ALTER TABLE requests
   ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'staff'
     CHECK (source IN ('staff','famms')),
   ADD COLUMN IF NOT EXISTS source_ref JSONB,          -- {work_order, machine_id, machine_name, requester}
-  ADD COLUMN IF NOT EXISTS linked_batch_id UUID REFERENCES item_batches(id);
+  ADD COLUMN IF NOT EXISTS linked_batch_id BIGINT REFERENCES item_batches(id);
 
 CREATE INDEX IF NOT EXISTS idx_requests_source        ON requests(source);
 CREATE INDEX IF NOT EXISTS idx_requests_linked_batch  ON requests(linked_batch_id);
