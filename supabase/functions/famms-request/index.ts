@@ -11,7 +11,8 @@
 //   POST /functions/v1/famms-request
 //   headers: { "x-famms-secret": <FAMMS_WEBHOOK_SECRET>, "Content-Type": "application/json" }
 //   body: { machine_id, machine_name?, work_order, items:[{part_no?,name,qty,unit?}],
-//           urgency?, requester, warehouse, note? }
+//           urgency?, requester, warehouse, note?, famms_request_id? }
+//   famms_request_id：FAMMS 本地 parts_requests 那筆的 id（線③回寫用，見 notify-famms-status）
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -66,6 +67,7 @@ serve(async (req) => {
     const warehouse = str(body.warehouse, 20).toUpperCase();
     const urgency = ["low", "normal", "urgent"].includes(body.urgency) ? body.urgency : "normal";
     const note = str(body.note, 500);
+    const fammsRequestId = str(body.famms_request_id, 60) || null;
     const items = Array.isArray(body.items) ? body.items.slice(0, 20) : [];
 
     if (!machineId) return json({ ok: false, error: "machine_id wajib" }, 400);
@@ -101,6 +103,8 @@ serve(async (req) => {
       note: noteParts.join("\n"),
       status: "pending",
       warehouse_id: warehouse,
+      source: "famms",
+      famms_request_id: fammsRequestId,
     }).select("id").single();
     if (ins.error) return json({ ok: false, error: ins.error.message }, 500);
 

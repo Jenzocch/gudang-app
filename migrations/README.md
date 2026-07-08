@@ -24,3 +24,4 @@
 | `MIGRATION_QC_SYSTEM.sql` | QC / HACCP 系統資料表（可編輯範本、檢驗紀錄、CCP 監控） | ✅ 已執行（正式庫） |
 | `MIGRATION_QC_SJA.sql` | SJA 的 QC 檢驗範本種子資料（前置：MIGRATION_QC_SYSTEM.sql） | ✅ 已執行（正式庫） |
 | `MIGRATION_AUDIT_LOG.sql` | audit_log 刪改留痕表（只給 INSERT/SELECT，稽核不可竄改） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（Arsip 稽核記錄功能依賴它） |
+| `MIGRATION_FAMMS_LINK.sql` | requests 表加 `source`/`famms_request_id`，供線③（叫料狀態回寫 FAMMS）追蹤來源 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（notify-famms-status 依賴它） |
