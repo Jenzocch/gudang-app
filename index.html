@@ -62,12 +62,27 @@ body{display:flex;flex-direction:column}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--ink2);flex-shrink:0}
 .conn-dot.ok{background:#34D399}.conn-dot.err{background:#F87171}
 .content{flex:1;overflow-y:auto;padding-bottom:58px;-webkit-overflow-scrolling:touch}
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -1px 8px rgba(16,24,40,.05);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-.tb{flex:1;min-width:44px;padding:.5rem .1rem .45rem;border:none;background:none;cursor:pointer;font-size:.7rem;font-weight:600;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative}
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -1px 8px rgba(16,24,40,.05)}
+.tb{flex:1;min-width:44px;padding:.5rem .1rem .45rem;border:none;background:none;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--muted);transition:.2s;display:flex;flex-direction:column;align-items:center;gap:.1rem;position:relative;font-family:inherit;border-radius:12px;margin:3px 2px}
 .tb-icon{font-size:1.25rem;transition:transform .2s}
-.tb.active{color:var(--p)}
+.tb-arw{font-weight:900;font-size:1.3rem;line-height:1.15}
+/* 出=紅、入=綠：顏色+方向雙重編碼，取代兩個長很像的 emoji */
+.tb.tb-out:not(.active){color:#C93B3B}
+.tb.tb-in:not(.active){color:#0E8A62}
+.tb.active{color:#fff;background:var(--p)}
 .tb.active .tb-icon{transform:translateY(-1px)}
-.tb.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:0 0 3px 3px;background:var(--p)}
+/* 任務大按鈕（首頁）：跟底部分頁同色同圖示，看一次學會兩處 */
+.task-btn{display:flex;align-items:center;gap:.7rem;width:100%;border:none;border-radius:14px;padding:.85rem .95rem;margin-bottom:.5rem;font-weight:800;font-size:1rem;text-align:left;color:#fff;cursor:pointer;font-family:inherit;box-shadow:var(--sh-md)}
+.task-btn small{display:block;font-weight:500;font-size:.74rem;opacity:.9;margin-top:.1rem}
+.task-btn .tk-ic{font-size:1.45rem;flex-shrink:0;font-weight:900;line-height:1}
+.task-red{background:#C93B3B}.task-green{background:#0E8A62}.task-blue{background:#3B5BC9}
+/* Lainnya 選單頁的大格卡片 */
+.more-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;padding:.9rem .7rem}
+.more-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1rem .8rem;text-align:center;cursor:pointer;box-shadow:var(--sh-sm);font-family:inherit;transition:.15s}
+.more-card:active{transform:scale(.97)}
+.more-card .mi{font-size:1.7rem;display:block;margin-bottom:.3rem}
+.more-card .mt{font-weight:800;font-size:.95rem;color:var(--dark);display:block}
+.more-card .md{font-size:.75rem;color:var(--muted);margin-top:.15rem;display:block}
 /* 切分頁不再對整個大區塊跑 fadeIn 動畫（大清單時是卡頓主因）；off-screen 區塊用 content-visibility 省下版面計算 */
 .sec{display:none;contain:layout style}.sec.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -110,7 +125,7 @@ textarea{resize:vertical;min-height:75px}
 .btn-full{width:100%;margin-top:.7rem}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .qc{display:flex;gap:.4rem;align-items:center;background:var(--light);border-radius:10px;padding:.35rem;border:1px solid var(--border)}
-.qb{width:36px;height:36px;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-size:1.15rem;font-weight:700;box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center}
+.qb{width:40px;height:40px;flex-shrink:0;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-size:1.15rem;font-weight:700;box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center}
 .qi{flex:1;text-align:center;font-size:1.1rem;font-weight:700;border:none;background:transparent}
 .sr{display:flex;justify-content:space-between;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--border)}
 .sr:last-child{border:none}
@@ -237,7 +252,7 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .amb-th{width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:zoom-in}
 .amb-th-ph{width:60px;height:60px;border-radius:8px;background:var(--light);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
 .img-ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out}
-.amb-name{font-weight:600;font-size:.97rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amb-name{font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .amb-stk{font-size:.82rem;color:var(--ink2);margin-top:.1rem}
 .amb-stk.low{color:var(--danger);font-weight:600}
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
@@ -286,10 +301,9 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   .content{margin-left:180px;padding-top:60px;padding-bottom:2rem;padding-left:1.5rem;padding-right:1.5rem;min-height:100vh;font-size:1rem;line-height:1.6}
   .tabs{position:fixed;left:0;top:0;bottom:0;width:180px;flex-direction:column;border-top:none;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;transform:none;max-width:180px;padding:0;background:#fff;justify-content:flex-start;align-items:stretch;box-shadow:2px 0 12px rgba(0,0,0,.06)}
   .tabs::before{content:'📦 Gudang One';display:block;padding:1rem 1rem .6rem;font-weight:800;font-size:.95rem;color:var(--p);border-bottom:1px solid var(--border);letter-spacing:.01em}
-  .tb{min-width:unset;flex-direction:row;gap:.5rem;justify-content:flex-start;padding:.75rem 1rem;font-size:.92rem;font-weight:600;border-bottom:1px solid #F1F5F9;text-align:left;color:var(--ink2);align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tb{min-width:unset;flex-direction:row;gap:.5rem;justify-content:flex-start;padding:.75rem 1rem;font-size:.92rem;font-weight:600;border-bottom:1px solid #F1F5F9;text-align:left;color:var(--ink2);align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:0;margin:0}
   .tb-icon{font-size:1.3rem;flex-shrink:0}
-  .tb.active{background:#EEF2FF;border-left:3px solid var(--p);padding-left:calc(1rem - 3px)}
-  .tb.active::before{display:none}
+  .tb.active{background:#EEF2FF;border-left:3px solid var(--p);padding-left:calc(1rem - 3px);color:var(--p)}
   .modal-ov{align-items:center;padding:1.5rem}
   .modal{border-radius:16px;max-width:640px;margin:auto;max-height:90vh}
   /* 寬螢幕閱讀寬度上限：內容置中，不再無限拉寬 */
@@ -342,6 +356,11 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   body.print-ana .card,body.print-ana .ana-kpi{box-shadow:none;break-inside:avoid}
   body.print-ana .ana-hbar-fill,body.print-ana .ana-col-bar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+/* ── UX P1：全域觸控目標加大（追加覆蓋，不改上面既有規則）。
+   戴手套/老花作業員 44px 最小觸控目標；.pk PIN 鍵盤與 .tb 分頁列刻意不動。
+   checkbox/radio 排除：多處 16-18px 勾選框被 min-height 撐開會壞版。 */
+.btn{min-height:44px}
+input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
 </style>
 </head>
 <body>
@@ -367,17 +386,13 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
   <div class="content" id="mc">
     <div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem" id="lt"></p></div>
   </div>
+  <!-- 底部導覽固定 5 格不捲動：作業員 90% 只用 Ambil/Masuk/Minta，低頻與管理分頁收進 Lainnya -->
   <div class="tabs" id="tabs" style="display:none">
-    <button class="tb active" onclick="goTab('home',this)"><span class="tb-icon">🏠</span><span id="tl-h">Beranda</span></button>
-    <button class="tb" onclick="goTab('ambil',this)"><span class="tb-icon">📤</span><span id="tl-a">Ambil</span></button>
-    <button class="tb" onclick="goTab('masuk',this)"><span class="tb-icon">📥</span><span id="tl-m">Masuk</span></button>
-    <button class="tb" onclick="goTab('produksi',this)"><span class="tb-icon">🏭</span><span id="tl-p">Produksi</span></button>
-    <button class="tb" onclick="goTab('shipment',this)"><span class="tb-icon">🚚</span><span id="tl-s">Kirim</span></button>
-    <button class="tb" onclick="goTab('permintaan',this)"><span class="tb-icon">📋</span><span id="tl-r">Minta</span></button>
-    <button class="tb" onclick="goTab('riwayat',this)"><span class="tb-icon">📊</span><span id="tl-hi">Riwayat</span></button>
-    <button class="tb" onclick="goTab('analisa',this)" style="display:none"><span class="tb-icon">📈</span><span id="tl-ana">Analisa</span></button>
-    <button class="tb" onclick="goTab('qc',this)" style="display:none"><span class="tb-icon">✅</span><span id="tl-qc">QC</span></button>
-    <button class="tb" onclick="goTab('admin',this)"><span class="tb-icon">⚙️</span><span id="tl-adm">Admin</span></button>
+    <button class="tb active" data-tab="home" onclick="goTab('home',this)"><span class="tb-icon">🏠</span><span id="tl-h">Beranda</span></button>
+    <button class="tb tb-out" data-tab="ambil" onclick="goTab('ambil',this)"><span class="tb-icon tb-arw">↑</span><span id="tl-a">Ambil</span></button>
+    <button class="tb tb-in" data-tab="masuk" onclick="goTab('masuk',this)"><span class="tb-icon tb-arw">↓</span><span id="tl-m">Masuk</span></button>
+    <button class="tb" data-tab="permintaan" onclick="goTab('permintaan',this)"><span class="tb-icon">🙋</span><span id="tl-r">Minta</span></button>
+    <button class="tb" data-tab="lainnya" onclick="goTab('lainnya',this)"><span class="tb-icon tb-arw">☰</span><span id="tl-more">Lainnya</span></button>
   </div>
 </div>
 
@@ -554,12 +569,19 @@ var ZH={
   'Perlu Beli':'需要採購','Status Stok':'庫存狀態',
   'Cari barang perlu beli...':'搜尋需採購品項…','Cari semua barang...':'搜尋所有品項…',
   'Tanpa Kategori':'未分類','Salin':'複製','Kadaluarsa dalam 30 hari':'30 天內到期',
-  'Permintaan Terbaru':'最新請購','Tertunda':'待處理'
+  'Permintaan Terbaru':'最新請購','Tertunda':'待處理',
+  'Lainnya':'更多','Mau apa hari ini?':'今天要做什麼？',
+  'Keluar gudang · scan atau cari barang':'出庫 · 掃碼或搜尋商品','Barang datang, masuk stok':'進貨入庫',
+  'Stok habis? Ajukan permintaan':'缺料？提出請購','barang hampir habis':'項庫存快用完',
+  'Rendam, potong, hasil produksi':'復水、切割、產出','Pengiriman ke customer':'出貨給客戶',
+  'Riwayat keluar-masuk':'進出紀錄','Cek mutu & batch':'品質與批次',
+  'Statistik & laporan':'統計與報表','Barang, orang, pengaturan':'商品、人員、設定',
+  'Tidak ada menu tambahan untuk akun ini':'此帳號沒有其他功能'
 };
 function Z(s){return LANG==='zh'&&ZH[s]?ZH[s]:s;}
 var NAV_TXT={
-  id:{'tl-h':'Beranda','tl-a':'Ambil','tl-m':'Masuk','tl-p':'Produksi','tl-s':'Kirim','tl-r':'Minta','tl-hi':'Riwayat','tl-ana':'Analisa','tl-adm':'Admin'},
-  zh:{'tl-h':'首頁','tl-a':'領料','tl-m':'入庫','tl-p':'生產','tl-s':'出貨','tl-r':'請購','tl-hi':'紀錄','tl-ana':'分析','tl-adm':'管理'}
+  id:{'tl-h':'Beranda','tl-a':'Ambil','tl-m':'Masuk','tl-r':'Minta','tl-more':'Lainnya'},
+  zh:{'tl-h':'首頁','tl-a':'領料','tl-m':'入庫','tl-r':'請購','tl-more':'更多'}
 };
 function applyNavLang(){
   var m=NAV_TXT[LANG]||NAV_TXT.id;
@@ -823,7 +845,7 @@ var CURRENT_WAREHOUSE=null;
 var LAST_LOADED_WAREHOUSE=null;
 // HARDWARE = gudang bahan baku / sparepart (五金原料 - gudang asli/pertama)
 // 依分頁 id 找底部按鈕（不能用位置索引，新增分頁會移位）
-function tbBtn(id){var r=null;document.querySelectorAll('.tb').forEach(function(b){if((b.getAttribute('onclick')||'').indexOf("'"+id+"'")>=0)r=b;});return r;}
+function tbBtn(id){return document.querySelector('.tb[data-tab="'+id+'"]');}
 var WAREHOUSES=['HARDWARE','SJA','DENIKIN','OLENTIA'];
 // 有生產/出貨模組的倉庫（之後 OLENTIA 上線就加進來）
 var PRODUKSI_WH=['DENIKIN','SJA'];
@@ -1207,25 +1229,15 @@ function renderAll(){
   updateWhChips();
   var tabAmbil=tbBtn('ambil');
   var tabMasuk=tbBtn('masuk');
-  var tabRiwayat=tbBtn('riwayat');
-  var tabAdmin=tbBtn('admin');
-  var tabProduksi=tbBtn('produksi');
-  var tabShipment=tbBtn('shipment');
-  // 生產/出貨模組：PRODUKSI_WH/KIRIM_WH 列出的倉庫才有；且要有 Produksi/Kirim 權限（預設只有 admin）
-  if(tabProduksi)tabProduksi.style.display=(PRODUKSI_WH.indexOf(CURRENT_WAREHOUSE)>=0&&(canProduksi()||IS_OFFICE))?'':'none';
-  if(tabShipment)tabShipment.style.display=(KIRIM_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canKirim())?'':'none';
   // 分頁依「每人權限」顯示：Ambil/Masuk 由 super admin 在員工列表設定
   if(tabAmbil)tabAmbil.style.display=canAmbil()?'':'none';
   if(tabMasuk)tabMasuk.style.display=canMasuk()?'':'none';
-  if(tabRiwayat)tabRiwayat.style.display=IS_ADMIN?'':'none';
-  if(tabAdmin)tabAdmin.style.display=IS_ADMIN?'':'none';
-  var tabAnalisa=tbBtn('analisa');
-  if(tabAnalisa)tabAnalisa.style.display=IS_SUPER?'':'none';
-  var tabQc=tbBtn('qc');
-  if(tabQc)tabQc.style.display=IS_ADMIN?'':'none'; // QC: admin/office/admin-gudang 可用
+  // 低頻/管理分頁集中在 Lainnya 選單頁；一個都沒有的帳號連 Lainnya 都不顯示
+  var tabMore=tbBtn('lainnya');
+  if(tabMore)tabMore.style.display=moreEntries().length?'':'none';
   // 只重繪「目前所在的分頁」，其他分頁等切過去時才建（lazy）。
   // 之前每次 loadAll 都整頁砍掉+固定重繪 home，切分頁就得從零重蓋 → 卡頓主因之一
-  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','qc','admin'];
+  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','qc','admin','lainnya'];
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
@@ -1237,7 +1249,11 @@ function renderAll(){
   document.getElementById('mc').innerHTML=SEC_IDS.map(function(s){
     return '<div id="'+s+'" class="sec'+(s===ACTIVE_TAB?' active':'')+'"></div>';
   }).join('');
-  document.querySelectorAll('.tb').forEach(function(b,ix){b.classList.toggle('active',SEC_IDS[ix]===ACTIVE_TAB);});
+  // 高亮改用 data-tab 對應（不再依賴按鈕順序）；身在 Lainnya 子頁時高亮 Lainnya
+  document.querySelectorAll('.tb').forEach(function(b){
+    var dt=b.getAttribute('data-tab');
+    b.classList.toggle('active',dt===ACTIVE_TAB||(MORE_TABS[ACTIVE_TAB]&&dt==='lainnya'));
+  });
   RENDERED_TABS={};
   RENDERED_TABS[ACTIVE_TAB]=true;
   if(ACTIVE_TAB==='home')renderHome();
@@ -1250,6 +1266,7 @@ function renderAll(){
   else if(ACTIVE_TAB==='analisa')renderAnalisa();
   else if(ACTIVE_TAB==='qc')renderQC();
   else if(ACTIVE_TAB==='admin')renderAdmin();
+  else if(ACTIVE_TAB==='lainnya')renderLainnya();
   updateCartBar();
   var hsb=document.getElementById('hdr-search-btn');
   if(hsb)hsb.style.display=(CURRENT_USER&&CURRENT_WAREHOUSE)?'':'none';
@@ -1305,6 +1322,17 @@ function renderHome(){
   if(CURRENT_USER&&CURRENT_USER.isGuest){
     h+='<div class="ab ab-w" style="margin:.7rem">ℹ️ '+('Akun sementara (berlaku hari ini)')+'</div>';
   }
+  // 任務優先首頁：三顆大按鈕跟底部分頁同色同圖示，作業員打開就知道要按哪
+  if(CURRENT_WAREHOUSE){
+    if(CURRENT_USER&&CURRENT_USER.name){
+      h+='<div style="margin:.85rem .8rem .15rem;font-weight:700;font-size:.95rem;color:var(--ink2)">Halo, '+esc(CURRENT_USER.name)+' 👋 <span style="font-weight:500;color:var(--muted)">'+Z('Mau apa hari ini?')+'</span></div>';
+    }
+    h+='<div style="margin:.55rem .7rem .3rem">';
+    if(canAmbil())h+='<button class="task-btn task-red" onclick="goTab(\'ambil\',null)"><span class="tk-ic">↑</span><span>'+t('take')+'<small>'+Z('Keluar gudang · scan atau cari barang')+'</small></span></button>';
+    if(canMasuk())h+='<button class="task-btn task-green" onclick="goTab(\'masuk\',null)"><span class="tk-ic">↓</span><span>'+t('receive')+'<small>'+Z('Barang datang, masuk stok')+'</small></span></button>';
+    h+='<button class="task-btn task-blue" onclick="goTab(\'permintaan\',null)"><span class="tk-ic">🙋</span><span>'+t('req')+'<small>'+Z('Stok habis? Ajukan permintaan')+'</small></span></button>';
+    h+='</div>';
+  }
   // 有 🔢 Opname 權限的員工：首頁給盤點入口（admin 從 Kelola Barang 進，不重複顯示）
   if(!IS_ADMIN&&CURRENT_WAREHOUSE&&canOpname()){
     h+='<div style="margin:.7rem"><button class="btn btn-warn btn-full" style="padding:.7rem;font-size:.95rem" onclick="openStocktake(\'home\')">🔢 Cek Stok / Opname — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</button></div>';
@@ -1326,10 +1354,15 @@ function renderHome(){
     var sorted=IDX.sortedByRatio;
     var lowItems=sorted.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0&&!(i.remark&&i.remark.includes('#noalert'));});
 
-    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.4rem .7rem">'+
-      '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:var(--ink2);font-weight:500">'+Z(t('items'))+'</span><span style="font-size:1.1rem;font-weight:800;color:var(--p)">'+DATA.items.length+'</span></div>'+
-      '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:var(--ink2);font-weight:500">'+Z(t('lowStock'))+'</span><span style="font-size:1.1rem;font-weight:800;color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</span></div>'+
-    '</div>';
+    // 統計數字是管理視角，只給 admin；作業員改看一條可點的警示（有低庫存才出現）
+    if(IS_ADMIN){
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.4rem .7rem">'+
+        '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:var(--ink2);font-weight:500">'+Z(t('items'))+'</span><span style="font-size:1.1rem;font-weight:800;color:var(--p)">'+DATA.items.length+'</span></div>'+
+        '<div style="background:#fff;border-radius:8px;padding:.4rem .7rem;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 4px rgba(0,0,0,.06)"><span style="font-size:.78rem;color:var(--ink2);font-weight:500">'+Z(t('lowStock'))+'</span><span style="font-size:1.1rem;font-weight:800;color:'+(lowItems.length>0?'var(--danger)':'var(--ok)')+'">'+lowItems.length+'</span></div>'+
+      '</div>';
+    }else if(lowItems.length){
+      h+='<div style="padding:.2rem .7rem"><button onclick="var lc=document.getElementById(\'low-content\');if(lc&&lc.style.display===\'none\')toggleLowSection();var hs=document.getElementById(\'home-sections\');if(hs)hs.scrollIntoView({behavior:\'smooth\'})" style="width:100%;border:1.5px solid #F5C97B;background:#FEF6E9;color:#8C4A06;border-radius:12px;padding:.6rem .8rem;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;font-family:inherit">⚠️ '+lowItems.length+' '+Z('barang hampir habis')+' ›</button></div>';
+    }
 
     h+='<div id="home-sections">';
     if(lowItems.length){
@@ -1645,12 +1678,21 @@ function matchesSearch(i,q){
   if(i.description&&i.description.toLowerCase().includes(q))return true;
   return false;
 }
+// UX P1：口語化庫存行（領料/入庫列共用）。
+// Habis＝沒了（紅）；低於 critical_qty＝紅字＋hampir habis；其餘綠字。操作表單維持印尼文（見 Z() 註解），故不包 Z()。
+function stokLineHTML(i){
+  if(i.qty<=0)return'<div style="font-size:.85rem;margin-top:.15rem;color:#C22323;font-weight:800">Habis</div>';
+  var low=i.critical_qty>0&&i.qty<=i.critical_qty;
+  var col=low?'#C22323':'#0B7A55';
+  return'<div style="font-size:.85rem;color:var(--ink2);margin-top:.15rem">Sisa <b style="color:'+col+'">'+i.qty+'</b> '+esc(i.unit)+
+    (low?'<span style="color:#C22323;font-weight:700"> · hampir habis</span>':'')+'</div>';
+}
 function ambRowHTML(i){
   var empty=i.qty<=0;
   var cqty=CART[i.variant_id]||0;
   var th=i.image_url?'<img loading="lazy" class="amb-th" src="'+esc(i.image_url)+'" onclick="event.stopPropagation();showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
     :'<div class="amb-th-ph">📦</div>';
-  var tagHtml=(i.tags||[]).map(function(tg){return'<span class="catg-badge" style="font-size:.7rem">🏷️ '+esc(tg)+'</span>';}).join('');
+  // 列內不再顯示 🏷️ 分類徽章：上方已有分類 chips 篩選，列內重複是視覺噪音
   // FIFO：用預建索引（已按 FIFO 排序、僅含 qty_remaining>0、且已依當前倉庫載入），
   // 避免每個商品都全掃一次 DATA.batches 造成 O(商品×批次) 卡頓
   var iBats=IDX.batchesByItem[i.id]||[];
@@ -1666,14 +1708,13 @@ function ambRowHTML(i){
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem">📍</button>':'')+'</div>'+
     (i.code?'<div style="font-size:.7rem;color:var(--s);font-weight:700;margin-top:.05rem">🏷️ '+esc(i.code)+'</div>':'')+
     ((i.spec||i.description)?'<div style="font-size:.7rem;color:var(--muted);margin-top:.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(i.spec?'📐 '+esc(i.spec):esc(i.description))+'</div>':'')+
-    (tagHtml?'<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">'+tagHtml+'</div>':'')+
-    '<div style="font-size:.75rem;color:'+(empty?'var(--danger)':'var(--ink2)')+';margin-top:.1rem">'+i.qty+' '+esc(i.unit)+(empty?' — Stok habis':'')+'</div>'+
+    stokLineHTML(i)+
     (iBats.length>1?'<div style="font-size:.7rem;color:var(--muted);margin-top:.05rem">📦 '+iBats.length+' batch</div>':'')+
     batInfo+
     '</div></div>'+
-    '<div class="qc" style="width:118px;flex-shrink:0">'+
+    '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',-1)" '+(empty?'disabled':'')+'>−</button>'+
-    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="aq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" max="'+i.qty+'" placeholder="0" '+(empty?'disabled':'')+' onchange="cSet(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdj(\''+esc(i.variant_id)+'\',1)" '+(empty?'disabled':'')+'>+</button>'+
     '</div></div>';
 }
@@ -1753,14 +1794,18 @@ function cartRowsAmb(){
     }
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
-      '<div class="amb-name">'+esc(item.name)+'</div>'+
+      '<div class="amb-name" style="font-size:.9rem">'+esc(item.name)+'</div>'+
       '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
       batInfo+
       '</div></div>'+
-      '<div class="qc" style="width:106px;flex-shrink:0">'+
+      '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
+      '<div class="qc" style="width:auto">'+ // width:auto 蓋掉手機版 .qc{width:116px}，容納 40px 鈕不擠壓
       '<button class="qb" onclick="cAdj(\''+esc(variantId)+'\',-1)">−</button>'+
-      '<span class="qi" style="font-size:.9rem">'+CART[variantId]+'</span>'+
+      '<span class="qi" style="font-size:1rem;min-width:26px;text-align:center">'+CART[variantId]+'</span>'+
       '<button class="qb" onclick="cAdj(\''+esc(variantId)+'\',1)">+</button>'+
+      '</div>'+
+      // 刪除鈕：一鍵移出購物車（cAdj 夾到 0 即刪，沿用既有機制）
+      '<button onclick="cAdj(\''+esc(variantId)+'\',-1e9)" title="Hapus" style="width:40px;height:40px;flex-shrink:0;border:1px solid #FECACA;background:#FEF2F2;color:#C22323;border-radius:10px;font-size:1.05rem;cursor:pointer">🗑</button>'+
       '</div></div>';
   }).join('');
 }
@@ -2056,11 +2101,11 @@ function maskRowHTML(i){
   return '<div class="amb-row">'+
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
-    '<div class="amb-stk">'+i.qty+' '+esc(i.unit)+'</div>'+
+    stokLineHTML(i)+
     '</div></div>'+
-    '<div class="qc" style="width:118px;flex-shrink:0">'+
+    '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',-1)">−</button>'+
-    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:58px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
+    '<input type="number" inputmode="numeric" id="mq-'+esc(i.variant_id)+'" class="qi" value="'+(cqty||'')+'" min="0" placeholder="0" onchange="cSetM(\''+esc(i.variant_id)+'\',this)" onclick="event.stopPropagation()" style="width:44px;font-size:1rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.3rem 0;background:#fff">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',1)">+</button>'+
     '</div></div>';
 }
@@ -2124,15 +2169,15 @@ function cartRowsMsk(){
     var hasLot=ci.lot_no||ci.expiry_date||ci.production_date||ci.code_produksi||ci.po_no||ci.do_no;
     return '<div class="amb-row">'+
       '<div class="amb-info"><div style="min-width:0">'+
-      '<div class="amb-name">'+esc(item.name)+'</div>'+
+      '<div class="amb-name" style="font-size:.9rem">'+esc(item.name)+'</div>'+
       '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
       (hasLot?'<div style="font-size:.72rem;color:var(--p);margin-top:.1rem">📋 '+(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+ci.expiry_date:'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
       '</div></div>'+
       '<div style="display:flex;align-items:center;gap:.25rem;flex-shrink:0">'+
-      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap">📋 Lot</button>'+
-      '<div class="qc" style="width:100px;flex-shrink:0">'+
+      '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap;min-height:40px">📋 Lot</button>'+
+      '<div class="qc" style="width:auto">'+ // width:auto 蓋掉手機版 .qc{width:116px}
       '<button class="qb" onclick="cAdjM(\''+esc(variantId)+'\',-1)">−</button>'+
-      '<span class="qi" style="font-size:.9rem">'+ci.qty+'</span>'+
+      '<span class="qi" style="font-size:1rem;min-width:24px;text-align:center">'+ci.qty+'</span>'+
       '<button class="qb" onclick="cAdjM(\''+esc(variantId)+'\',1)">+</button>'+
       '</div></div></div>';
   }).join('');
@@ -2253,14 +2298,33 @@ function renderPermintaan(){
     '</div>';
 }
 function reqHTML(r){
-  var cls=r.status==='approved'?'b-a':r.status==='rejected'?'b-r':'b-p';
-  var lbl=r.status==='approved'?t('approved'):r.status==='rejected'?t('rejected'):t('pending');
+  var badge=r.status==='approved'?stBadge('ok',t('approved')):r.status==='rejected'?stBadge('off',t('rejected')):stBadge('wait',t('pending'));
   var act=r.status==='pending'&&IS_ADMIN?'<div class="ra">'+
     '<button class="btn btn-ok" onclick="approveReqBuy(\''+esc(r.id)+'\')">🛒 Sudah Beli (Masuk)</button>'+
     '<button class="btn btn-d" onclick="updReq(\''+esc(r.id)+'\',\'rejected\')">✗ '+t('reject')+'</button></div>':'';
-  return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span><span class="badge '+cls+'">'+lbl+'</span></div>'+
+  return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span>'+badge+'</div>'+
     '<div class="rd">'+fmtDate(r.created_at)+'</div>'+
     '<div class="rc">'+esc(r.items_requested)+(r.note?'<br><small style="color:var(--muted)">'+esc(r.note)+'</small>':'')+'</div>'+act+'</div>';
+}
+
+// LAINNYA — 低頻/管理分頁的入口選單。底部導覽固定 5 格，其餘功能都從這裡進
+function moreEntries(){
+  var e=[];
+  if(PRODUKSI_WH.indexOf(CURRENT_WAREHOUSE)>=0&&(canProduksi()||IS_OFFICE))e.push({id:'produksi',ic:'🏭',n:'Produksi',d:Z('Rendam, potong, hasil produksi')});
+  if(KIRIM_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canKirim())e.push({id:'shipment',ic:'🚚',n:'Kirim',d:Z('Pengiriman ke customer')});
+  if(IS_ADMIN)e.push({id:'riwayat',ic:'📊',n:t('hist'),d:Z('Riwayat keluar-masuk')});
+  if(IS_ADMIN)e.push({id:'qc',ic:'✅',n:'QC',d:Z('Cek mutu & batch')});
+  if(IS_SUPER)e.push({id:'analisa',ic:'📈',n:'Analisa',d:Z('Statistik & laporan')});
+  if(IS_ADMIN)e.push({id:'admin',ic:'⚙️',n:t('adm'),d:Z('Barang, orang, pengaturan')});
+  return e;
+}
+function renderLainnya(){
+  var el=document.getElementById('lainnya');if(!el)return;
+  var es=moreEntries();
+  el.innerHTML='<div class="st">☰ '+Z('Lainnya')+'</div>'+
+    (es.length?'<div class="more-grid">'+es.map(function(x){
+      return '<button class="more-card" onclick="goTab(\''+x.id+'\',null)"><span class="mi">'+x.ic+'</span><span class="mt">'+x.n+'</span><span class="md">'+x.d+'</span></button>';
+    }).join('')+'</div>':'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+Z('Tidak ada menu tambahan untuk akun ini')+'</div>');
 }
 
 // RIWAYAT
@@ -2328,9 +2392,10 @@ function qcTplItems(tplId){return QC.items.filter(function(x){return x.template_
 function qcTemplatesFor(scope){return QC.templates.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE&&t.scope===scope&&t.is_active!==false;});}
 function qcCheckFor(refType,refId){var c=QC.checks.filter(function(x){return x.ref_type===refType&&String(x.ref_id)===String(refId);});return c.length?c[0]:null;}
 function qcBadge(check){
-  var map={pass:['#059669','🟢 Lulus'],fail:['#DC2626','🔴 Gagal'],conditional:['#D97706','🟡 Bersyarat'],rework:['#D97706','🟡 Rework'],pending:['#94A3B8','⚪ Menunggu']};
-  var k=check?check.result:null;var m=map[k]||['#94A3B8','⚪ Belum QC'];
-  return '<span style="font-size:.7rem;font-weight:800;color:'+m[0]+'">'+m[1]+(check&&check.ccp_fail?' ⚠CCP':'')+'</span>';
+  // 統一用 stBadge 三件組；conditional/rework 歸黃色警示（hold），未檢/待檢歸等待（wait）
+  var map={pass:['ok','Lulus'],fail:['bad','Gagal'],conditional:['hold','Bersyarat'],rework:['hold','Rework'],pending:['wait','Menunggu']};
+  var k=check?check.result:null;var m=map[k]||['wait','Belum QC'];
+  return stBadge(m[0],m[1]+(check&&check.ccp_fail?' ⚠CCP':''));
 }
 function renderQC(){
   if(!IS_ADMIN){document.getElementById('qc').innerHTML='<div class="ab ab-d" style="margin:1rem">⚠ Tidak ada akses</div>';return;}
@@ -3984,12 +4049,15 @@ function closeLow(){document.getElementById('low-ov').classList.remove('open');}
 function openLowLink(){if(LOW_ITEM&&LOW_ITEM.supplier_url)window.open(LOW_ITEM.supplier_url,'_blank');}
 
 // UI
+// 這些分頁沒有自己的底部按鈕，從 Lainnya 選單進入；停留其中時高亮 Lainnya
+var MORE_TABS={produksi:1,shipment:1,riwayat:1,analisa:1,qc:1,admin:1};
 function goTab(id,el){
   ACTIVE_TAB=id;
   document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active')});
   var s=document.getElementById(id);if(s)s.classList.add('active');
   document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('active')});
-  if(el)el.classList.add('active');
+  var hb=el||tbBtn(MORE_TABS[id]?'lainnya':id);
+  if(hb)hb.classList.add('active');
   if(!RENDERED_TABS[id]){
     RENDERED_TABS[id]=true;
     if(id==='home')renderHome();
@@ -4002,6 +4070,7 @@ function goTab(id,el){
     else if(id==='analisa')renderAnalisa();
     else if(id==='qc')renderQC();
     else if(id==='admin')renderAdmin();
+    else if(id==='lainnya')renderLainnya();
   }
   updateCartBar();
 }
@@ -4271,14 +4340,13 @@ function showItemBatches(itemId){
       var isNear=b.expiry_date&&!isExp&&new Date(b.expiry_date)<d30;
       var bg=isExp?'#FEE2E2':isNear?'#FEF3C7':b.qc_status==='Fail'?'#FECACA':b.qc_status==='Hold'?'#FEF08A':'#F8FAFC';
       var ec=isExp?'#DC2626':isNear?'#D97706':'var(--ink2)';
-      var qcIcon={Pass:'✓',Fail:'✗',Hold:'⏸',Pending:'⏳'}[b.qc_status]||'?';
-      var qcColor={Pass:'#059669',Fail:'#DC2626',Hold:'#D97706',Pending:'var(--ink2)'}[b.qc_status]||'var(--ink2)';
+      var qcKind={Pass:'ok',Fail:'bad',Hold:'hold',Pending:'wait'}[b.qc_status]||'off';
       return '<div style="border:1px solid var(--border);border-radius:10px;padding:.7rem;margin-bottom:.5rem;background:'+bg+'">'+
         '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
           '<div style="flex:1;min-width:0">'+
             '<div style="display:flex;gap:.3rem;align-items:center;margin-bottom:.25rem">'+
               (b.lot_no?'<span style="font-weight:700;font-size:.88rem">📋 '+esc(b.lot_no)+'</span>':'')+
-              '<span style="background:'+qcColor+';color:#fff;padding:.15rem .35rem;border-radius:5px;font-weight:700;font-size:.7rem">'+qcIcon+' '+b.qc_status+'</span>'+
+              stBadge(qcKind,esc(b.qc_status||'?'))+
             '</div>'+
             (b.code_produksi||b.po_no||b.do_no?'<div style="font-size:.75rem;color:var(--ink2);margin-bottom:.15rem">'+
               (b.code_produksi?'Code: '+esc(b.code_produksi)+' · ':'')+
@@ -4456,7 +4524,7 @@ function selectWarehouse(wid){
   CURRENT_WAREHOUSE=wid;
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   document.getElementById('tabs').style.display='flex';
-  document.getElementById('tl-h').textContent=t('home');document.getElementById('tl-a').textContent=t('take');document.getElementById('tl-m').textContent=t('receive');document.getElementById('tl-r').textContent=t('req');document.getElementById('tl-hi').textContent=t('hist');document.getElementById('tl-adm').textContent=t('adm');
+  (function(){var L={'tl-h':t('home'),'tl-a':t('take'),'tl-m':t('receive'),'tl-r':t('req'),'tl-more':Z('Lainnya')};Object.keys(L).forEach(function(k){var e=document.getElementById(k);if(e)e.textContent=L[k];});})();
   // INSTANT: tampilkan data cache langsung (0 detik), lalu refresh di background
   var shown=tryRenderFromCache(wid);
   if(!shown){
@@ -4533,6 +4601,17 @@ function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// 全站統一狀態徽章：圖示+顏色+文字三件組（色弱/強光下仍可辨識）
+function stBadge(kind,label){
+  var m={
+    wait:  {i:'⏳',bg:'#FEF0DC',fg:'#8C4A06'},   // 等待中
+    ok:    {i:'✓', bg:'#E3F5EE',fg:'#0B6647'},   // 完成/通過
+    off:   {i:'✕', bg:'#F1F2F4',fg:'#787F8E'},   // 拒絕/作廢（灰，不用紅）
+    bad:   {i:'✗', bg:'#FDE8E8',fg:'#C22323'},   // 錯誤/Fail（紅只留給真正的危險）
+    hold:  {i:'⏸',bg:'#FEF08A',fg:'#854D0E'}    // QC Hold
+  }[kind]||{i:'',bg:'#F1F2F4',fg:'#787F8E'};
+  return '<span style="display:inline-flex;align-items:center;gap:.25rem;border-radius:999px;padding:.18rem .6rem;font-size:.78rem;font-weight:800;background:'+m.bg+';color:'+m.fg+'">'+m.i+' '+label+'</span>';
+}
 // Ubah error mentah (JWT expired / Failed to fetch / duplicate key…) jadi pesan
 // ramah bahasa Indonesia untuk pekerja. Error asli tetap ke console buat debug.
 function friendlyErr(e){
