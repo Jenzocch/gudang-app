@@ -3947,7 +3947,9 @@ async function delPerson(id){
 function logoutAdmin(){
   // Admin gudang (staff) keluar penuh ke layar login; super admin kembali ke layar PIN
   if(!IS_SUPER){staffLogout();return;}
-  clearSessions();IS_ADMIN=false;IS_SUPER=false;renderAdmin();
+  clearSessions();IS_ADMIN=false;IS_SUPER=false;CURRENT_USER=null;
+  var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
+  renderAll(); // 重新計算底部分頁可見性，避免登出後 session 半殘仍可操作
 }
 
 // ACTIONS
