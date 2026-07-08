@@ -1079,7 +1079,25 @@ function saveWhCache(wid){
     }catch(e){/* kuota penuh - lewati */}
   },400);
 }
-function tryRenderFromCache(wid){
+// 重繪不彈走：記住主捲動容器的位置與各分頁搜尋框的字，renderAll 拆掉重建後原地還原。
+// 只涵蓋「分頁層級」的搜尋框；modal 內的輸入不在此列（modal 被重繪就是要重開）。
+var KEEP_INPUT_IDS=['ai-search-inp','asrch','msrch','req-search','low-search','stock-search'];
+function snapshotView(){
+  var c=document.querySelector('.content');
+  var s={scroll:c?c.scrollTop:0,inputs:{}};
+  KEEP_INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&el.value)s.inputs[id]=el.value;});
+  return s;
+}
+function restoreView(s){
+  if(!s)return;
+  Object.keys(s.inputs).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.value=s.inputs[id];try{el.dispatchEvent(new Event('input'));}catch(e){}}
+  });
+  var c=document.querySelector('.content');
+  if(c)c.scrollTop=s.scroll;
+}
+function tryRenderFromCache(wid,jump){
   try{
     var raw=localStorage.getItem('wh_cache_'+(wid||'ALL'));
     if(!raw)return false;
@@ -1090,10 +1108,17 @@ function tryRenderFromCache(wid){
     DATA.transactions=[];TX_LOADED=false;
     if((!DATA.people||!DATA.people.length)){try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}}
     buildIndexes();DATA_READY=true;
+    // 快取即是目前顯示的資料：標記已載入，避免 renderAmbil/renderMasuk 看到倉庫不符
+    // 又各自再發一次 loadAll（切倉曾因此同時跑兩條網路載入 → 卡頓主因）
+    LAST_LOADED_WAREHOUSE=wid;
     setDot('');
     renderAll();
-    if(IS_ADMIN)goTab('admin',tbBtn('admin'));
-    else goDefaultStaffTab();
+    // jump 只在「首次進入倉庫」(selectWarehouse) 時為真；切倉不再強制跳分頁，
+    // 使用者在哪就留在哪（renderAll 已處理新倉庫沒有該分頁時退回首頁）
+    if(jump){
+      if(IS_ADMIN)goTab('admin',tbBtn('admin'));
+      else goDefaultStaffTab();
+    }
     return true;
   }catch(e){return false;}
 }
@@ -1191,8 +1216,13 @@ async function loadAll(afterCb,fromCache){
     try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
     saveWhCache(CURRENT_WAREHOUSE);
     setDot('ok');
+    // 同倉庫的資料重載（存檔/核准/交易後）不可以把使用者「彈走」：
+    // 重繪前記住捲動位置與搜尋字，重繪後原地還原。換倉庫是新情境，不還原。
+    var sameWh=(LAST_LOADED_WAREHOUSE===CURRENT_WAREHOUSE);
     LAST_LOADED_WAREHOUSE=CURRENT_WAREHOUSE;
+    var snap=sameWh?snapshotView():null;
     renderAll(); // renderAll 內部已呼叫 renderHome，不要重複渲染（避免雙倍 DOM 建構導致卡頓）
+    restoreView(snap);
     if(afterCb)setTimeout(afterCb,0);
     setTimeout(checkLowStock,800);
     // 背景預熱本倉的生產資料，讓第一次點 Produksi / QC 不用等網路（ensure 內部有 *_LOADED 節流，重複呼叫安全）
@@ -3839,9 +3869,9 @@ function switchWarehouse(wid){
   if(!shown){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
-  // 員工回預設分頁（Ambil→Masuk→Home 依權限）、admin 回 Admin 分頁（tryRenderFromCache 內已同樣分流）
-  var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:goDefaultStaffTab;
-  loadAll(cb,shown);
+  // 切倉不強制跳分頁：使用者在哪就留在哪（新倉庫沒有該分頁時 renderAll 會退回首頁）。
+  // 之前這裡會把 admin 押去 Admin 頁、員工押去 Ambil，且背景刷新完 1-3 秒後「再跳一次」——工作到一半被彈走的主因。
+  loadAll(null,shown);
 }
 // 頂部中央倉庫指示：顯示目前倉庫；有 2 個以上權限時可點開下拉切換
 function updateWhChips(){
@@ -4526,12 +4556,13 @@ function selectWarehouse(wid){
   document.getElementById('tabs').style.display='flex';
   (function(){var L={'tl-h':t('home'),'tl-a':t('take'),'tl-m':t('receive'),'tl-r':t('req'),'tl-more':Z('Lainnya')};Object.keys(L).forEach(function(k){var e=document.getElementById(k);if(e)e.textContent=L[k];});})();
   // INSTANT: tampilkan data cache langsung (0 detik), lalu refresh di background
-  var shown=tryRenderFromCache(wid);
+  // 首次進倉才跳預設分頁（jump=true）；快取已跳過的話，背景刷新完不再跳第二次
+  var shown=tryRenderFromCache(wid,true);
   if(!shown){
     document.getElementById('mc').innerHTML='<div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat '+(WH_EMOJI[wid]||'')+(wid||'')+'...</p></div>';
   }
   initSupabase(function(){
-    var cb=IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:goDefaultStaffTab;
+    var cb=shown?null:(IS_ADMIN?function(){goTab('admin',tbBtn('admin'));}:goDefaultStaffTab);
     loadAll(cb,shown);
   },function(e){
     if(shown){toast('⚠ '+('Offline - data tersimpan'));return;}
