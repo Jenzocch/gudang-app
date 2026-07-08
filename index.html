@@ -2251,7 +2251,7 @@ async function doMasukCart(){
   if(!sel){ // 一般員工：固定用登入者，不經下拉
     pname=CURRENT_USER?CURRENT_USER.name:'';pid=(CURRENT_USER&&CURRENT_USER.id)||null;
   }else{
-    pname=(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'').trim();
+    pname=(sel.value===''?'':(sel.value==='__new__'?(document.getElementById('msk-pn').value||'').trim():sel.selectedOptions[0]?.text||'')).trim();
     var person=DATA.people.find(function(p){return p.id==sel.value;});
     pid=person?person.id:null;
   }
