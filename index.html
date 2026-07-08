@@ -4068,6 +4068,7 @@ async function confirmApproveReqBuy(id){
 // LOW STOCK — 依 ALERT_CFG 決定要不要彈窗（off=不彈 / daily=每天一次 / always=每次）
 function checkLowStock(){
   if(ALERT_CFG.mode==='off')return;
+  if(document.getElementById('m-ov'))return; // 有 modal 開著時不要疊上去打斷使用者，下次 loadAll 再檢查
   // 暫停日期：該日期(不含)之前都安靜，到期自動恢復，不用再回來改設定
   if(ALERT_CFG.snooze&&today()<ALERT_CFG.snooze)return;
   var pool=DATA.items.filter(function(i){
