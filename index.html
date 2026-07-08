@@ -3875,8 +3875,18 @@ async function doReq(){
 }
 async function updReq(id,status){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa setujui/tolak'));return;}
-  try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');await loadAll();}
+  try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');notifyFammsIfNeeded(id);await loadAll();}
   catch(e){toast('⚠ '+friendlyErr(e));}
+}
+// 線③：叫料單狀態變動時，若這筆是 FAMMS 送來的，回呼 FAMMS 更新它的追蹤清單
+// best-effort：失敗不影響 Gudang 這邊的狀態，也不擋 UI
+function notifyFammsIfNeeded(id){
+  try{
+    var r=DATA.requests.find(function(x){return x.id==id;});
+    if(!r||r.source!=='famms'||!r.famms_request_id)return;
+    if(typeof sb==='undefined'||!sb||!sb.functions)return;
+    sb.functions.invoke('notify-famms-status',{body:{request_id:id}}).catch(function(){});
+  }catch(e){}
 }
 // 已購買 → 開窗選擇對應商品與數量，記為進貨(Masuk)並加庫存
 function approveReqBuy(id){
@@ -3924,6 +3934,7 @@ async function confirmApproveReqBuy(id){
     await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_name:r.person_name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
     // 3) 請求標記為已批准
     await sb.from('requests').update({status:'approved'}).eq('id',id);
+    notifyFammsIfNeeded(id);
     toast('✓ '+item.name+' +'+q+' '+('masuk stok'));
     closeModal();
     await loadAll();

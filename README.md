@@ -47,6 +47,7 @@ Gudang One 是為四個倉庫（gudang）打造的一站式管理系統，涵蓋
 | `famms-request` | 接收 FAMMS 維修系統叫料的 webhook：驗共享密鑰 → 寫入 requests（出現在 Permintaan 分頁）→ 推 Telegram |
 | `qc-lookup` | FQMS 品管系統的批號查詢入口（唯讀）：查單一批號或某倉最近批次 |
 | `qc-status` | FQMS 品管系統的 QC 狀態回寫：更新 `item_batches.qc_status`，Hold/Fail 推 Telegram 警告並寫 audit_log |
+| `notify-famms-status` | 叫料單狀態變動時回呼 FAMMS（僅限來源為 FAMMS 的請求），讓 incident 頁看得到到貨/拒絕結果 |
 
 ## 資料夾結構
 
