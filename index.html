@@ -1055,14 +1055,15 @@ function setDot(s){var d=document.getElementById('cdot');d.className='conn-dot'+
 
 // Transaksi dimuat saat dibutuhkan (tab Riwayat / export CSV), bukan di pemuatan awal
 var TX_LOADED=false;
+var TX_LOAD_FAILED=false;
 async function loadTransactions(cb){
   try{
     var q=CURRENT_WAREHOUSE?sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('transactions').select('*');
     var res=await q.order('created_at',{ascending:false}).limit(200);
     if(res.error)throw res.error;
-    DATA.transactions=res.data||[];TX_LOADED=true;
+    DATA.transactions=res.data||[];TX_LOADED=true;TX_LOAD_FAILED=false;
     if(cb)cb();
-  }catch(e){TX_LOADED=true;if(cb)cb();}
+  }catch(e){TX_LOAD_FAILED=true;if(cb)cb();}
 }
 
 // === INSTANT CACHE: tampilkan data tersimpan langsung, refresh di background ===
@@ -2363,6 +2364,10 @@ function renderRiwayat(){
   if(!TX_LOADED){
     document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">'+('Memuat riwayat')+'...</p></div>';
     loadTransactions(renderRiwayat);
+    return;
+  }
+  if(TX_LOAD_FAILED){
+    document.getElementById('riwayat').innerHTML='<div class="st">📊 '+t('hist')+'</div><div style="padding:1.5rem;text-align:center"><div class="ab ab-d" style="margin-bottom:1rem">⚠ Gagal memuat riwayat</div><button class="btn btn-p" onclick="TX_LOADED=false;renderRiwayat()">🔄 Coba Lagi</button></div>';
     return;
   }
   var txRow=function(tx){
