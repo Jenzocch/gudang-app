@@ -4598,10 +4598,22 @@ var GS_WEBHOOKS={
   DENIKIN:'https://script.google.com/macros/s/AKfycbyQ23iqrQK7HUolhHgT8VMDHK2gpu_BNSlWoUswVPDqMIDAoioR0z6v8r6YpLVZxO1n/exec',
   OLENTIA:'https://script.google.com/macros/s/AKfycbzOfBEUqH5kEL-01TkZnF85pAmxoEMMCEHmwzoDVcQ1DF2zRsY9MgzeVwH4TZiX7jAp8w/exec'
 };
-function exportToCSV(){
+async function exportToCSV(){
   // Pastikan transaksi sudah dimuat agar CSV lengkap
   if(!TX_LOADED){toast('⏳ '+('Memuat transaksi dulu')+'...');loadTransactions(exportToCSV);return;}
   if(!CURRENT_WAREHOUSE){toast('⚠ Pilih gudang dulu');return;}
+  toast('⏳ Mengambil semua transaksi...');
+  var allTx=[];
+  try{
+    var page=0;
+    while(page<=50){ // 安全上限 5萬筆，跟 arcFetchAll 同款寫法
+      var q=await sb.from('transactions').select('*').eq('warehouse_id',CURRENT_WAREHOUSE).order('created_at',{ascending:false}).range(page*1000,page*1000+999);
+      if(q.error)throw q.error;
+      allTx=allTx.concat(q.data||[]);
+      if(!q.data||q.data.length<1000)break;
+      page++;
+    }
+  }catch(e){toast('⚠ Gagal ambil transaksi: '+friendlyErr(e));return;}
   try{
     var now=new Date();
     var dateStr=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0')+'-'+now.getDate().toString().padStart(2,'0');
@@ -4611,7 +4623,7 @@ function exportToCSV(){
       i.name,i.qty,i.unit,i.critical_qty,i.supplier_name||'',i.warehouse_id||'',i.storage_condition||'',i.description||'',i.coa_url||''
     ];});
 
-    var txData=DATA.transactions.filter(function(t){return t.warehouse_id===CURRENT_WAREHOUSE;}).map(function(t){
+    var txData=allTx.map(function(t){
       var it=itemById(t.item_id);
       return[
         new Date(t.created_at).toLocaleDateString('id-ID'),
