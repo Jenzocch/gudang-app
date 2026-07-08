@@ -3411,20 +3411,32 @@ async function saveStocktake(){
   if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
   var keys=Object.keys(STOCKTAKE);if(!keys.length)return;
   var btn=document.getElementById('stk-save-btn');btn.disabled=true;btn.textContent='Menyimpan...';
-  try{
-    for(var ki=0;ki<keys.length;ki++){
-      var variantId=keys[ki];
-      var item=DATA.items.find(function(i){return i.variant_id==variantId;});
-      var nv=STOCKTAKE[variantId];var diff=nv-item.qty;
-      // Update item_variants (per-warehouse) instead of items
-      await sb.from('item_variants').update({qty:nv}).eq('id',variantId);
-      if(diff!==0)await sb.from('transactions').insert({type:diff>0?'masuk':'ambil',item_id:item.id,item_name:item.name,person_name:(CURRENT_USER?CURRENT_USER.name:'Admin')+('(Opname)'),qty:Math.abs(diff),warehouse_id:CURRENT_WAREHOUSE||null});
+  var okCount=0,failed=[];
+  for(var ki=0;ki<keys.length;ki++){
+    var variantId=keys[ki];
+    var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+    var nv=STOCKTAKE[variantId];var diff=nv-item.qty;
+    try{
+      var u1=await sb.from('item_variants').update({qty:nv}).eq('id',variantId);
+      if(u1.error)throw u1.error;
+      if(diff!==0){
+        var u2=await sb.from('transactions').insert({type:diff>0?'masuk':'ambil',item_id:item.id,item_name:item.name,person_name:(CURRENT_USER?CURRENT_USER.name:'Admin')+('(Opname)'),qty:Math.abs(diff),warehouse_id:CURRENT_WAREHOUSE||null});
+        if(u2.error)throw u2.error;
+      }
       item.qty=nv;
+      delete STOCKTAKE[variantId];
+      okCount++;
+    }catch(e){
+      failed.push(item?item.name:variantId);
     }
-    var n=keys.length;STOCKTAKE={};
-    toast('✓ '+('Selesai, '+n+' item diubah'));
-    renderStocktake(STK_CATG);
-  }catch(e){toast('⚠ '+friendlyErr(e));btn.disabled=false;}
+  }
+  btn.disabled=false;btn.textContent=t('save')||'Simpan';
+  if(failed.length){
+    toast('⚠ '+okCount+' tersimpan, '+failed.length+' GAGAL: '+failed.slice(0,3).join(', ')+(failed.length>3?'...':''));
+  }else{
+    toast('✓ '+('Selesai, '+okCount+' item diubah'));
+  }
+  renderStocktake(STK_CATG);
 }
 function exitStocktake(){
   STOCKTAKE={};
@@ -3767,7 +3779,8 @@ async function saveTxEdit(id){
   var oldVals={person_name:tx.person_name,item_name:tx.item_name,qty:tx.qty,type:tx.type};
   var newVals={person_name:newPn,item_name:newIn,qty:newQ,type:newT};
   try{
-    await sb.from('transactions').update({person_name:newPn,item_name:newIn,qty:newQ,type:newT}).eq('id',id);
+    var upd=await sb.from('transactions').update({person_name:newPn,item_name:newIn,qty:newQ,type:newT}).eq('id',id);
+    if(upd.error)throw upd.error;
     var editEntry={transaction_id:id,edited_by:CURRENT_USER?CURRENT_USER.name:'Admin',old_values:oldVals,new_values:newVals,edited_at:new Date().toISOString()};
     try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
     toast(t('saveOk'));closeModal();await loadAll();
@@ -3790,7 +3803,8 @@ function confirmDeleteTx(id,itemName){
 }
 async function deleteTx(id){
   try{
-    await sb.from('transactions').delete().eq('id',id);
+    var del=await sb.from('transactions').delete().eq('id',id);
+    if(del.error)throw del.error;
     toast('✓ Riwayat transaksi dihapus');
     closeModal();
     await loadAll();
@@ -4024,11 +4038,14 @@ async function confirmApproveReqBuy(id){
   if(!item)return;
   try{
     // 1) 加庫存
-    await sb.from('item_variants').update({qty:item.qty+q}).eq('id',item.variant_id);
+    var u1=await sb.from('item_variants').update({qty:item.qty+q}).eq('id',item.variant_id);
+    if(u1.error)throw u1.error;
     // 2) 記為進貨交易(Masuk)
-    await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_name:r.person_name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
+    var u2=await sb.from('transactions').insert({type:'masuk',item_id:item.id,item_name:item.name,person_name:r.person_name,qty:q,warehouse_id:CURRENT_WAREHOUSE||null});
+    if(u2.error)throw u2.error;
     // 3) 請求標記為已批准
-    await sb.from('requests').update({status:'approved'}).eq('id',id);
+    var u3=await sb.from('requests').update({status:'approved'}).eq('id',id);
+    if(u3.error)throw u3.error;
     notifyFammsIfNeeded(id);
     toast('✓ '+item.name+' +'+q+' '+('masuk stok'));
     closeModal();
