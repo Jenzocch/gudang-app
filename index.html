@@ -1146,15 +1146,22 @@ function syncMyPerms(){
 }
 // 輕量刷新：只重抓 people 表並就地更新員工清單。不動庫存/請求/設定，也不砍
 // 掉 #mc（admin 每次改權限/改名/PIN 後畫面不再亂跳、不再等一輪全站網路）。
-// 欄位缺失（migration 未跑）才退回完整 loadAll，沿用其容錯路徑。
+// 欄位缺失（migration 未跑）或任何其他例外（渲染出錯等）都退回完整 loadAll。
+// 絕不對呼叫端拋錯：否則「新增/改名已成功寫入 DB」會被呼叫端的 catch 誤判成
+// 失敗，顯示「Gagal」還害輸入框已清空、使用者以為要重試而重複新增。
 async function refreshPeople(){
-  var p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk,perms').order('name');
-  if(p.error){await loadAll();return;}
-  DATA.people=p.data||[];
-  try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
-  syncMyPerms();
-  var pe=document.getElementById('pe-list');
-  if(pe)pe.innerHTML=peListHTML();
+  try{
+    var p=await sb.from('people').select('id,name,is_admin,warehouses,can_view_pricing,can_ambil,can_masuk,perms').order('name');
+    if(p.error)throw p.error;
+    DATA.people=p.data||[];
+    try{localStorage.setItem('cached_people',JSON.stringify(DATA.people));}catch(e){}
+    syncMyPerms();
+    var pe=document.getElementById('pe-list');
+    if(pe)pe.innerHTML=peListHTML();
+  }catch(e){
+    console.warn('refreshPeople gagal, fallback ke loadAll:',e&&e.message);
+    await loadAll();
+  }
 }
 async function loadAll(afterCb,fromCache){
   setDot('');
@@ -2902,7 +2909,7 @@ function peListHTML(){
       return '<span style="display:inline-block;background:'+(WH_COLORS[w]||WH_FB_BG)+';color:'+(WH_TEXT[w]||WH_FB_TEXT)+';border-radius:6px;padding:.1rem .4rem;font-size:.7rem;font-weight:800;margin-right:.25rem">'+(WH_SHORT[w]||w)+'</span>';
     }).join(''):'<span style="font-size:.72rem;color:#D97706;font-weight:700">⚠ belum ada gudang</span>';
     return '<div style="background:#fff;padding:.55rem .7rem;border-radius:12px;border:1.5px solid var(--border);display:flex;align-items:center;gap:.6rem">'+
-      '<div class="av" style="flex-shrink:0;margin:0">'+esc(p.name.split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||p.name.substr(0,2).toUpperCase())+'</div>'+
+      '<div class="av" style="flex-shrink:0;margin:0">'+esc((p.name||'').split(' ').map(function(w){return w[0]||''}).join('').toUpperCase().substr(0,2)||(p.name||'').substr(0,2).toUpperCase())+'</div>'+
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:800;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+(p.is_admin?' <span title="Admin Gudang">👑</span>':'')+(p.can_view_pricing?' <span title="Boleh lihat harga">💰</span>':'')+'</div>'+
         '<div style="margin-top:.2rem">'+whChips+'</div>'+
