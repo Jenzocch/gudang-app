@@ -258,6 +258,22 @@ img.prev{max-width:100%;max-height:150px;border-radius:8px;margin:.5rem 0;border
 .login-wrap{display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.5rem;text-align:center}
 .login-person-btn{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:1.2rem 1rem;display:flex;justify-content:center;align-items:center;cursor:pointer;transition:.2s;text-align:center;font-family:inherit;width:100%;min-height:56px}
 .login-person-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.login-people-wrap{width:100%;max-width:320px;margin-bottom:1rem}
+#ls-people-select{width:100%;padding:.85rem 1rem;font-size:1.05rem;font-weight:700;border:1.5px solid var(--border);border-radius:12px;background:#fff;color:var(--dark)}
+#ls-people-list{display:none}
+.login-divider{width:100%;max-width:320px;border-top:1px solid var(--border);margin:1.4rem 0 .8rem}
+/* 手機是個人裝置、每人只登入一次，用下拉選單省空間；平板/桌面在倉庫現場共用給多人，
+   人數不多，改用格子排列一次看清楚，不用滑動長條清單找人 */
+@media (min-width:640px){
+  .login-people-wrap{max-width:720px}
+  #ls-people-select{display:none}
+  #ls-people-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem;max-height:min(60vh,520px);overflow-y:auto}
+  .login-divider{max-width:720px}
+}
+@media (min-width:1024px){
+  .login-people-wrap{max-width:960px}
+  .login-divider{max-width:960px}
+}
 .hdr-user-btn{background:rgba(255,255,255,.2);color:#fff;border:none;padding:.3rem .8rem;border-radius:12px;cursor:pointer;font-size:.9rem;font-weight:700;display:none}
 .catg-chip{padding:.45rem 1rem;border:1px solid var(--border-input);background:#fff;border-radius:20px;cursor:pointer;font-size:.86rem;font-weight:600;color:var(--ink2);white-space:nowrap;transition:.2s;box-shadow:var(--sh-sm)}
 .catg-chip.act{background:var(--p);color:#fff;border-color:var(--p);box-shadow:0 1px 3px rgba(79,70,229,.35)}
@@ -608,9 +624,10 @@ function renderLoginScreen(){
   document.getElementById('mc').innerHTML=
     '<div class="login-wrap">'+
     '<h1 style="font-size:1.1rem;color:var(--dark);margin-bottom:1.5rem">'+t('title')+'</h1>'+
-    '<div style="width:100%;max-width:320px;margin-bottom:1rem">'+
+    '<div class="login-people-wrap">'+
     '<label style="text-align:center;display:block;font-size:.9rem;color:var(--ink2);margin-bottom:.5rem;font-weight:600">'+t('selPerson')+'</label>'+
-    '<div id="ls-people-list" style="display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto"></div>'+
+    '<select id="ls-people-select" onchange="onLoginSelectChange(this.value)"></select>'+
+    '<div id="ls-people-list"></div>'+
     '</div>'+
     '<input id="ls-newname" type="text" placeholder="'+('Nama kamu')+'..." style="display:none;width:100%;max-width:260px;margin-bottom:1rem">'+
     '<div id="ls-pin-area" style="display:none;width:100%">'+
@@ -626,7 +643,7 @@ function renderLoginScreen(){
     // Admin Office：權限較少，幫忙設定員工權限＋填產品資料
     '<button class="btn btn-s" style="margin-top:1rem" onclick="officeLogin()">🏢 Admin Office</button>'+
     // Super Admin：最高權限，獨立放最下方（分隔線＋紅框，跟 office 分開）
-    '<div style="width:100%;max-width:320px;border-top:1px solid var(--border);margin:1.4rem 0 .8rem"></div>'+
+    '<div class="login-divider"></div>'+
     '<button onclick="adminLogin()" style="background:none;border:1.5px solid var(--danger);color:var(--danger);border-radius:10px;padding:.55rem 1.1rem;font-weight:700;font-size:.85rem;cursor:pointer">🔐 Super Admin</button>'+
     '</div>';
   try{var cp=JSON.parse(localStorage.getItem('cached_people')||'[]');if(cp.length)DATA.people=cp;}catch(e){}
@@ -661,6 +678,23 @@ function renderLoginPeopleList(){
   '</button>';
   var el=document.getElementById('ls-people-list');
   if(el)el.innerHTML=html;
+  // 手機版下拉選單：跟格子按鈕共用同一份人員資料，選人後直接進 PIN 畫面
+  var selHtml='<option value="">-- '+t('selPerson')+' --</option>'+
+    DATA.people.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('')+
+    '<option value="__new__">✏️ '+('Pengguna Baru')+'</option>';
+  var sel=document.getElementById('ls-people-select');
+  if(sel)sel.innerHTML=selHtml;
+}
+// 下拉選單版本的選人入口；value=''（佔位選項「-- 選人 --」）不算有效選擇要擋掉，
+// 不然會把佔位文字當成人名送進去（Masuk 頁下拉選單踩過同一種坑，這裡先預防）
+function onLoginSelectChange(pid){
+  if(!pid)return;
+  var name='';
+  if(pid!=='__new__'){
+    var p=DATA.people.find(function(x){return String(x.id)===String(pid);});
+    name=p?p.name:'';
+  }
+  selectLoginPerson(pid,name);
 }
 function selectLoginPerson(pid,name){
   LOGIN_SEL=pid;
