@@ -3569,9 +3569,10 @@ window.addEventListener('popstate',function(){
 });
 
 function itemFormHTML(item){
-  var twh=item?item.warehouse_id:CURRENT_WAREHOUSE;
+  var twh=item?item.warehouse_id:(CURRENT_WAREHOUSE||ADD_WH);
   var banner=twh?'<div style="background:'+(WH_COLORS[twh]||WH_FB_BG)+';color:'+(WH_TEXT[twh]||WH_FB_TEXT)+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||WH_FB_TEXT)+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
-  return banner+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
+  // 編輯時提醒：名稱/照片/單位是全倉庫共用的主檔，改了會跟著全改；庫存/低標才是本倉獨立
+  return banner+(item?'<div style="font-size:.75rem;color:var(--muted);margin:-.3rem 0 .7rem;text-align:center">ℹ️ Nama, foto & satuan dipakai bersama semua gudang — stok & batas min hanya gudang ini</div>':'')+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
     '<div style="display:none" id="fn-dup-info"></div>'+
     '<div class="ig"><label>🏷️ Kode Barang</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
     '<div class="fr">'+
@@ -3602,16 +3603,35 @@ function itemFormHTML(item){
     '<div class="ig"><label>📅 Tanggal Kadaluarsa</label><input id="fed" type="date" value="'+(item&&item.expiry_date?item.expiry_date:'')+'"></div>'+
     '<div class="ig"><label>📝 Catatan</label><textarea id="frm" placeholder="Spesifikasi, bahan, grade..." style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;min-height:80px;font-family:inherit">'+(item&&item.remark?esc(item.remark):'')+'</textarea></div>'+
     '<label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:.9rem;background:#fff;margin:.7rem 0"><input type="checkbox" id="f-no-alert" '+(item&&item.remark&&item.remark.includes('#noalert')?'checked':'')+' style="width:18px;height:18px;cursor:pointer"> 🔕 Jangan Ingatkan (Lewati Peringatan Stok)</label>'+
-    (IS_ADMIN&&!CURRENT_WAREHOUSE?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':'')+(CURRENT_WAREHOUSE?'<input type="hidden" id="f-warehouse" value="'+CURRENT_WAREHOUSE+'">':'')+
+    ((CURRENT_WAREHOUSE||ADD_WH)?'<input type="hidden" id="f-warehouse" value="'+(CURRENT_WAREHOUSE||ADD_WH)+'">'
+      :(IS_ADMIN?'<div class="ig"><label>🏭 Gudang</label><select id="f-warehouse" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem"><option value="">-- Pilih Gudang --</option>'+WAREHOUSES.map(function(w){return'<option value="'+w+'"'+(item&&item.warehouse_id===w?' selected':'')+'>'+WH_EMOJI[w]+' '+w+'</option>';}).join('')+'</select></div>':''))+
     '<button class="btn btn-p btn-full" onclick="saveItem()">'+t('save')+'</button>';
 }
+// 新增品項流程的「目標倉庫」。有選定倉庫時=CURRENT_WAREHOUSE；
+// super admin 在「Semua Gudang」時由第 0 步選出來。倉庫優先，才不會加錯家。
+var ADD_WH='';
 function showAddItem(){
   EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];
-  // Tanpa gudang aktif (super admin "Semua Gudang") -> langsung form baru
-  if(!CURRENT_WAREHOUSE){showModal('➕ '+t('addItem'),itemFormHTML(null));return;}
-  // Step 1: cari barang yang sudah ada (di gudang lain) untuk ditambah ke gudang ini, atau buat baru
-  showModal('➕ '+t('addItem')+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE),
-    '<div style="background:'+(WH_COLORS[CURRENT_WAREHOUSE]||WH_FB_BG)+';color:'+(WH_TEXT[CURRENT_WAREHOUSE]||WH_FB_TEXT)+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.7rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[CURRENT_WAREHOUSE]||WH_FB_TEXT)+'22">🏭 Tambah ke '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div>'+
+  ADD_WH=CURRENT_WAREHOUSE||'';
+  if(!ADD_WH){
+    // Step 0（Semua Gudang）：先選要加到哪個倉庫，再走同一套搜尋/新增流程。
+    // 之前是直接開表單、倉庫下拉埋在最底下，常常漏選或選錯。
+    showModal('➕ '+t('addItem'),
+      '<div style="font-size:.92rem;color:var(--ink2);margin-bottom:.9rem;text-align:center;font-weight:600">Barang mau ditambah ke gudang mana?</div>'+
+      '<div style="display:flex;flex-direction:column;gap:.6rem">'+
+      WAREHOUSES.map(function(w){
+        return '<button class="btn btn-full" style="background:'+(WH_COLORS[w]||WH_FB_BG)+';color:'+(WH_TEXT[w]||WH_FB_TEXT)+';font-weight:800;font-size:1rem;min-height:52px;border:1.5px solid '+(WH_TEXT[w]||WH_FB_TEXT)+'33" onclick="addPickWh(\''+esc(w)+'\')">'+(WH_EMOJI[w]||'🏭')+' '+esc(w)+'</button>';
+      }).join('')+'</div>');
+    return;
+  }
+  showAddSearchStep();
+}
+function addPickWh(w){ADD_WH=w;showAddSearchStep();}
+// Step 1: cari barang yang sudah ada (di gudang lain) untuk ditambah ke gudang target, atau buat baru
+function showAddSearchStep(){
+  var wh=ADD_WH;
+  showModal('➕ '+t('addItem')+' — '+(WH_SHORT[wh]||wh),
+    '<div style="background:'+(WH_COLORS[wh]||WH_FB_BG)+';color:'+(WH_TEXT[wh]||WH_FB_TEXT)+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.7rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[wh]||WH_FB_TEXT)+'22">🏭 Tambah ke '+(WH_SHORT[wh]||wh)+'</div>'+
     '<div style="font-size:.82rem;color:var(--ink2);margin-bottom:.6rem">Cari barang yang sudah ada di gudang lain, atau buat barang baru.</div>'+
     '<div class="ig"><input id="add-search" type="text" placeholder="🔍 Ketik nama barang..." oninput="searchExistingItems()" autocomplete="off"></div>'+
     '<div id="add-search-results" style="max-height:240px;overflow-y:auto;margin:.4rem 0"></div>'+
@@ -3625,8 +3645,10 @@ function searchExistingItems(){
   var box=document.getElementById('add-search-results');
   if(!box)return;
   if(q.length<2){box.innerHTML='<div style="text-align:center;color:var(--muted);font-size:.78rem;padding:.6rem">🔍 Ketik nama barang (min 2 huruf)</div>';return;}
-  // ID barang yang sudah ada di gudang ini (jangan tampilkan lagi)
-  var here={};DATA.items.forEach(function(i){here[i.id]=true;});
+  // ID barang yang sudah ada di gudang target (jangan tampilkan lagi)。
+  // Semua Gudang 模式下 DATA.items 是所有倉的變體，要按目標倉過濾
+  var twh=ADD_WH||CURRENT_WAREHOUSE;
+  var here={};DATA.items.forEach(function(i){if(i.warehouse_id===twh)here[i.id]=true;});
   clearTimeout(ADD_SEARCH_TIMER);
   ADD_SEARCH_TIMER=setTimeout(async function(){
     try{
@@ -3655,11 +3677,12 @@ function searchExistingItems(){
   },300);
 }
 async function addExistingToWarehouse(itemId){
-  if(!CURRENT_WAREHOUSE){toast('⚠ Pilih gudang dulu');return;}
+  var wh=ADD_WH||CURRENT_WAREHOUSE;
+  if(!wh){toast('⚠ Pilih gudang dulu');return;}
   try{
-    var {error}=await sb.from('item_variants').insert({item_id:itemId,warehouse_id:CURRENT_WAREHOUSE,qty:0,critical_qty:10});
+    var {error}=await sb.from('item_variants').insert({item_id:itemId,warehouse_id:wh,qty:0,critical_qty:10});
     if(error)throw error;
-    toast('✓ '+('Barang ditambah ke ')+CURRENT_WAREHOUSE);
+    toast('✓ '+('Barang ditambah ke ')+wh);
     closeModal();await loadAll();
   }catch(e){
     if(/duplicate|unique/i.test(e.message||''))toast('⚠ '+('Barang sudah ada di gudang ini'));
@@ -3709,41 +3732,137 @@ async function sbUpdateSafe(table,row,idCol,idVal){
   }
   return r;
 }
+// LIKE/ILIKE 萬用字元跳脫，使用者名稱裡的 % _ 不可以變成萬用字元
+function likeEsc(s){return String(s).replace(/[\\%_]/g,'\\$&');}
+var DUP_CHK_TIMER=null;
 function checkDuplicateItem(){
   var inp=document.getElementById('fn');
   var dupEl=document.getElementById('fn-dup');
   if(!inp||!dupEl)return;
   var name=(inp.value||'').trim().toLowerCase();
+  clearTimeout(DUP_CHK_TIMER);
   if(!name){dupEl.style.display='none';return;}
-  var existing=DATA.items.find(function(i){return i.name.toLowerCase()===name&&i.id!==EDIT_ITEM?.id;});
+  var existing=DATA.items.find(function(i){return (i.name||'').toLowerCase()===name&&i.id!==(EDIT_ITEM&&EDIT_ITEM.id);});
   if(existing){
     dupEl.style.display='block';
     dupEl.innerHTML='⚠️ Sudah ada: <strong>'+esc(existing.name)+'</strong>（'+esc(existing.warehouse_id)+'）';
-  }else{
-    dupEl.style.display='none';
+    return;
+  }
+  dupEl.style.display='none';
+  if(EDIT_ITEM)return;
+  // 本地（已載入倉庫）沒撞名，再查全庫主檔：其他倉庫已有同名時邊打字就先告知，
+  // 存檔時系統會引導「沿用同一個品項」，不會另建一個重複名稱
+  DUP_CHK_TIMER=setTimeout(async function(){
+    try{
+      var g=await sb.from('items').select('id,name').ilike('name',likeEsc(name)).limit(1);
+      var cur=(inp.value||'').trim().toLowerCase();
+      if(cur!==name)return; // 使用者已繼續打字，這筆結果過期
+      if(!g.error&&g.data&&g.data.length){
+        dupEl.style.display='block';
+        dupEl.innerHTML='💡 <strong>'+esc(g.data[0].name)+'</strong> sudah ada di gudang lain — saat simpan bisa langsung dipakai barang yang sama (tidak bikin nama dobel)';
+      }
+    }catch(e){}
+  },400);
+}
+// 撞名對話框會「換掉」表單彈窗（showModal 先 closeModal），表單欄位屆時已不存在，
+// 所以開對話框前先把整份輸入抄下來，按鈕再用這份暫存去存。
+// （舊版「Tetap buat baru」按鈕就是因為回頭讀已消失的表單而整顆壞掉）
+var PENDING_ITEM=null;
+function collectItemForm(name){
+  var rm=(document.getElementById('frm').value||'').trim();
+  var noAlert=document.getElementById('f-no-alert').checked;
+  if(noAlert&&!rm.includes('#noalert')){rm=(rm+' #noalert').trim();}
+  if(!noAlert){rm=rm.replace(/#noalert/g,'').trim();}
+  return{
+    name:name,
+    code:(document.getElementById('fc')?document.getElementById('fc').value:'').trim(),
+    spec:(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim(),
+    qty:parseInt(document.getElementById('fq').value)||0,
+    unit:(document.getElementById('fu').value||'pcs').trim(),
+    min:parseInt(document.getElementById('fm').value)||10,
+    pd:(document.getElementById('fpd').value||'').trim(),
+    ed:(document.getElementById('fed').value||'').trim(),
+    rm:rm,
+    img:F_PHOTO||null,
+    sp:F_STORAGE_PHOTO||null
+  };
+}
+// 沿用同名主檔：不建新 items，只幫目標倉庫開一筆庫存（名稱/照片全倉一致，庫存獨立）
+async function savePendingVariant(){
+  if(!PENDING_ITEM)return;var p=PENDING_ITEM;PENDING_ITEM=null;
+  try{
+    var vins=await sbInsertSafe('item_variants',{item_id:p.masterId,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
+    if(vins.error)throw vins.error;
+    toast('✓ Pakai barang sama — stok dibuka di '+p.warehouse);
+    closeModal();await loadAll();
+  }catch(e){
+    if(/duplicate|unique/i.test((e&&e.message)||''))toast('⚠ Barang sudah ada di gudang ini');
+    else toast('⚠ '+friendlyErr(e));
   }
 }
-async function saveItem(forceNew){
+// 使用者堅持另建：用暫存的輸入建全新主檔＋庫存（極少數同名不同物的情況）
+async function savePendingNew(){
+  if(!PENDING_ITEM)return;var p=PENDING_ITEM;PENDING_ITEM=null;
+  try{
+    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null});
+    if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
+    var vins=await sbInsertSafe('item_variants',{item_id:ins.data[0].id,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
+    if(vins.error)throw vins.error;
+    toast(t('saveOk'));closeModal();await loadAll();
+  }catch(e){toast('⚠ '+friendlyErr(e));}
+}
+async function saveItem(){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa tambah/edit barang'));return;}
   var name=(document.getElementById('fn').value||'').trim();
   if(!name){toast('⚠ '+t('iName'));return;}
-  // 新增時檢查重複（編輯時跳過）
-  if(!EDIT_ITEM&&!forceNew){
-    var dup=DATA.items.find(function(i){return i.name.toLowerCase()===name.toLowerCase();});
-    if(dup){
-      // 跳出對話框讓使用者選擇
-      showModal('⚠️ Nama barang sudah ada',
+  // 新增時先確定目標倉庫（編輯不需要）——查重要知道「是不是撞在同一個倉庫」
+  var whEl0=document.getElementById('f-warehouse');
+  var targetWh=EDIT_ITEM?'':(CURRENT_WAREHOUSE||ADD_WH||(whEl0?whEl0.value:'')||'');
+  if(!EDIT_ITEM&&!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
+  // 新增時查重：先查已載入的資料，再查全庫 items 主檔（抓「其他倉庫已有同名」的情況，
+  // 以前只查本倉，跨倉同名會靜靜建出第二個重複主檔）。名稱相同＝同一個品項：
+  //  · 同倉已有 → 只能編輯，不給建重複
+  //  · 別倉已有 → 引導沿用同一主檔、只幫本倉開庫存（名稱不會多一份，庫存照樣獨立）
+  if(!EDIT_ITEM){
+    var lower=name.toLowerCase();
+    var master=DATA.items.find(function(i){return (i.name||'').toLowerCase()===lower;});
+    var masterId=master?master.id:null;
+    if(!masterId){
+      try{
+        var g=await sb.from('items').select('id,name').ilike('name',likeEsc(name)).limit(1);
+        if(!g.error&&g.data&&g.data[0])masterId=g.data[0].id;
+      }catch(e){}
+    }
+    if(masterId){
+      var inTarget=DATA.items.find(function(i){return i.id===masterId&&i.warehouse_id===targetWh;});
+      if(inTarget){
+        showModal('⚠️ Nama barang sudah ada',
+          '<div style="background:#FEF3C7;border-left:4px solid #D97706;padding:1rem;border-radius:8px;margin-bottom:1rem">'+
+            '<div style="font-weight:700;margin-bottom:.3rem">📦 '+esc(inTarget.name)+'</div>'+
+            '<div style="font-size:.85rem;color:#92400E">Gudang: '+esc(targetWh)+'　|　Stok: '+inTarget.qty+' '+esc(inTarget.unit)+'</div>'+
+          '</div>'+
+          '<div style="font-size:.9rem;color:var(--ink2);margin-bottom:1rem">Barang ini sudah terdaftar di gudang ini — tidak bisa dibuat dobel.</div>'+
+          '<div style="display:flex;flex-direction:column;gap:.5rem">'+
+            '<button class="btn btn-p btn-full" onclick="closeModal();showEdit(\''+esc(inTarget.variant_id)+'\')">✏️ Edit barang yang ada</button>'+
+            '<button class="btn btn-s btn-full" onclick="closeModal()">Batal</button>'+
+          '</div>');
+        return;
+      }
+      // 撞名在別的倉庫：抄下表單再開對話框（對話框會換掉表單彈窗）
+      PENDING_ITEM=collectItemForm(name);
+      PENDING_ITEM.warehouse=targetWh;PENDING_ITEM.masterId=masterId;
+      var whs=DATA.items.filter(function(i){return i.id===masterId;}).map(function(i){return WH_SHORT[i.warehouse_id]||i.warehouse_id;});
+      showModal('📦 Barang sudah ada',
         '<div style="background:#FEF3C7;border-left:4px solid #D97706;padding:1rem;border-radius:8px;margin-bottom:1rem">'+
-          '<div style="font-weight:700;margin-bottom:.3rem">📦 '+esc(dup.name)+'</div>'+
-          '<div style="font-size:.85rem;color:#92400E">Gudang: '+esc(dup.warehouse_id)+'　|　Stok: '+dup.qty+' '+esc(dup.unit)+'</div>'+
+          '<div style="font-weight:700;margin-bottom:.3rem">📦 '+esc(name)+'</div>'+
+          '<div style="font-size:.85rem;color:#92400E">Sudah terdaftar di: '+(whs.length?esc(whs.join(', ')):'gudang lain')+'</div>'+
         '</div>'+
-        '<div style="font-size:.9rem;color:var(--ink2);margin-bottom:1rem">Mau bagaimana?</div>'+
+        '<div style="font-size:.88rem;color:var(--ink2);margin-bottom:1rem;line-height:1.55">Nama sama = barang yang sama. Pakai barang yang sudah ada — nama & foto tetap satu, stok '+esc(WH_SHORT[targetWh]||targetWh)+' tetap terpisah sendiri.</div>'+
         '<div style="display:flex;flex-direction:column;gap:.5rem">'+
-          '<button class="btn btn-p btn-full" onclick="closeModal();showEdit(\''+esc(dup.variant_id)+'\')">✏️ Edit barang yang ada</button>'+
-          '<button class="btn btn-warn btn-full" onclick="saveItem(true)">➕ Tetap buat baru (beda gudang)</button>'+
-          '<button class="btn btn-s btn-full" onclick="closeModal()">Batal</button>'+
-        '</div>'
-      );
+          '<button class="btn btn-p btn-full" onclick="savePendingVariant()">➕ Pakai barang sama — buka stok di '+esc(WH_SHORT[targetWh]||targetWh)+'</button>'+
+          '<button class="btn btn-s btn-full" onclick="savePendingNew()">Tetap buat entri baru terpisah (tidak disarankan)</button>'+
+          '<button class="btn btn-s btn-full" onclick="PENDING_ITEM=null;closeModal()">Batal</button>'+
+        '</div>');
       return;
     }
   }
@@ -3769,10 +3888,7 @@ async function saveItem(forceNew){
       var u2=await sbUpdateSafe('item_variants',{qty:qty,critical_qty:min,storage_photo_url:sp},'id',EDIT_ITEM.variant_id);
       if(u2.error)throw u2.error;
     }else{
-      // 新增：先選倉庫（super admin 在「全部倉庫」可選），再建 items + item_variants
-      var whEl=document.getElementById('f-warehouse');
-      var targetWh=CURRENT_WAREHOUSE||(whEl?whEl.value:'')||'';
-      if(!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
+      // 新增：targetWh 已在函式開頭解析（倉庫優先流程），這裡直接用
       var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
