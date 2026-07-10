@@ -864,7 +864,7 @@ var IS_ADMIN=false; // bisa kelola barang (tambah/edit/hapus) — admin gudang &
 var IS_SUPER=false; // super admin (PIN master): 全部權限
 var IS_OFFICE=false; // admin office：可管人員權限＋填產品，但看不到出貨/分析，不能設別人為 admin
 var OFFICE_VIEW_DELIVERY=false; // super 臨時開放 office 看出貨數據的旗標（存 app_config）
-var ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:''}; // 低庫存彈窗設定（後台可改）mode: daily=隔 days 天一次 / always=每次 / off=關閉; scope: zero=只有歸零 / low=低於最低; days=間隔天數; snooze=此日期前不提醒
+var ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:'',vol:'mati'}; // 低庫存彈窗設定（後台可改）mode: daily=隔 days 天一次 / always=每次 / off=關閉; scope: zero=只有歸零 / low=低於最低; days=間隔天數; snooze=此日期前不提醒; vol=提示音量（預設靜音：畫面已有警示彈窗，聲音是可選加強）
 var PIN_ENT='';
 var EDIT_ITEM=null;
 var LOW_ITEM=null;
@@ -1235,8 +1235,8 @@ async function loadAll(afterCb,fromCache){
     OFFICE_VIEW_DELIVERY=!!(ovdRow&&ovdRow.value==='1');
     // 低庫存彈窗設定：JSON 存在 app_config.alert_config，解析失敗時用預設值
     var acRow=cfgRows.find(function(r2){return r2.key==='alert_config';});
-    ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:''};
-    if(acRow&&acRow.value){try{var ac=JSON.parse(acRow.value);if(ac&&typeof ac==='object'){if(ac.mode)ALERT_CFG.mode=ac.mode;if(ac.scope)ALERT_CFG.scope=ac.scope;if(ac.days)ALERT_CFG.days=Math.min(30,Math.max(1,parseInt(ac.days,10)||1));if(ac.snooze)ALERT_CFG.snooze=ac.snooze;}}catch(e2){}}
+    ALERT_CFG={mode:'daily',scope:'zero',days:1,snooze:'',vol:'mati'};
+    if(acRow&&acRow.value){try{var ac=JSON.parse(acRow.value);if(ac&&typeof ac==='object'){if(ac.mode)ALERT_CFG.mode=ac.mode;if(ac.scope)ALERT_CFG.scope=ac.scope;if(ac.days)ALERT_CFG.days=Math.min(30,Math.max(1,parseInt(ac.days,10)||1));if(ac.snooze)ALERT_CFG.snooze=ac.snooze;if(ac.vol)ALERT_CFG.vol=ac.vol;}}catch(e2){}}
     // categories 表若尚未建立(migration 前)，cg.error 會有值，容錯成空陣列
     DATA.categories=(cg&&!cg.error&&cg.data)?cg.data.map(function(c){return c.name;}):[];
     if(iv.error)throw iv.error;
@@ -1558,13 +1558,17 @@ function renderHome(){
 
   // Stock warning notification
   var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0&&!(i.remark&&i.remark.includes('#noalert'));});
+  var newLow=false;
   lowItems.forEach(function(i){
     if(!NOTIFIED_LOW_ITEMS[i.id]){
       NOTIFIED_LOW_ITEMS[i.id]=true;
-      playNotificationSound();
+      newLow=true;
       showBrowserNotification('⚠ Stok Rendah',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
     }
   });
+  // 一批只響一聲。以前在迴圈裡每個品項各放一個振盪器、同一瞬間疊加
+  // （8 個低庫存＝8 倍音量），這就是「警告音太大聲」的元凶
+  if(newLow)playNotificationSound();
   checkAndNotifyLow(DATA.items);
 }
 function toggleLowSection(){
@@ -1624,8 +1628,14 @@ function filterRequests(){
 var _audioCtx=null;
 var _userInteracted=false;
 document.addEventListener('click',function(){_userInteracted=true;if(_audioCtx&&_audioCtx.state==='suspended')_audioCtx.resume();},{once:false,passive:true});
-function playNotificationSound(){
+// 提示音量對照：後台「🔔 Peringatan Stok Rendah」卡片可調，存 app_config 全裝置生效。
+// 預設 mati：畫面本來就會跳警示彈窗，聲音只是可選的加強
+var ALERT_VOL={keras:0.3,sedang:0.12,pelan:0.04,mati:0};
+function playNotificationSound(volKey){
   if(!_userInteracted)return;
+  var v=ALERT_VOL[volKey||((ALERT_CFG&&ALERT_CFG.vol)||'mati')];
+  if(v==null)v=0;
+  if(v<=0)return; // 靜音
   try{
     if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();
     if(_audioCtx.state==='suspended'){_audioCtx.resume();}
@@ -1635,12 +1645,14 @@ function playNotificationSound(){
     gainNode.connect(_audioCtx.destination);
     oscillator.frequency.value=800;
     oscillator.type='sine';
-    gainNode.gain.setValueAtTime(0.3,_audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01,_audioCtx.currentTime+0.5);
+    gainNode.gain.setValueAtTime(v,_audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.005,_audioCtx.currentTime+0.5);
     oscillator.start(_audioCtx.currentTime);
     oscillator.stop(_audioCtx.currentTime+0.5);
   }catch(e){}
 }
+// 設定卡「試聽」：用選到的音量放一聲看大小合不合適
+function tesAlertSound(v){_userInteracted=true;playNotificationSound(v);}
 
 function showBrowserNotification(title,message){
   if(!('Notification' in window))return;
@@ -3075,6 +3087,12 @@ function alertCfgHTML(){
       opt('zero','Hanya stok habis (0)',ALERT_CFG.scope)+
       opt('low','Semua stok ≤ minimum',ALERT_CFG.scope)+
     '</select></div>'+
+    '<div class="ig"><label>🔊 Suara notifikasi</label><select id="acfg-vol" style="'+selStyle+'" onchange="tesAlertSound(this.value)">'+
+      opt('mati','🔇 Mati (hanya popup, tanpa bunyi)',ALERT_CFG.vol||'mati')+
+      opt('pelan','🔈 Pelan',ALERT_CFG.vol)+
+      opt('sedang','🔉 Sedang',ALERT_CFG.vol)+
+      opt('keras','🔊 Keras',ALERT_CFG.vol)+
+    '</select><div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Pilih untuk dengar contoh bunyinya. Jangan lupa Simpan.</div></div>'+
     '<div class="ig"><label>🔇 Tunda sampai tanggal (opsional)</label>'+
       '<input type="date" id="acfg-snooze" value="'+esc(ALERT_CFG.snooze||'')+'" style="'+selStyle+'">'+
       '<div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">Tidak ada popup sebelum tanggal ini, lalu aktif lagi otomatis. Kosongkan = tidak ditunda.</div></div>'+
@@ -3085,8 +3103,9 @@ async function saveAlertCfg(){
   if(!IS_SUPER){toast('⚠ Hanya super admin');return;}
   var m=document.getElementById('acfg-mode'),s=document.getElementById('acfg-scope');
   var d=document.getElementById('acfg-days'),z=document.getElementById('acfg-snooze');
+  var vl=document.getElementById('acfg-vol');
   var days=Math.min(30,Math.max(1,parseInt(d&&d.value,10)||1));
-  var cfg={mode:(m?m.value:'daily'),scope:(s?s.value:'zero'),days:days,snooze:(z&&z.value)||''};
+  var cfg={mode:(m?m.value:'daily'),scope:(s?s.value:'zero'),days:days,snooze:(z&&z.value)||'',vol:(vl&&vl.value)||'mati'};
   try{
     await managePeople('set_config',{key:'alert_config',value:JSON.stringify(cfg)});
     ALERT_CFG=cfg;
@@ -3398,7 +3417,24 @@ async function saveCatgItems(){
 // 盤點入口：admin 從 Kelola Barang 進（渲染在 ait-content），
 // 有 🔢 Opname 權限的員工從首頁進（渲染在 home 區塊）
 var STK_HOST='admin';
-function openStocktake(from){STK_HOST=from||'admin';renderStocktake('');}
+// 盤點的目標倉庫（比照 Tambah Barang：倉庫優先）。有選定倉庫時＝該倉；
+// Semua Gudang 總覽時先吃頂部 chips 選的倉，都沒有就先問要盤哪個倉
+var STK_WH='';
+function openStocktake(from){
+  STK_HOST=from||'admin';
+  STK_WH=CURRENT_WAREHOUSE||AI_WH||'';
+  if(!STK_WH){
+    showModal('🔢 Cek Stok',
+      '<div style="font-size:.92rem;color:var(--ink2);margin-bottom:.9rem;text-align:center;font-weight:600">Mau cek stok gudang mana?</div>'+
+      '<div style="display:flex;flex-direction:column;gap:.6rem">'+
+      WAREHOUSES.map(function(w){
+        return '<button class="btn btn-full" style="background:'+(WH_COLORS[w]||WH_FB_BG)+';color:'+(WH_TEXT[w]||WH_FB_TEXT)+';font-weight:800;font-size:1rem;min-height:52px;border:1.5px solid '+(WH_TEXT[w]||WH_FB_TEXT)+'33" onclick="stkPickWh(\''+esc(w)+'\')">'+(WH_EMOJI[w]||'🏭')+' '+esc(w)+'</button>';
+      }).join('')+'</div>');
+    return;
+  }
+  renderStocktake('');
+}
+function stkPickWh(w){STK_WH=w;closeModal();renderStocktake('');}
 function stkHostEl(){
   return STK_HOST==='home'?document.getElementById('home'):document.getElementById('ait-content');
 }
@@ -3407,11 +3443,14 @@ function stkHostEl(){
 function renderStocktake(catFilter,keepState){
   if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
   var host=stkHostEl();if(!host)return;
-  if(!CURRENT_WAREHOUSE){
+  var wh=CURRENT_WAREHOUSE||STK_WH;
+  if(!wh){
+    // 正常入口(openStocktake)會先問倉庫，這裡只是直接呼叫時的後備
     host.innerHTML='<div style="padding:2rem;text-align:center;background:#FEF2F2;margin:1rem;border-radius:12px;border:2px solid #FECACA"><div style="font-size:1.2rem;font-weight:800;color:#DC2626;margin-bottom:.8rem">⚠️ Pilih Gudang Dulu</div><div style="color:var(--ink2);font-size:.95rem;margin-bottom:1.5rem">Klik tab "Home" untuk memilih gudang, atau minta admin switch untuk Anda</div><button class="btn btn-p" onclick="goTab(\'home\',document.querySelectorAll(\'.tb\')[0])">🏠 Ke Home</button></div>';
     return;
   }
-  if(CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
+  // 只有「選定單一倉庫」模式需要確認資料已載入；Semua Gudang 總覽本來就載入了全部倉
+  if(CURRENT_WAREHOUSE&&CURRENT_WAREHOUSE!==LAST_LOADED_WAREHOUSE){
     host.innerHTML='<div style="padding:2rem;text-align:center"><div style="font-size:1.1rem;color:var(--ink2);margin-bottom:1rem">⏳ Memuat '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'…</div><div class="spin" style="width:40px;height:40px;margin:0 auto"></div></div>';
     (async function(){await loadAll(null,false);if(CURRENT_WAREHOUSE===LAST_LOADED_WAREHOUSE)renderStocktake(catFilter);})();
     return;
@@ -3419,7 +3458,7 @@ function renderStocktake(catFilter,keepState){
   if(!keepState){STOCKTAKE={};STK_CATG=catFilter||'';STK_SEARCH='';STK_OPEN={};}
   var html='<div style="position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--border);padding:.5rem .7rem">'+
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem">'+
-    '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+' — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</span>'+
+    '<span style="font-weight:700;font-size:.9rem">🔢 '+('Stock Check')+' — '+(WH_SHORT[wh]||wh)+'</span>'+
     '<div style="display:flex;gap:.4rem;align-items:center">'+
     '<span style="color:var(--p);font-size:1.2rem;font-weight:900;cursor:default" title="Scan dengan barcode gun">▌▌▌</span>'+
     '<button class="btn btn-p" style="padding:.28rem .65rem;font-size:.85rem" onclick="openQrCamera(\'stk\')">📷 '+('Cam')+'</button>'+
@@ -3457,7 +3496,10 @@ function stkItemRow(i){
 // 有搜尋 → 直接平鋪最快找到；無搜尋 → 依分類分組、預設收合(點分類才展開)
 function stkRowsHTML(){
   var q=STK_SEARCH;
+  // Semua Gudang 總覽時只列目標倉的品項（單倉模式下本來就全是該倉，等於不過濾）
+  var wh=CURRENT_WAREHOUSE||STK_WH;
   var items=DATA.items.filter(function(i){
+    if(wh&&i.warehouse_id!==wh)return false;
     if(q&&!(i.name.toLowerCase().includes(q)||(i.code&&i.code.toLowerCase().includes(q))))return false;
     return true;
   });
