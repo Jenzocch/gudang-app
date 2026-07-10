@@ -2772,6 +2772,9 @@ function renderAdminFull(){
       (IS_SUPER?'<button class="tsw'+(sub==='adt'?' act':'')+'" onclick="swATab(this,\'adt\')">🗂 Arsip</button>':'')+
     '</div>'+
     '<div id="ait" class="tc'+(sub==='ait'?' active':'')+'">'+
+      // Semua Gudang 總覽：倉庫篩選放整頁最上面（Office 先點倉庫聚焦，之後的
+      // 清單/搜尋/新增全都跟著這個倉走）
+      (!CURRENT_WAREHOUSE?'<div id="ai-wh-chips" style="display:flex;gap:.4rem;padding:.55rem .7rem .2rem;overflow-x:auto;-webkit-overflow-scrolling:touch">'+aiWhChipsHTML()+'</div>':'')+
       '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
         (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Tambah Barang</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Tambah Barang</button>')+
         '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Cek Stok</button>'+
@@ -2868,6 +2871,24 @@ function updateAIViewBtns(){
 }
 var AI_SEARCH_FILTER='';
 var AI_CATG=''; // Kelola Barang 的分類篩選（''=全部、'__none__'=無分類）
+// Semua Gudang 總覽的倉庫篩選（''=全部倉庫）。放在頁面最上面：
+// Office 管多個倉時先點倉庫聚焦，清單只剩該倉，新增也直接進該倉
+var AI_WH='';
+function aiWhChipsHTML(){
+  if(CURRENT_WAREHOUSE)return'';
+  return '<button class="catg-chip'+(AI_WH===''?' act':'')+'" style="padding:.4rem .85rem;font-size:.82rem;font-weight:800" onclick="aiSetWh(\'\')">🌐 Semua</button>'+
+    WAREHOUSES.map(function(w){
+      var on=AI_WH===w;
+      return '<button class="catg-chip'+(on?' act':'')+'" style="padding:.4rem .85rem;font-size:.82rem;font-weight:800'+(on?'':';background:'+(WH_COLORS[w]||WH_FB_BG)+';color:'+(WH_TEXT[w]||WH_FB_TEXT)+';border-color:transparent')+'" onclick="aiSetWh(\''+esc(w)+'\')">'+(WH_EMOJI[w]||'🏭')+' '+(WH_SHORT[w]||w)+'</button>';
+    }).join('');
+}
+function aiSetWh(w){
+  AI_WH=w;
+  var chips=document.getElementById('ai-wh-chips');
+  if(chips)chips.innerHTML=aiWhChipsHTML();
+  var tc=document.getElementById('ait-content');
+  if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
+}
 function aiCatgChipsHTML(){
   var cats=getCategories();
   if(!cats.length)return'';
@@ -2896,6 +2917,9 @@ function aiListHTML(){
   var items=DATA.items;
   if(CURRENT_WAREHOUSE&&IS_ADMIN){
     items=items.filter(function(i){return i.warehouse_id===CURRENT_WAREHOUSE||i.warehouse_id==='HARDWARE';});
+  }else if(!CURRENT_WAREHOUSE&&AI_WH){
+    // Semua Gudang 總覽 + 頂部倉庫 chips 有選 → 只看該倉
+    items=items.filter(function(i){return i.warehouse_id===AI_WH;});
   }
   if(AI_CATG==='__none__')items=items.filter(function(i){return!(i.tags&&i.tags.length);});
   else if(AI_CATG)items=items.filter(function(i){return(i.tags||[]).includes(AI_CATG);});
@@ -2903,7 +2927,7 @@ function aiListHTML(){
     var q=AI_SEARCH_FILTER.toLowerCase();
     items=items.filter(function(i){return i.name.toLowerCase().includes(q)||(i.code&&i.code.toLowerCase().includes(q));});
   }
-  if(!items.length)return '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER||AI_CATG?'Tidak ada yang cocok 🚫':'-')+'</div>';
+  if(!items.length)return '<div style="text-align:center;color:var(--muted);padding:2rem;font-size:1rem">'+(AI_SEARCH_FILTER||AI_CATG||AI_WH?'Tidak ada yang cocok 🚫':'-')+'</div>';
   // 選了分類晶片或有搜尋字 → 直接平鋪（不摺疊）
   if(AI_CATG||AI_SEARCH_FILTER){
     return '<div class="ai-grid" style="margin-top:0">'+items.map(aiItemHTML).join('')+'</div>';
@@ -3616,7 +3640,8 @@ function itemFormHTML(item){
 var ADD_WH='';
 function showAddItem(){
   EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];
-  ADD_WH=CURRENT_WAREHOUSE||'';
+  // 目標倉優先序：目前所在倉 > 總覽頂部 chips 選的倉（選了就直接進流程，不再問）
+  ADD_WH=CURRENT_WAREHOUSE||AI_WH||'';
   if(!ADD_WH){
     // Step 0（Semua Gudang）：先選要加到哪個倉庫，再走同一套搜尋/新增流程。
     // 之前是直接開表單、倉庫下拉埋在最底下，常常漏選或選錯。
