@@ -2805,8 +2805,10 @@ function renderAdminFull(){
 function aiItemHTML(i){
     var ph=i.image_url?'<img loading="lazy" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img" style="width:56px;height:56px">📦</div>';
-    // 用快取索引，O(1) 而非 O(n) filter
-    var iBats=(IDX.batchesByItem[i.id]||[]).filter(function(b){return b.warehouse_id==CURRENT_WAREHOUSE;});
+    // 用快取索引，O(1) 而非 O(n) filter。
+    // 依「這張卡的倉庫」過濾（不是 CURRENT_WAREHOUSE）：Semua Gudang 總覽時
+    // CURRENT_WAREHOUSE 是空的，用它過濾會讓每張卡的 lot 數永遠顯示 0
+    var iBats=(IDX.batchesByItem[i.id]||[]).filter(function(b){return b.warehouse_id==i.warehouse_id;});
     var nearExp=(iBats.length&&iBats[0].expiry_date)?iBats[0]:null;
     var nowT=Date.now();var t30=nowT+30*86400000;
     var expColor=nearExp?(nearExp._expT<nowT?'#DC2626':nearExp._expT<t30?'#D97706':'#059669'):'var(--muted)';
@@ -2817,6 +2819,8 @@ function aiItemHTML(i){
       '<div class="ai-info">'+
         '<div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap">'+
           '<span class="ai-name" style="font-size:.97rem">'+esc(i.name)+'</span>'+
+          // Semua Gudang 總覽：同品項一倉一張卡，一定要標倉庫，不然看起來像重複資料
+          (!CURRENT_WAREHOUSE&&i.warehouse_id?'<span style="font-size:.7rem;font-weight:800;background:'+(WH_COLORS[i.warehouse_id]||WH_FB_BG)+';color:'+(WH_TEXT[i.warehouse_id]||WH_FB_TEXT)+';border-radius:6px;padding:.08rem .4rem;letter-spacing:.02em">🏭 '+esc(WH_SHORT[i.warehouse_id]||i.warehouse_id)+'</span>':'')+
           (i.code?'<span style="font-size:.7rem;font-weight:800;color:var(--s);background:#EEF2FF;border:1px solid #E0E7FF;border-radius:6px;padding:.05rem .35rem;letter-spacing:.03em">'+esc(i.code)+'</span>':'')+
           (i.remark&&i.remark.includes('#noalert')?'<span style="font-size:.68rem;background:#E0F2FE;color:#0369A1;padding:.05rem .3rem;border-radius:6px;font-weight:700">🔕</span>':'')+
         '</div>'+
