@@ -1394,7 +1394,7 @@ function homeStockRowHTML(i){
       (i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+
     '</div>'+
     '<span style="white-space:nowrap;flex-shrink:0;text-align:right"><span style="color:#000;font-weight:700;font-size:.92rem">'+i.qty+'</span><span style="color:#999;font-size:.7rem">/'+i.critical_qty+'</span><br><span style="color:var(--ink2);font-size:.72rem">'+esc(i.unit)+'</span></span>'+
-    (i.supplier_url&&ratio<=1?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
+    (i.supplier_url&&ratio<=1?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.2rem .4rem;border-radius:6px;font-size:.7rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">🔗</a>':'')+
   '</div>';
 }
 function renderHome(){
@@ -1446,7 +1446,7 @@ function renderHome(){
   if(expWarn.length){
     h+='<div class="card" style="margin:.9rem .7rem;border-left:5px solid #D97706;padding:.8rem 1rem">'+
       '<div style="font-weight:700;font-size:.88rem;color:#D97706;margin-bottom:.5rem">⏰ '+Z('Kadaluarsa dalam 30 hari')+' ('+expWarn.length+')</div>'+
-      expWarn.slice(0,8).map(function(b){var item=itemById(b.item_id);var isExp=b._expT<nowTime;return'<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #FEF3C7;font-size:.82rem"><span>'+(item?esc(item.name):'?')+(b.lot_no?' · <span style="color:var(--ink2)">Lot '+esc(b.lot_no)+'</span>':'')+'<br><span style="font-size:.7rem;color:var(--muted)">Sisa: '+b.qty_remaining+'</span></span><span style="font-weight:700;color:'+(isExp?'#DC2626':'#D97706')+'">'+b.expiry_date+(isExp?' ❌':' ⏰')+'</span></div>';}).join('')+
+      expWarn.slice(0,8).map(function(b){var item=itemById(b.item_id);var isExp=b._expT<nowTime;return'<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #FEF3C7;font-size:.82rem"><span>'+(item?esc(item.name):'?')+(b.lot_no?' · <span style="color:var(--ink2)">Lot '+esc(b.lot_no)+'</span>':'')+'<br><span style="font-size:.7rem;color:var(--muted)">Sisa: '+b.qty_remaining+'</span></span><span style="font-weight:700;color:'+(isExp?'#DC2626':'#D97706')+'">'+esc(b.expiry_date)+(isExp?' ❌':' ⏰')+'</span></div>';}).join('')+
       (expWarn.length>8?'<div style="font-size:.75rem;color:var(--muted);margin-top:.3rem">+'+(expWarn.length-8)+' lainnya</div>':'')+
     '</div>';
   }
@@ -1490,7 +1490,7 @@ function renderHome(){
             '<div style="font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:'+(empty?'var(--danger)':'var(--dark)')+'">'+esc(i.name)+'</div>'+
             '<div style="font-size:.75rem;color:var(--danger);font-weight:700;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
           '</div>'+
-          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
+          (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
         '</div>';
       };
       var catKeys=Object.keys(catGrp).sort();
@@ -1816,7 +1816,7 @@ function ambRowHTML(i){
   var batInfo='';
   if(firstBat){
     var expCol=isExp?'#DC2626':firstBat._expT<nowT+30*86400000?'#D97706':'#059669';
-    batInfo='<div style="font-size:.7rem;color:'+expCol+';margin-top:.1rem;font-weight:700">📋 Pakai dulu: '+(firstBat.lot_no||'(Tanpa Lot)')+' | Exp: '+(firstBat.expiry_date||'-')+(isExp?' ❌':'')+'</div>';
+    batInfo='<div style="font-size:.7rem;color:'+expCol+';margin-top:.1rem;font-weight:700">📋 Pakai dulu: '+esc(firstBat.lot_no||'(Tanpa Lot)')+' | Exp: '+esc(firstBat.expiry_date||'-')+(isExp?' ❌':'')+'</div>';
   }
   return '<div class="amb-row'+(empty?' amb-empty':'')+'">'+
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
@@ -1993,7 +1993,7 @@ function lkRender(){
       '<div style="flex:1;min-width:0">'+
         '<div style="font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
         (i.code?'<div style="font-size:.72rem;color:var(--s);font-weight:700">🏷️ '+esc(i.code)+'</div>':'')+
-        (firstBat?'<div style="font-size:.72rem;color:var(--ink2)">📋 '+(firstBat.lot_no||'-')+(firstBat.expiry_date?' · Exp '+firstBat.expiry_date:'')+'</div>':'')+
+        (firstBat?'<div style="font-size:.72rem;color:var(--ink2)">📋 '+esc(firstBat.lot_no||'-')+(firstBat.expiry_date?' · Exp '+esc(firstBat.expiry_date):'')+'</div>':'')+
       '</div>'+
       '<div style="text-align:right;flex-shrink:0">'+
         '<div style="font-size:1.35rem;font-weight:900;color:'+col+';line-height:1">'+i.qty+'</div>'+
@@ -2093,7 +2093,7 @@ async function doAmbilCart(){
       '<div style="font-weight:700;margin-bottom:.3rem">'+esc(item.name)+' ('+CART[variantId]+' '+esc(item.unit)+')</div>'+
       (toBat.length?toBat.map(function(b,i){return'<div style="font-size:.82rem;color:var(--s)">'+
         (i+1)+'. Lot: <strong>'+esc(b.lot_no||'(Tanpa Lot)')+'</strong> | -'+b.deduct+
-        (b.expiry_date?' | Exp: '+b.expiry_date:'')+'</div>';}).join(''):
+        (b.expiry_date?' | Exp: '+esc(b.expiry_date):'')+'</div>';}).join(''):
         '<div style="font-size:.82rem;color:#D97706">⚠ Tanpa batch info</div>')+
     '</div>';
   });
@@ -2843,7 +2843,7 @@ function aiItemHTML(i){
           '<span class="ai-stat" style="'+(low?'background:#FEF2F2;border-color:#FECACA;color:#DC2626;':'')+'font-weight:800">'+(low?'🟠 ':'')+i.qty+' '+esc(i.unit)+'</span>'+
           '<span class="ai-stat">min '+i.critical_qty+'</span>'+
           '<span class="ai-stat">📦 '+iBats.length+' lot</span>'+
-          (nearExp?'<span class="ai-stat" style="color:'+expColor+'">⏰ '+nearExp.expiry_date+'</span>':'')+
+          (nearExp?'<span class="ai-stat" style="color:'+expColor+'">⏰ '+esc(nearExp.expiry_date)+'</span>':'')+
         '</div>'+
         ((i.spec||i.supplier_name||i.storage_condition||i.description)?
         '<div class="clamp2" style="font-size:.76rem;color:var(--ink2);margin-top:.35rem;line-height:1.45">'+
@@ -2855,7 +2855,7 @@ function aiItemHTML(i){
         '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;margin-top:.35rem">'+
           (i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+
           '<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.7rem;color:var(--muted);padding:.05rem .4rem">+ tag</button>'+
-          (i.supplier_url?'<a href="'+esc(i.supplier_url)+'" target="_blank" class="ai-link" style="margin-left:.2rem">🔗 Beli</a><button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--muted);padding:.3rem .4rem">✏️</button>'
+          (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" class="ai-link" style="margin-left:.2rem">🔗 Beli</a><button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--muted);padding:.3rem .4rem">✏️</button>'
             :'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--muted);padding:.05rem 0">＋link</button>')+
           (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;padding:0 .2rem;color:var(--p)" title="Tempat Simpan">📍</button>':'')+
         '</div>'+
@@ -3284,14 +3284,6 @@ async function renameCatg(cat){
     toast(t('saveOk'));
   }catch(e){toast('⚠ '+friendlyErr(e));}
 }
-function removeFormTag(idx){
-  FORM_TAGS.splice(idx,1);
-  refreshFormTagDisplay();
-}
-function refreshFormTagDisplay(){
-  var list=document.getElementById('ftag-list');
-  if(list)list.innerHTML=FORM_TAGS.map(function(tg,i){return'<span class="catg-badge" style="cursor:pointer;padding:.2rem .55rem;display:inline-flex;align-items:center;gap:.25rem;background:#DBEAFE;color:#0369A1" onclick="removeFormTag('+i+')">🏷️ '+esc(tg)+' <span style="font-weight:700">✕</span></span>';}).join('');
-}
 
 function quickAssignTag(id){
   var item=DATA.items.find(function(i){return i.id==id;});if(!item)return;
@@ -3383,7 +3375,7 @@ function renderCatgItemList(cat,q){
     return '<label style="display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-bottom:1px solid #F3F4F6;cursor:pointer">'+
       '<input type="checkbox" id="ci-'+i.id+'" value="'+i.id+'"'+(checked?' checked':'')+' style="width:16px;height:16px;flex-shrink:0">'+
       '<span style="flex:1;font-size:.9rem">'+esc(i.name)+'</span>'+
-      ((i.tags||[]).length?'<span style="font-size:.73rem;color:var(--muted)">'+i.tags.map(function(tg){return'🏷️'+tg;}).join(' ')+'</span>':'')+
+      ((i.tags||[]).length?'<span style="font-size:.73rem;color:var(--muted)">'+i.tags.map(function(tg){return'🏷️'+esc(tg);}).join(' ')+'</span>':'')+
     '</label>';
   }).join('');
 }
@@ -4360,7 +4352,7 @@ function showLow(item,need){
       '<div style="margin-top:.4rem"><strong style="color:var(--danger)">Stok minimum</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
       (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">Perlu disiapkan</strong>: minimal '+need+' '+esc(item.unit)+'</div>':'')+
     '</div>'+
-    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+esc(item.supplier_url)+'" target="_blank" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
+    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+safeUrl(item.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
   document.getElementById('low-title').innerHTML='⚠️ '+t('lowTitle');
   document.getElementById('low-body').innerHTML=msg;
   var lb=document.getElementById('low-link-btn');
@@ -4678,16 +4670,16 @@ function showItemBatches(itemId){
               (b.do_no?'DO: '+esc(b.do_no):'').replace(/ · $/,'')+
             '</div>':'')+
             '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.15rem">'+
-              (b.production_date?'<span style="font-size:.75rem;color:var(--ink2)">📅 Prod: '+b.production_date+'</span>':'')+
-              (b.expiry_date?'<span style="font-size:.75rem;font-weight:700;color:'+ec+'">⏰ Exp: '+b.expiry_date+(isExp?' ❌':isNear?' ⚠️':'')+'</span>':'')+
+              (b.production_date?'<span style="font-size:.75rem;color:var(--ink2)">📅 Prod: '+esc(b.production_date)+'</span>':'')+
+              (b.expiry_date?'<span style="font-size:.75rem;font-weight:700;color:'+ec+'">⏰ Exp: '+esc(b.expiry_date)+(isExp?' ❌':isNear?' ⚠️':'')+'</span>':'')+
               (b.shelf_life?'<span style="font-size:.75rem;color:var(--ink2)">📦 Simpan: '+esc(b.shelf_life)+'</span>':'')+
             '</div>'+
-            (b.qc_date?'<div style="font-size:.73rem;color:var(--ink2);margin-top:.1rem">QC: '+b.qc_date+'</div>':'')+
+            (b.qc_date?'<div style="font-size:.73rem;color:var(--ink2);margin-top:.1rem">QC: '+esc(b.qc_date)+'</div>':'')+
             (((IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing))&&CURRENT_WAREHOUSE==='HARDWARE')?(b.unit_price||b.supplier?'<div style="margin-top:.25rem;padding:.45rem;background:rgba(79,70,229,.08);border-radius:8px;border-left:3px solid var(--p)">'+
               (b.unit_price?'<div style="font-weight:700;color:var(--p);font-size:.88rem">💰 Harga: Rp '+parseFloat(b.unit_price).toLocaleString('id-ID')+'</div>':'')+
               (b.supplier?'<div style="color:var(--ink2);font-size:.75rem;margin-top:.2rem">🏢 Pemasok: '+esc(b.supplier)+'</div>':'')+
               '</div>':''):'')+
-            (b.coa_url?'<div style="margin-top:.25rem"><a href="'+esc(b.coa_url)+'" target="_blank" style="font-size:.75rem;color:var(--p);text-decoration:none">📄 Lihat COA</a></div>':'')+
+            (b.coa_url?'<div style="margin-top:.25rem"><a href="'+safeUrl(b.coa_url)+'" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:var(--p);text-decoration:none">📄 Lihat COA</a></div>':'')+
             '<div style="margin-top:.25rem;font-weight:700;color:var(--p);font-size:.88rem">Sisa: '+b.qty_remaining+' / '+b.qty_initial+' '+esc(item.unit)+'</div>'+
           '</div>'+
           '<div style="display:flex;gap:.25rem;flex-shrink:0;margin-left:.5rem">'+
@@ -4938,6 +4930,9 @@ function fmtDate(s){if(!s)return'';var d=new Date(s);return d.toLocaleDateString
 // 用「當地」日期，不能用 toISOString()（=UTC）：印尼 UTC+7，早上 7 點前會差一天/跨月
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function esc(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// 只允許 http/https 連結；擋掉 javascript:/data: 等會在點擊時執行的 scheme。
+// 因為 supplier_url/coa_url 是自由文字、又能經 API 寫入，必須先過白名單再放進 href。
+function safeUrl(u){u=(u==null?'':String(u)).trim();return /^https?:\/\//i.test(u)?esc(u):'#';}
 // 全站統一狀態徽章：圖示+顏色+文字三件組（色弱/強光下仍可辨識）
 function stBadge(kind,label){
   var m={
