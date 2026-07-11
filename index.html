@@ -2894,6 +2894,33 @@ function renderAdminFull(){
     '<button class="btn btn-d btn-full" onclick="logoutAdmin()" style="max-width:none">🔒 '+('Keluar Admin')+'</button>'+
     '</div>';
 }
+// ── Cari online（僅 Hardware 倉）：用商品名一鍵搜尋電商 + BigGo 比價 ──
+// 只是連結，不呼叫任何 API、不抓價 → 對系統效能「零影響」（不點就什麼都不跑）。
+// 手機上 Shopee/Tokopedia 的 https 連結會直接開對應 App。網址集中在此，平台若
+// 改搜尋參數格式，只要改這個陣列一處即可。
+var MARKETPLACES=[
+  {label:'Shopee',bg:'#EE4D2D',url:'https://shopee.co.id/search?keyword='},
+  {label:'Tokopedia',bg:'#03AC0E',url:'https://www.tokopedia.com/search?q='},
+  {label:'BigGo',bg:'#2563EB',url:'https://biggo.id/s/?q=',cmp:true} // 跨平台比價
+];
+function marketSearchHTML(name){
+  var kw=encodeURIComponent((name||'').trim());
+  if(!kw)return'';
+  return '<span style="font-size:.7rem;color:var(--muted);font-weight:700">🔍</span>'+
+    MARKETPLACES.map(function(m){
+      return '<a href="'+m.url+kw+'" target="_blank" rel="noopener noreferrer" style="background:'+m.bg+';color:#fff;padding:.16rem .5rem;border-radius:6px;font-size:.72rem;font-weight:800;text-decoration:none;white-space:nowrap">'+esc(m.label)+(m.cmp?' 📊':'')+'</a>';
+    }).join('');
+}
+// Hardware 最近一次進貨單價（當線上比價的基準）；只在有看價權限時顯示。
+// 直查 DATA.batches（不是 IDX.batchesByItem，那個只留有庫存的），因為就算那批
+// 已用完，它的進貨價仍是有效的比價參考。
+function lastHardwarePrice(itemId){
+  var bats=(DATA.batches||[]).filter(function(b){return b.item_id==itemId&&b.warehouse_id==='HARDWARE'&&b.unit_price!=null&&b.unit_price!=='';});
+  if(!bats.length)return null;
+  bats.sort(function(a,b){return new Date(b.received_date||b.created_at||0)-new Date(a.received_date||a.created_at||0);});
+  var p=parseFloat(bats[0].unit_price);
+  return isNaN(p)?null:p;
+}
 function aiItemHTML(i){
     var ph=i.image_url?'<img loading="lazy" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in" src="'+esc(i.image_url)+'" onclick="showImg(\''+esc(i.image_url)+'\',\''+esc(i.name)+'\')">'
       :'<div class="ai-img" style="width:56px;height:56px">📦</div>';
@@ -2936,6 +2963,11 @@ function aiItemHTML(i){
             :'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--muted);padding:.05rem 0">＋link</button>')+
           (i.storage_photo_url?'<button onclick="showImg(\''+esc(i.storage_photo_url)+'\',\''+esc(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;padding:0 .2rem;color:var(--p)" title="Tempat Simpan">📍</button>':'')+
         '</div>'+
+        // Hardware 專屬：用商品名一鍵搜 Shopee/Tokopedia/BigGo 比價，旁邊放自家上次進貨價當基準
+        (i.warehouse_id==='HARDWARE'?'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;padding-top:.35rem;border-top:1px dashed var(--border)">'+
+          marketSearchHTML(i.name)+
+          ((IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing))?(function(){var lp=lastHardwarePrice(i.id);return lp!=null?'<span style="font-size:.7rem;color:var(--ink2);font-weight:800;background:#EEF2FF;padding:.16rem .45rem;border-radius:6px;white-space:nowrap">💰 Terakhir beli: Rp '+lp.toLocaleString('id-ID')+'</span>':'';})():'')+
+        '</div>':'')+
         '</div>'+
       '<div class="ai-actions">'+
         '<button class="ib" title="Kelola Lot" onclick="showItemBatches(\''+esc(i.id)+'\')">📋</button>'+
