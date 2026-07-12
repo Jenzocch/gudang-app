@@ -2332,7 +2332,18 @@ async function executeAmbilCart(){
     toast('⚠ '+friendlyErr(e)+(taken.length?' — '+taken.length+' item tersimpan, sisanya masih di keranjang':''));
     var keep=Object.assign({},CART);
     await refreshInventory(); // 同步已扣的庫存（會重繪並清空 CART）
-    CART=keep;       // 還原未送出的項目
+    // Kalau gagalnya karena stok berubah (orang lain barusan ambil juga / CAS retry akhirnya
+    // nyerah), qty yang tersisa di keranjang bisa lebih besar dari stok TERBARU — submit ulang
+    // tanpa koreksi cuma bakal gagal lagi dengan pesan sama. Sesuaikan dulu ke batas stok
+    // terbaru (atau buang kalau sudah habis) sebelum keranjang dikembalikan ke user.
+    var clampedNames=[];
+    Object.keys(keep).forEach(function(vId){
+      var it2=DATA.items.find(function(i){return i.variant_id==vId;});
+      if(!it2||it2.qty<=0){clampedNames.push(it2?it2.name:vId);delete keep[vId];return;}
+      if(keep[vId]>it2.qty){keep[vId]=it2.qty;clampedNames.push(it2.name);}
+    });
+    CART=keep;       // 還原未送出的項目（qty 已disesuaikan ke stok terbaru）
+    if(clampedNames.length)toast('⚠ Jumlah di keranjang disesuaikan ke stok terbaru: '+clampedNames.join(', '));
     var cw=document.getElementById('amb-cart');if(cw)cw.innerHTML=cartRowsAmb();
     updateCartBar();
     var q=((document.getElementById('asrch')||{}).value||'').toLowerCase();
