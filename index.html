@@ -1818,15 +1818,22 @@ function auditLog(action,table,rowId,summary,snapshot){
 var TG_INTERVAL=30*86400000;
 function tgGetNotified(){try{return JSON.parse(localStorage.getItem('tg_notified')||'{}');}catch(e){return {};}}
 function tgSaveNotified(m){try{localStorage.setItem('tg_notified',JSON.stringify(m));}catch(e){}}
+// Kunci throttle di sini dulu pakai i.id (item.id, dibagi lintas gudang) sedangkan
+// executeAmbilCart pakai variantId (khusus satu gudang) — dua mekanisme beda kunci padahal
+// sama-sama nulis ke tg_notified, jadi bisa dobel notif untuk kejadian stok rendah yang sama
+// (satu ditandai lewat i.id, satu lewat variant_id, tidak saling kenal), dan di tampilan
+// Semua Gudang dua gudang beda yang kebetulan berbagi item.id bisa saling menekan notifnya.
+// Disamakan ke variant_id — itu granularitas yang benar karena qty/critical_qty per-gudang.
 function checkAndNotifyLow(items){
   var map=tgGetNotified();var now=Date.now();var changed=false;
   items.forEach(function(i){
-    if(i.remark&&i.remark.includes('#noalert')){if(map[i.id]){delete map[i.id];changed=true;}return;}
+    var key=i.variant_id||i.id;
+    if(i.remark&&i.remark.includes('#noalert')){if(map[key]){delete map[key];changed=true;}return;}
     // qty<=0 視為「新增/尚未進貨的目錄商品」，載入時不通知，避免新增即轟炸
     if(i.qty>0&&i.qty<=i.critical_qty&&i.critical_qty>0){
-      var last=map[i.id]||0;
+      var last=map[key]||0;
       if(now-last>=TG_INTERVAL){
-        map[i.id]=now;changed=true;
+        map[key]=now;changed=true;
         var msg='🟠 Stok rendah: '+i.name+'\n'+
           '📦 Sisa stok: '+i.qty+' '+i.unit+' (min: '+i.critical_qty+')\n'+
           (i.supplier_url?'🔗 '+i.supplier_url+'\n':'')+
@@ -1834,7 +1841,7 @@ function checkAndNotifyLow(items){
         sendTelegram(msg);
       }
     }else if(i.qty>i.critical_qty){
-      if(map[i.id]){delete map[i.id];changed=true;}
+      if(map[key]){delete map[key];changed=true;}
     }
   });
   if(changed)tgSaveNotified(map);
