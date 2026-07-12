@@ -2470,6 +2470,8 @@ function renderPermintaan(){
       '</select>'+
       '<textarea id="ri" placeholder="'+('Deskripsi barang')+'..." style="display:none"></textarea>'+
     '</div>'+
+    // 所有人可用：用申請的物品名一鍵搜 Shopee/Tokopedia/BigGo，找到後把連結貼到catatan
+    '<button type="button" class="btn btn-full" style="margin:-.2rem 0 .7rem;font-size:.86rem;background:#EEF2FF;border:1px solid #C7D2FE;color:var(--p);font-weight:800;min-height:44px" onclick="mintaCariOnline()">🔍 Cari online (Shopee / Tokopedia / BigGo)</button>'+
     '<div class="ig"><label>'+('📷 Foto (opsional)')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
         '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'req-photo-cam\').click()">📷 '+('Kamera')+'</button>'+
@@ -2479,7 +2481,7 @@ function renderPermintaan(){
       '<input type="file" id="req-photo-inp" accept="image/*" style="display:none" onchange="onReqPhoto(event)">'+
       '<div id="req-photo-prev"></div>'+
     '</div>'+
-    '<div class="ig"><label>'+t('reqNote')+'</label><textarea id="rno" style="min-height:55px"></textarea></div>'+
+    '<div class="ig"><label>'+t('reqNote')+'</label><textarea id="rno" placeholder="Tempel link toko (Shopee/Tokopedia) di sini, atau catatan lain..." style="min-height:55px"></textarea></div>'+
     '<button class="btn btn-p btn-full" onclick="doReq()">'+t('sendReq')+'</button></div>'+
     '<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#F0F9FF;border-radius:10px 10px 0 0">'+
     '<input id="req-search" type="text" placeholder="🔍 Cari permintaan..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterRequests()">'+
@@ -2496,7 +2498,7 @@ function reqHTML(r){
     '<button class="btn btn-d" onclick="updReq(\''+esc(r.id)+'\',\'rejected\')">✗ '+t('reject')+'</button></div>':'';
   return '<div class="ri"><div class="rh"><span class="rp">'+esc(r.person_name)+'</span>'+badge+'</div>'+
     '<div class="rd">'+fmtDate(r.created_at)+'</div>'+
-    '<div class="rc">'+esc(r.items_requested)+(r.note?'<br><small style="color:var(--muted)">'+esc(r.note)+'</small>':'')+'</div>'+act+'</div>';
+    '<div class="rc">'+esc(r.items_requested)+(r.note?'<br><small style="color:var(--muted)">'+linkifyNote(r.note)+'</small>':'')+'</div>'+act+'</div>';
 }
 
 // LAINNYA — 低頻/管理分頁的入口選單。底部導覽固定 5 格，其餘功能都從這裡進
@@ -2903,14 +2905,14 @@ var MARKETPLACES=[
   {label:'Tokopedia',emoji:'🛍️',bg:'#03AC0E',url:'https://www.tokopedia.com/search?q='},
   {label:'BigGo',emoji:'📊',bg:'#2563EB',url:'https://biggo.id/s/?q=',cmp:true} // 跨平台比價
 ];
-// 卡片上只放一顆 🔍；點了才開這個面板（三個平台大按鈕，間距大不會點錯）+ 基準價
-function openMarketSearch(itemId){
-  var it=DATA.items.find(function(x){return x.id==itemId&&x.warehouse_id==='HARDWARE';})||DATA.items.find(function(x){return x.id==itemId;});
-  if(!it)return;
-  var name=(it.name||'').trim();
+// 共用的線上搜尋面板（三個平台大按鈕，間距大不會點錯）。name=關鍵字，
+// item=可選，若給且有看價權限就顯示自家上次進貨價當基準。卡片與 Minta 共用。
+function marketPopup(name,item){
+  name=(name||'').trim();
+  if(!name){toast('⚠ Ketik / pilih nama barang dulu');return;}
   var kw=encodeURIComponent(name);
   var canPrice=IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing);
-  var lp=canPrice?lastHardwarePrice(it.id):null;
+  var lp=(canPrice&&item)?lastHardwarePrice(item.id):null;
   var btns=MARKETPLACES.map(function(m){
     return '<a href="'+m.url+kw+'" target="_blank" rel="noopener noreferrer" onclick="closeModal()" style="display:flex;align-items:center;gap:.7rem;background:'+m.bg+';color:#fff;padding:.9rem 1rem;border-radius:12px;font-size:1.02rem;font-weight:800;text-decoration:none;min-height:54px">'+
       '<span style="font-size:1.25rem">'+m.emoji+'</span>'+
@@ -2921,9 +2923,38 @@ function openMarketSearch(itemId){
   showModal('🔍 Cari Online',
     '<div style="font-weight:800;font-size:1.05rem;margin-bottom:.25rem">'+esc(name)+'</div>'+
     (lp!=null?'<div style="font-size:.88rem;color:var(--ink2);margin-bottom:1rem">💰 Terakhir beli: <b style="color:var(--p)">Rp '+lp.toLocaleString('id-ID')+'</b> — bandingkan dengan harga online</div>'
-      :'<div style="font-size:.84rem;color:var(--muted);margin-bottom:1rem">Cari harga & stok di toko online</div>')+
+      :'<div style="font-size:.84rem;color:var(--muted);margin-bottom:1rem">Cari harga & stok di toko online, lalu tempel link-nya ke catatan</div>')+
     '<div style="display:flex;flex-direction:column;gap:.65rem">'+btns+'</div>'
   );
+}
+// 卡片上的 🔍（Hardware 商品）：帶入該商品名 + 基準價
+function openMarketSearch(itemId){
+  var it=DATA.items.find(function(x){return x.id==itemId&&x.warehouse_id==='HARDWARE';})||DATA.items.find(function(x){return x.id==itemId;});
+  if(!it)return;
+  marketPopup(it.name,it);
+}
+// Minta 表單的 🔍（所有人可用）：讀目前選/填的物品名去搜；若剛好是 Hardware 現有品項就一併帶基準價
+function mintaCariOnline(){
+  var sel=document.getElementById('ri-sel');
+  var name='';
+  if(sel&&sel.value&&sel.value!=='__new__')name=sel.value;
+  else{var ri=document.getElementById('ri');name=ri?(ri.value||'').trim():'';}
+  if(!name){toast('⚠ Pilih atau ketik nama barang dulu');return;}
+  var item=DATA.items.find(function(i){return i.name===name&&i.warehouse_id==='HARDWARE';});
+  marketPopup(name,item);
+}
+// 把備註/文字裡的網址變成可點連結（其餘文字照樣 escape，安全 scheme 白名單）
+function linkifyNote(s){
+  s=String(s==null?'':s);
+  var out='',last=0,re=/https?:\/\/[^\s]+/gi,m;
+  while((m=re.exec(s))){
+    out+=esc(s.slice(last,m.index));
+    var u=m[0];
+    out+='<a href="'+safeUrl(u)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(u)+'</a>';
+    last=m.index+u.length;
+  }
+  out+=esc(s.slice(last));
+  return out;
 }
 // Hardware 最近一次進貨單價（當線上比價的基準）；只在有看價權限時顯示。
 // 直查 DATA.batches（不是 IDX.batchesByItem，那個只留有庫存的），因為就算那批
