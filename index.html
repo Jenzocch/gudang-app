@@ -4811,17 +4811,26 @@ function swATab(el,id){
 }
 // ── 🗂 Arsip & Bersihkan：舊資料先下載 CSV 存電腦，確認後才可刪除（僅 Super Admin）──
 var ARC={cutoff:null,counts:null,dl:{}};
+// ts:true → kolomnya timestamptz (created_at/checked_at), bukan date murni (date). Perlu dibedakan
+// karena cara membangun batas cutoff-nya beda — lihat arcCutoffFor().
 var ARC_TABLES=[
-  {t:'transactions',label:'📜 Riwayat Ambil/Masuk',col:'created_at'},
+  {t:'transactions',label:'📜 Riwayat Ambil/Masuk',col:'created_at',ts:true},
   {t:'din_production',label:'🏭 DIN Produksi',col:'date'},
   {t:'din_rehidrasi',label:'💧 DIN Rehidrasi',col:'date'},
   {t:'din_delivery',label:'🚚 DIN Pengiriman',col:'date'},
   {t:'sja_production',label:'🏭 SJA Produksi',col:'date'},
   {t:'sja_delivery',label:'🚚 SJA Pengiriman',col:'date'},
-  {t:'qc_checks',label:'✅ QC / HACCP',col:'checked_at'},
-  {t:'requests',label:'🙋 Permintaan (selesai)',col:'created_at',extra:function(q){return q.neq('status','pending');}},
-  {t:'item_batches',label:'📦 Batch stok habis',col:'created_at',extra:function(q){return q.lte('qty_remaining',0);}}
+  {t:'qc_checks',label:'✅ QC / HACCP',col:'checked_at',ts:true},
+  {t:'requests',label:'🙋 Permintaan (selesai)',col:'created_at',ts:true,extra:function(q){return q.neq('status','pending');}},
+  {t:'item_batches',label:'📦 Batch stok habis',col:'created_at',ts:true,extra:function(q){return q.lte('qty_remaining',0);}}
 ];
+// input type="date" cuma kasih "YYYY-MM-DD" tanpa jam/zona. Dibanding langsung ke kolom
+// timestamptz, Postgres anggap itu tengah malam UTC — padahal gudang di WIB (UTC+7), jadi
+// batasnya mundur 7 jam dari yang dimaksud pengguna: baris jam 00:00–06:59 WIB di TANGGAL
+// cutoff (yang seharusnya masih "hari ini", belum boleh kehapus) ikut kena karena masih di
+// bawah "besok jam 00:00 UTC" = "hari cutoff jam 07:00 WIB". Kolom date murni tidak kena
+// masalah ini (tidak ada komponen jam), jadi tetap pakai string tanggal apa adanya.
+function arcCutoffFor(c,cutoff){return c.ts?(cutoff+'T00:00:00+07:00'):cutoff;}
 function arcDefaultDate(){var d=new Date();d.setMonth(d.getMonth()-12);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function arcPanelHTML(){
   return '<div class="card">'+
@@ -4869,7 +4878,7 @@ async function arcCount(){
   for(var i=0;i<ARC_TABLES.length;i++){
     var c=ARC_TABLES[i];
     try{
-      var q=sb.from(c.t).select('id',{count:'exact',head:true}).lt(c.col,cutoff);
+      var q=sb.from(c.t).select('id',{count:'exact',head:true}).lt(c.col,arcCutoffFor(c,cutoff));
       if(c.extra)q=c.extra(q);
       var r=await q;
       var n=(r.error)?-1:(r.count||0);
@@ -4891,8 +4900,9 @@ async function arcCount(){
 }
 async function arcFetchAll(c,cutoff){
   var out=[],page=0;
+  var cf=arcCutoffFor(c,cutoff);
   while(page<=50){ // 安全上限 5 萬筆
-    var q=sb.from(c.t).select('*').lt(c.col,cutoff).order(c.col,{ascending:true}).range(page*1000,page*1000+999);
+    var q=sb.from(c.t).select('*').lt(c.col,cf).order(c.col,{ascending:true}).range(page*1000,page*1000+999);
     if(c.extra)q=c.extra(q);
     var r=await q;
     if(r.error)throw new Error(r.error.message);
@@ -4937,7 +4947,7 @@ async function arcDelete(){
   for(var i=0;i<withData.length;i++){
     var c=withData[i];
     try{
-      var q=sb.from(c.t).delete().lt(c.col,ARC.cutoff);
+      var q=sb.from(c.t).delete().lt(c.col,arcCutoffFor(c,ARC.cutoff));
       if(c.extra)q=c.extra(q);
       var r=await q;
       if(r.error)throw new Error(r.error.message);
