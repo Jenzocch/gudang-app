@@ -836,14 +836,24 @@ function staffLogout(){
 var sb;
 var DATA={items:[],people:[],requests:[],transactions:[],batches:[]};
 // Performance indexes: built once per data load to avoid O(n²) lookups during render
-var IDX={variantsById:{},itemsById:{},batchesByItem:{},sortedByRatio:[]};
+var IDX={variantsById:{},itemsById:{},itemsByIdWh:{},batchesByItem:{},sortedByRatio:[]};
 function buildIndexes(){
   IDX.variantsById={};
   IDX.itemsById={};
+  IDX.itemsByIdWh={};
   IDX.batchesByItem={};
   var k,b,arr,id;
   // Index by variant_id (不用item_id，因為同item可能多倉庫)
-  for(k=0;k<DATA.items.length;k++){IDX.variantsById[DATA.items[k].variant_id]=DATA.items[k];IDX.itemsById[DATA.items[k].id]=DATA.items[k];}
+  // itemsById 用 item.id 當 key：在「Semua Gudang」畫面 DATA.items 混著全部倉庫的
+  // variant，同一個 item_id 在不同倉庫各有一筆，後載入的會靜靜蓋掉先載入的——qty/
+  // critical_qty/warehouse_id 這些「每倉庫各自不同」的欄位就可能回傳錯的倉庫。
+  // itemsByIdWh 用「warehouse_id|item_id」當 key 保留每倉庫各自一份，itemById() 帶
+  // 倉庫 id 時優先查這份，查不到才退回 itemsById（單一倉庫畫面下兩者本來就一致）。
+  for(k=0;k<DATA.items.length;k++){
+    IDX.variantsById[DATA.items[k].variant_id]=DATA.items[k];
+    IDX.itemsById[DATA.items[k].id]=DATA.items[k];
+    IDX.itemsByIdWh[(DATA.items[k].warehouse_id||'')+'|'+DATA.items[k].id]=DATA.items[k];
+  }
   for(k=0;k<DATA.batches.length;k++){
     b=DATA.batches[k];
     b._expT=b.expiry_date?new Date(b.expiry_date).getTime():Infinity;
@@ -867,8 +877,10 @@ function buildIndexes(){
     return ra-rb;
   });
 }
-function itemById(id){
-  // 用 buildIndexes 建好的 item_id 索引 O(1) 查找（取代原本 O(n) 線性掃描）
+function itemById(id,warehouseId){
+  // 用 buildIndexes 建好的 item_id 索引 O(1) 查找（取代原本 O(n) 線性掃描）。
+  // warehouseId 有給時優先查 itemsByIdWh（Semua Gudang 混合多倉庫時才不會撈到別倉的 qty）。
+  if(warehouseId&&IDX.itemsByIdWh&&IDX.itemsByIdWh[warehouseId+'|'+id])return IDX.itemsByIdWh[warehouseId+'|'+id];
   if(IDX.itemsById&&IDX.itemsById[id])return IDX.itemsById[id];
   return null;
 }
@@ -1897,7 +1909,7 @@ function loadFavStrip(){
 }
 function renderFavStrip(itemIds){
   var box=document.getElementById('amb-fav');if(!box)return;
-  var favs=itemIds.map(function(id){return IDX.itemsById[id];}).filter(function(i){return i&&i.qty>0;});
+  var favs=itemIds.map(function(id){return itemById(id,CURRENT_WAREHOUSE);}).filter(function(i){return i&&i.qty>0;});
   if(!favs.length){box.innerHTML='';return;}
   box.innerHTML='<div style="display:flex;gap:.4rem;padding:.45rem .7rem;overflow-x:auto;background:#FFFBEB;border-bottom:1px solid #FDE68A;align-items:center;-webkit-overflow-scrolling:touch">'+
     '<span style="font-size:.72rem;font-weight:800;color:#B45309;flex-shrink:0">⭐ Sering:</span>'+
@@ -2725,7 +2737,7 @@ function qcPeriksaHTML(){
   h+='<div class="card"><div class="card-title">📦 Bahan Baku — Periksa QC</div>';
   if(!bats.length)h+='<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">Belum ada lot</div>';
   else h+=bats.slice(0,60).map(function(b){
-    var it=itemById(b.item_id);var chk=qcCheckFor('item_batch',b.id);
+    var it=itemById(b.item_id,b.warehouse_id);var chk=qcCheckFor('item_batch',b.id);
     var label=(it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');
     return '<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem .2rem;border-bottom:1px solid #F1F5F9">'+
       '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.88rem">'+esc(label)+'</div><div style="font-size:.72rem;color:var(--muted)">'+qcBadge(chk)+'</div></div>'+
@@ -2736,7 +2748,7 @@ function qcPeriksaHTML(){
   return h;
 }
 function qcRefLabel(refType,refId){
-  if(refType==='item_batch'){var b=(DATA.batches||[]).find(function(x){return String(x.id)===String(refId);});if(b){var it=itemById(b.item_id);return (it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');}}
+  if(refType==='item_batch'){var b=(DATA.batches||[]).find(function(x){return String(x.id)===String(refId);});if(b){var it=itemById(b.item_id,b.warehouse_id);return (it?it.name:'?')+(b.lot_no?' · Lot '+b.lot_no:'');}}
   var recs=qcProdRecords();var r=recs.find(function(x){return String(x.id)===String(refId)&&x.type===refType;});return r?r.label:String(refId);
 }
 function qcOpen(refType,refId,scope){
@@ -5266,7 +5278,7 @@ async function exportToCSV(){
     ];});
 
     var txData=allTx.map(function(t){
-      var it=itemById(t.item_id);
+      var it=itemById(t.item_id,t.warehouse_id);
       return[
         new Date(t.created_at).toLocaleDateString('id-ID'),
         t.type,t.item_name,t.qty,
@@ -5276,7 +5288,7 @@ async function exportToCSV(){
     });
 
     var batchData=DATA.batches.filter(function(b){return b.warehouse_id===CURRENT_WAREHOUSE;}).map(function(b){
-      var item=itemById(b.item_id);
+      var item=itemById(b.item_id,b.warehouse_id);
       return[
         item?item.name:'?',b.lot_no||'',b.code_produksi||'',b.po_no||'',b.do_no||'',
         b.production_date||'',b.expiry_date||'',b.qc_status||'',b.qty_initial||0,b.qty_remaining||0,b.warehouse_id||''
