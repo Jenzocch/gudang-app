@@ -4396,7 +4396,8 @@ async function doReq(){
   var no=(document.getElementById('rno').value||'').trim();
   if(REQ_PHOTO) no=(no?no+'\n':'')+'[Foto]';
   try{
-    await sb.from('requests').insert({person_name:nm,items_requested:it,note:no+(REQ_PHOTO?'\n'+REQ_PHOTO:''),status:'pending',warehouse_id:CURRENT_WAREHOUSE||null});
+    var insR=await sb.from('requests').insert({person_name:nm,items_requested:it,note:no+(REQ_PHOTO?'\n'+REQ_PHOTO:''),status:'pending',warehouse_id:CURRENT_WAREHOUSE||null});
+    if(insR.error)throw insR.error;
     toast(t('reqOk'));
     document.getElementById('rn-sel').value='';document.getElementById('rn').value='';document.getElementById('rn').style.display='none';
     document.getElementById('ri-sel').value='';document.getElementById('ri').value='';document.getElementById('ri').style.display='none';
@@ -4408,8 +4409,11 @@ async function doReq(){
 async function updReq(id,status){
   if(!IS_ADMIN){toast('⚠ '+('Hanya admin yang bisa setujui/tolak'));return;}
   // 核准/拒絕只改 requests.status（不動庫存；加庫存走 confirmApproveReqBuy）→ 局部刷新
-  try{await sb.from('requests').update({status:status}).eq('id',id);toast('✓');notifyFammsIfNeeded(id);await refreshRequests();}
-  catch(e){toast('⚠ '+friendlyErr(e));}
+  try{
+    var updR=await sb.from('requests').update({status:status}).eq('id',id);
+    if(updR.error)throw updR.error;
+    toast('✓');notifyFammsIfNeeded(id);await refreshRequests();
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 // 線③：叫料單狀態變動時，若這筆是 FAMMS 送來的，回呼 FAMMS 更新它的追蹤清單
 // best-effort：失敗不影響 Gudang 這邊的狀態，也不擋 UI
