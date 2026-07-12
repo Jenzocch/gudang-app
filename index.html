@@ -819,7 +819,7 @@ function staffLoginFail(){
 }
 function staffLogout(){
   if(!confirm('Keluar?'))return;
-  clearSessions();CURRENT_USER=null;IS_ADMIN=false;IS_SUPER=false;
+  clearSessions();CURRENT_USER=null;IS_ADMIN=false;IS_SUPER=false;AI_WH='';
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   // reset tampilan tab
   var tabMasuk=tbBtn('masuk');
@@ -4428,6 +4428,11 @@ function switchWarehouse(wid){
   // checks gudang sebelumnya, harus dibuang supaya qcCheckFor() tidak salah lapor status
   // dari gudang yang baru saja ditinggalkan.
   QC_LOADED=false;
+  // AI_WH (chip filter gudang di Kelola Barang "Semua Gudang") dulu tidak pernah direset
+  // saat pindah keluar dari Semua Gudang — pilih filter "wh1", pindah ke gudang lain kerja,
+  // balik lagi ke Semua Gudang: filter lama diam-diam masih aktif, kelihatannya seperti
+  // barang gudang lain hilang semua padahal cuma ke-filter.
+  AI_WH='';
   CURRENT_WAREHOUSE=wid;
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   updateWhChips();
@@ -4490,7 +4495,7 @@ async function delPerson(id){
 function logoutAdmin(){
   // Admin gudang (staff) keluar penuh ke layar login; super admin kembali ke layar PIN
   if(!IS_SUPER){staffLogout();return;}
-  clearSessions();IS_ADMIN=false;IS_SUPER=false;CURRENT_USER=null;
+  clearSessions();IS_ADMIN=false;IS_SUPER=false;CURRENT_USER=null;AI_WH='';
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   renderAll(); // 重新計算底部分頁可見性，避免登出後 session 半殘仍可操作
 }
