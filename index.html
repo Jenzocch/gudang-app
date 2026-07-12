@@ -2619,12 +2619,22 @@ function renderRiwayat(){
 // ═══════════════════════════════════════════════════════════
 var QC={templates:[],items:[],checks:[]},QC_LOADED=false,QC_SUBTAB='periksa';
 var QC_CTX=null,QC_FORM={bools:{}};
+// qc_checks di-scope per-gudang (CURRENT_WAREHOUSE) + limit dinaikkan dari 300→2000:
+// dulu 300 baris itu gabungan SEMUA gudang, jadi gudang yang ramai QC-nya bisa "kehabisan
+// jatah" cuma dari riwayat gudang lain — checks lawas gudang ini ke-drop dari cache, dan
+// qcCheckFor() (yang cuma nyari di cache ini) salah bilang "Belum QC" padahal sudah pernah
+// dicek. Scoping per gudang membuat working-set jauh lebih kecil, jadi limit 2000 baru akan
+// terpotong kalau SATU gudang sendirian sudah punya 2000+ riwayat QC.
+function qcChecksQuery(){
+  var q=CURRENT_WAREHOUSE?sb.from('qc_checks').select('*').eq('warehouse_id',CURRENT_WAREHOUSE):sb.from('qc_checks').select('*');
+  return q.order('checked_at',{ascending:false}).limit(2000);
+}
 function qcEnsure(cb){
   if(QC_LOADED){cb&&cb();return;}
   Promise.all([
     sb.from('qc_templates').select('*').order('created_at'),
     sb.from('qc_template_items').select('*').order('order_index'),
-    sb.from('qc_checks').select('*').order('checked_at',{ascending:false}).limit(300)
+    qcChecksQuery()
   ]).then(function(r){
     for(var i=0;i<r.length;i++){if(r[i].error)throw r[i].error;}
     QC={templates:r[0].data||[],items:r[1].data||[],checks:r[2].data||[]};
@@ -2636,10 +2646,13 @@ function qcEnsure(cb){
 }
 function qcReload(cb){QC_LOADED=false;qcEnsure(cb);}
 // 部分刷新：存一筆檢驗只重抓 checks；改範本只重抓 templates+items
+// qc_checks 現在依 CURRENT_WAREHOUSE 縮小查詢範圍再 limit 2000（見 qcChecksQuery 註解）——
+// 之前 300 筆是跨全部倉庫共用額度，忙碌倉庫的舊檢驗紀錄會被擠出快取，讓 qcCheckFor()
+// （只在這份快取裡找）誤判成「Belum QC」，即使那筆真的檢驗過。
 var QC_Q={
   templates:function(){return sb.from('qc_templates').select('*').order('created_at');},
   items:function(){return sb.from('qc_template_items').select('*').order('order_index');},
-  checks:function(){return sb.from('qc_checks').select('*').order('checked_at',{ascending:false}).limit(300);}
+  checks:qcChecksQuery
 };
 async function qcRefresh(parts,cb){
   if(!QC_LOADED){qcEnsure(cb);return;}
@@ -4393,6 +4406,10 @@ function switchWarehouse(wid){
     if(!confirm('Ada perubahan belum disimpan (keranjang/opname) akan hilang.\nPindah gudang?'))return;
   }
   CART={};CART_M={};STOCKTAKE={};
+  // qc_checks sekarang di-query per-gudang (lihat qcChecksQuery) — cache lama punya
+  // checks gudang sebelumnya, harus dibuang supaya qcCheckFor() tidak salah lapor status
+  // dari gudang yang baru saja ditinggalkan.
+  QC_LOADED=false;
   CURRENT_WAREHOUSE=wid;
   if(wid)localStorage.setItem('current_warehouse',wid);else localStorage.removeItem('current_warehouse');
   updateWhChips();
