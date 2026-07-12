@@ -2905,14 +2905,16 @@ var MARKETPLACES=[
   {label:'Tokopedia',emoji:'🛍️',bg:'#03AC0E',url:'https://www.tokopedia.com/search?q='},
   {label:'BigGo',emoji:'📊',bg:'#2563EB',url:'https://biggo.id/s/?q=',cmp:true} // 跨平台比價
 ];
+// 誰能看價格：Super Admin、Admin Gudang、或被特別授權看價的人(💰)。
+// 一般員工/訪客/Minta 申請人一律看不到。所有顯示價格的地方都走這個判斷。
+function canSeePrice(){return !!(IS_SUPER||IS_ADMIN||(CURRENT_USER&&CURRENT_USER.can_view_pricing));}
 // 共用的線上搜尋面板（三個平台大按鈕，間距大不會點錯）。name=關鍵字，
 // item=可選，若給且有看價權限就顯示自家上次進貨價當基準。卡片與 Minta 共用。
 function marketPopup(name,item){
   name=(name||'').trim();
   if(!name){toast('⚠ Ketik / pilih nama barang dulu');return;}
   var kw=encodeURIComponent(name);
-  var canPrice=IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing);
-  var lp=(canPrice&&item)?lastHardwarePrice(item.id):null;
+  var lp=(canSeePrice()&&item)?lastHardwarePrice(item.id):null;
   var btns=MARKETPLACES.map(function(m){
     return '<a href="'+m.url+kw+'" target="_blank" rel="noopener noreferrer" onclick="closeModal()" style="display:flex;align-items:center;gap:.7rem;background:'+m.bg+';color:#fff;padding:.9rem 1rem;border-radius:12px;font-size:1.02rem;font-weight:800;text-decoration:none;min-height:54px">'+
       '<span style="font-size:1.25rem">'+m.emoji+'</span>'+
@@ -4827,7 +4829,7 @@ function showItemBatches(itemId){
               (b.shelf_life?'<span style="font-size:.75rem;color:var(--ink2)">📦 Simpan: '+esc(b.shelf_life)+'</span>':'')+
             '</div>'+
             (b.qc_date?'<div style="font-size:.73rem;color:var(--ink2);margin-top:.1rem">QC: '+esc(b.qc_date)+'</div>':'')+
-            (((IS_SUPER||(CURRENT_USER&&CURRENT_USER.can_view_pricing))&&CURRENT_WAREHOUSE==='HARDWARE')?(b.unit_price||b.supplier?'<div style="margin-top:.25rem;padding:.45rem;background:rgba(79,70,229,.08);border-radius:8px;border-left:3px solid var(--p)">'+
+            ((canSeePrice()&&CURRENT_WAREHOUSE==='HARDWARE')?(b.unit_price||b.supplier?'<div style="margin-top:.25rem;padding:.45rem;background:rgba(79,70,229,.08);border-radius:8px;border-left:3px solid var(--p)">'+
               (b.unit_price?'<div style="font-weight:700;color:var(--p);font-size:.88rem">💰 Harga: Rp '+parseFloat(b.unit_price).toLocaleString('id-ID')+'</div>':'')+
               (b.supplier?'<div style="color:var(--ink2);font-size:.75rem;margin-top:.2rem">🏢 Pemasok: '+esc(b.supplier)+'</div>':'')+
               '</div>':''):'')+
