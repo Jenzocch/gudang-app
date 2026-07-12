@@ -4057,9 +4057,9 @@ function collectItemForm(name){
     name:name,
     code:(document.getElementById('fc')?document.getElementById('fc').value:'').trim(),
     spec:(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim(),
-    qty:parseInt(document.getElementById('fq').value)||0,
+    qty:Math.max(0,parseInt(document.getElementById('fq').value)||0),
     unit:(document.getElementById('fu').value||'pcs').trim(),
-    min:parseInt(document.getElementById('fm').value)||10,
+    min:Math.max(0,parseInt(document.getElementById('fm').value)||10),
     pd:(document.getElementById('fpd').value||'').trim(),
     ed:(document.getElementById('fed').value||'').trim(),
     rm:rm,
@@ -4148,9 +4148,9 @@ async function saveItem(){
   }
   var code=(document.getElementById('fc')?document.getElementById('fc').value:'').trim();
   var spec=(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim();
-  var qty=parseInt(document.getElementById('fq').value)||0;
+  var qty=Math.max(0,parseInt(document.getElementById('fq').value)||0);
   var unit=(document.getElementById('fu').value||'pcs').trim();
-  var min=parseInt(document.getElementById('fm').value)||10;
+  var min=Math.max(0,parseInt(document.getElementById('fm').value)||10);
   var pd=(document.getElementById('fpd').value||'').trim();
   var ed=(document.getElementById('fed').value||'').trim();
   var rm=(document.getElementById('frm').value||'').trim();
@@ -4250,7 +4250,7 @@ async function saveTxEdit(id){
   if(!tx)return;
   var newPn=(document.getElementById('etx-pn').value||'').trim();
   var newIn=(document.getElementById('etx-in').value||'').trim();
-  var newQ=parseInt(document.getElementById('etx-q').value)||1;
+  var newQ=Math.max(1,parseInt(document.getElementById('etx-q').value)||1);
   var newT=(document.getElementById('etx-t').value||'ambil').trim();
   if(!newPn||!newIn){toast('⚠ '+('Isi semua field'));return;}
   var oldVals={person_name:tx.person_name,item_name:tx.item_name,qty:tx.qty,type:tx.type};
@@ -5058,11 +5058,11 @@ async function saveBatch(itemId,batchId){
   var coa=(document.getElementById('b-coa').value||'').trim();
   try{
     if(isEdit){
-      var qr=parseFloat(document.getElementById('b-qtyrem').value)||0;
+      var qr=Math.max(0,parseFloat(document.getElementById('b-qtyrem').value)||0);
       var {error}=await sb.from('item_batches').update({lot_no:lot||null,code_produksi:cprod||null,po_no:pono||null,do_no:dono||null,production_date:pd,expiry_date:ed,shelf_life:sl||null,qc_status:qc,qc_date:qcd,coa_url:coa||null,qty_remaining:qr}).eq('id',batchId);
       if(error)throw error;
     }else{
-      var qty=parseFloat(document.getElementById('b-qty').value)||0;
+      var qty=Math.max(0,parseFloat(document.getElementById('b-qty').value)||0);
       var {error}=await sb.from('item_batches').insert({item_id:itemId,warehouse_id:CURRENT_WAREHOUSE||null,lot_no:lot||null,code_produksi:cprod||null,po_no:pono||null,do_no:dono||null,production_date:pd,expiry_date:ed,shelf_life:sl||null,qc_status:qc,qc_date:qcd,coa_url:coa||null,qty_initial:qty,qty_remaining:qty,received_date:new Date().toISOString().slice(0,10)});
       if(error)throw error;
     }
