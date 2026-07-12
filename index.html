@@ -2739,6 +2739,23 @@ function qcTgl(ix,v){
   if(ok){ok.style.background=(v===1)?'#059669':'#fff';ok.style.color=(v===1)?'#fff':'#059669';}
   if(no){no.style.background=(v===0)?'#DC2626':'#fff';no.style.color=(v===0)?'#fff':'#DC2626';}
 }
+// 把 critical_limit 的自由文字（"≤ 4°C"、"pH 3.5-4.2"、">= 70"）解析成可比對的邊界。
+// 解析不出來（格式太自由/純文字說明）就回傳 null → 不自動判定，維持原本靠人工挑 Hasil 的行為。
+function parseCriticalLimit(s){
+  if(!s)return null;
+  s=String(s).trim();
+  var m=s.match(/(-?\d+(?:[.,]\d+)?)\s*(?:-|–|~|sampai|to|s\/d)\s*(-?\d+(?:[.,]\d+)?)/i);
+  if(m)return{min:parseFloat(m[1].replace(',','.')),max:parseFloat(m[2].replace(',','.'))};
+  m=s.match(/(≤|<=)\s*(-?\d+(?:[.,]\d+)?)/);
+  if(m)return{max:parseFloat(m[2].replace(',','.'))};
+  m=s.match(/(≥|>=)\s*(-?\d+(?:[.,]\d+)?)/);
+  if(m)return{min:parseFloat(m[2].replace(',','.'))};
+  m=s.match(/<\s*(-?\d+(?:[.,]\d+)?)/);
+  if(m)return{maxExclusive:parseFloat(m[1].replace(',','.'))};
+  m=s.match(/>\s*(-?\d+(?:[.,]\d+)?)/);
+  if(m)return{minExclusive:parseFloat(m[1].replace(',','.'))};
+  return null;
+}
 function qcSave(){
   var ctx=QC_CTX;if(!ctx)return;
   var tplId=document.getElementById('qc-tplid').value;
@@ -2749,8 +2766,20 @@ function qcSave(){
     else{var el=document.getElementById('qci-'+ix);val=el?el.value:'';if(it.input_type==='number'&&val!=='')val=Number(val);}
     if(it.required&&it.input_type==='bool'&&pass===null){toast('⚠ Isi: '+it.label);return;}
     if(it.required&&it.input_type!=='bool'&&(val===''||val==null)){toast('⚠ Isi: '+it.label);return;}
-    // CCP 閘門：bool CCP 未通過(=false) → 失敗；未作答(null) → 未驗證，兩者都不能判 Lulus
+    // CCP 閘門：bool CCP 未通過(=false) → 失敗；未作答(null) → 未驗證，兩者都不能判 Lulus。
+    // 數值型 CCP 之前完全沒被檢查——填了超過臨界值(critical_limit)的數字照樣能選「Lulus」。
+    // 現在能解析出臨界值時，數字超出範圍一樣算 ccpFail；沒填則跟 bool 一樣算未驗證。
     if(it.is_ccp&&it.input_type==='bool'){if(pass===false)ccpFail=true;if(pass!==true)ccpUnverified=true;}
+    else if(it.is_ccp&&it.input_type==='number'){
+      if(val===''||val==null)ccpUnverified=true;
+      else{
+        var lim=parseCriticalLimit(it.critical_limit);
+        if(lim){
+          var v=Number(val);
+          if((lim.min!=null&&v<lim.min)||(lim.max!=null&&v>lim.max)||(lim.minExclusive!=null&&v<=lim.minExclusive)||(lim.maxExclusive!=null&&v>=lim.maxExclusive))ccpFail=true;
+        }
+      }
+    }
     data.push({label:it.label,input_type:it.input_type,value:val,pass:pass,is_ccp:!!it.is_ccp,critical_limit:it.critical_limit||null});
   }
   var result=document.getElementById('qc-result').value;
