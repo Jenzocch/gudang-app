@@ -3772,9 +3772,16 @@ async function saveStocktake(){
   var okCount=0,failed=[];
   for(var ki=0;ki<keys.length;ki++){
     var variantId=keys[ki];
-    var item=DATA.items.find(function(i){return i.variant_id==variantId;});
-    var nv=STOCKTAKE[variantId];var diff=nv-item.qty;
+    var item=null;
     try{
+      // item lookup + diff harus di dalam try: kalau DATA sempat ke-refresh di tengah
+      // opname dan variant ini sudah tidak ada lagi, item.qty dulu meledak DI LUAR try
+      // → seluruh loop for berhenti mendadak, sisa item dalam batch ini tidak pernah
+      // tersimpan & tombol macet di "Menyimpan...". Sekarang error ini cuma gagalkan
+      // baris ini saja, baris berikutnya tetap lanjut diproses.
+      item=DATA.items.find(function(i){return i.variant_id==variantId;});
+      if(!item)throw new Error('Barang tidak ditemukan (mungkin sudah dihapus)');
+      var nv=STOCKTAKE[variantId];var diff=nv-item.qty;
       var u1=await sb.from('item_variants').update({qty:nv}).eq('id',variantId);
       if(u1.error)throw u1.error;
       if(diff!==0){
