@@ -4972,9 +4972,12 @@ function compressImg(file,cb){
       cv.width=Math.round(img.width*r);cv.height=Math.round(img.height*r);
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       var dataUrl=cv.toDataURL('image/jpeg',0.85);
-      var size=dataUrl.length;
-      if(size>2000000){dataUrl=cv.toDataURL('image/jpeg',0.75);}
-      if(size>3000000){dataUrl=cv.toDataURL('image/jpeg',0.65);}
+      // Baca .length ULANG tiap kali sebelum cek — dulu dibaca sekali di awal lalu dipakai
+      // buat kedua cek, jadi cek kedua menilai ukuran HASIL 0.85 yang sudah basi, bukan
+      // ukuran dataUrl 0.75 yang baru saja dihasilkan. Efeknya foto besar bisa kepotong dua
+      // kali (0.85→0.75→0.65) padahal hasil 0.75-nya saja sudah cukup kecil.
+      if(dataUrl.length>2000000){dataUrl=cv.toDataURL('image/jpeg',0.75);}
+      if(dataUrl.length>3000000){dataUrl=cv.toDataURL('image/jpeg',0.65);}
       cb(dataUrl);
     };
     img.src=e.target.result;
