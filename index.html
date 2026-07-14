@@ -2625,6 +2625,8 @@ function moreEntries(){
   if(IS_ADMIN)e.push({id:'qc',ic:'✅',n:'QC',d:Z('Cek mutu & batch')});
   if(IS_SUPER)e.push({id:'analisa',ic:'📈',n:'Analisa',d:Z('Statistik & laporan')});
   if(IS_ADMIN)e.push({id:'admin',ic:'⚙️',n:t('adm'),d:Z('Barang, orang, pengaturan')});
+  // Panduan situasional (panduan.html, satu domain) — semua peran bisa buka
+  e.push({href:'panduan.html',ic:'📖',n:'Panduan',d:Z('Cara pakai — sesuai situasi')});
   return e;
 }
 function renderLainnya(){
@@ -2632,7 +2634,8 @@ function renderLainnya(){
   var es=moreEntries();
   el.innerHTML='<div class="st">☰ '+Z('Lainnya')+'</div>'+
     (es.length?'<div class="more-grid">'+es.map(function(x){
-      return '<button class="more-card" onclick="goTab(\''+x.id+'\',null)"><span class="mi">'+x.ic+'</span><span class="mt">'+x.n+'</span><span class="md">'+x.d+'</span></button>';
+      var act=x.href?'window.open(\''+esc(x.href)+'\',\'_blank\')':'goTab(\''+x.id+'\',null)';
+      return '<button class="more-card" onclick="'+act+'"><span class="mi">'+x.ic+'</span><span class="mt">'+x.n+'</span><span class="md">'+x.d+'</span></button>';
     }).join('')+'</div>':'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+Z('Tidak ada menu tambahan untuk akun ini')+'</div>');
 }
 
