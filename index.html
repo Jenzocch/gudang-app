@@ -3951,11 +3951,45 @@ window.addEventListener('popstate',function(){
   // 沒有覆蓋層 → 不攔截，讓返回自然發生
 });
 
+// 🛒 Tempel teks "Bagikan" dari Shopee/Tokopedia → otomatis isi nama + simpan link & harga.
+// Murni parsing teks di sisi klien — TIDAK fetch/scrape situs tokonya (lihat lesson
+// external-integrations-deeplink-not-scrape; Shopee memblokir bot, dan kita memang tak perlu).
+// Nama hasil parse TETAP bisa diedit di kolom nama — judul toko sering kepanjangan,
+// pendekkan saja; link & harga disimpan terpisah di F_SHARE jadi tidak hilang saat nama diubah.
+var F_SHARE={url:'',price:''};
+function parseShareText(text){
+  var out={url:'',price:'',name:''};
+  if(!text)return out;
+  var um=text.match(/https?:\/\/\S+/);
+  if(um)out.url=um[0].replace(/[.,;!?)\]]+$/,'');
+  var pm=text.match(/Rp\s?[\d][\d.,]*/);
+  if(pm)out.price=pm[0].replace(/\s/g,'').replace(/[.,]+$/,''); // buang titik/koma akhir kalimat yang ikut kena regex
+  // Format share Shopee: "Temukan {nama} seharga Rp... Dapatkan sekarang juga di Shopee! {url}"
+  // (kadang "hanya Rp"). Kalau dua pola itu tak kena, fallback: buang url/harga/boilerplate.
+  var nm=text.match(/Temukan\s+([\s\S]+?)\s+(?:seharga|hanya)\s/i)
+       ||text.match(/^([\s\S]+?)\s+(?:seharga|hanya)\s+Rp/i);
+  var name=nm?nm[1]:text.replace(/https?:\/\/\S+/g,'')
+    .replace(/Temukan\s+/i,'').replace(/Dapatkan sekarang juga di Shopee!?/i,'')
+    .replace(/Rp\s?[\d][\d.,]*/g,'').replace(/\b(seharga|hanya)\b/gi,'');
+  out.name=(name||'').replace(/\s+/g,' ').trim().slice(0,150);
+  return out;
+}
+function onPasteShare(el){
+  var p=parseShareText(el.value||'');
+  if(!p.url&&!p.name)return;
+  F_SHARE={url:p.url,price:p.price};
+  var fn=document.getElementById('fn');
+  if(fn&&p.name){fn.value=p.name;checkDuplicateItem();}
+  var info=document.getElementById('fshare-info');
+  if(info)info.innerHTML='<div style="background:#ECFDF5;border:1px solid #86EFAC;border-radius:8px;padding:.5rem .7rem;font-size:.8rem;color:#065F46;margin-top:.4rem">✓ Nama terisi'+(p.url?' · 🔗 link tersimpan':'')+(p.price?' · 💰 '+esc(p.price):'')+'<br>✂️ Nama kepanjangan? <b>Edit saja di kolom nama</b> — link &amp; harga tidak ikut hilang.</div>';
+}
 function itemFormHTML(item){
   var twh=item?item.warehouse_id:(CURRENT_WAREHOUSE||ADD_WH);
   var banner=twh?'<div style="background:'+(WH_COLORS[twh]||WH_FB_BG)+';color:'+(WH_TEXT[twh]||WH_FB_TEXT)+';padding:.7rem 1rem;border-radius:12px;margin-bottom:.9rem;font-weight:800;font-size:1.05rem;text-align:center;letter-spacing:.03em;box-shadow:inset 0 0 0 1.5px '+(WH_TEXT[twh]||WH_FB_TEXT)+'22">🏭 '+(item?'Edit di ':'Tambah ke ')+(WH_SHORT[twh]||twh)+'</div>':'';
   // 編輯時提醒：名稱/照片/單位是全倉庫共用的主檔，改了會跟著全改；庫存/低標才是本倉獨立
-  return banner+(item?'<div style="font-size:.75rem;color:var(--muted);margin:-.3rem 0 .7rem;text-align:center">ℹ️ Nama, foto & satuan dipakai bersama semua gudang — stok & batas min hanya gudang ini</div>':'')+'<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
+  return banner+(item?'<div style="font-size:.75rem;color:var(--muted);margin:-.3rem 0 .7rem;text-align:center">ℹ️ Nama, foto & satuan dipakai bersama semua gudang — stok & batas min hanya gudang ini</div>':'')+
+    (item?'':'<div class="ig" style="background:#FFF7ED;border:1.5px dashed #FDBA74;border-radius:10px;padding:.6rem .7rem"><label style="color:#9A3412">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="fshare" oninput="onPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="fshare-info"></div></div>')+
+    '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):'')+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
     '<div style="display:none" id="fn-dup-info"></div>'+
     '<div class="ig"><label>🏷️ Kode Barang</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
     '<div class="fr">'+
@@ -3994,7 +4028,7 @@ function itemFormHTML(item){
 // super admin 在「Semua Gudang」時由第 0 步選出來。倉庫優先，才不會加錯家。
 var ADD_WH='';
 function showAddItem(){
-  EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];
+  EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];F_SHARE={url:'',price:''};
   // 目標倉優先序：目前所在倉 > 總覽頂部 chips 選的倉（選了就直接進流程，不再問）
   ADD_WH=CURRENT_WAREHOUSE||AI_WH||'';
   if(!ADD_WH){
@@ -4074,10 +4108,10 @@ async function addExistingToWarehouse(itemId){
   }
 }
 function proceedNewItem(){
-  EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];
+  EDIT_ITEM=null;F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=[];F_SHARE={url:'',price:''};
   showModal('➕ '+t('addItem'),itemFormHTML(null));
 }
-function showEdit(variantId){EDIT_ITEM=DATA.items.find(function(i){return i.variant_id==variantId;})||DATA.items.find(function(i){return i.id==variantId;});F_PHOTO='';F_STORAGE_PHOTO='';FORM_TAGS=(EDIT_ITEM&&EDIT_ITEM.tags)?EDIT_ITEM.tags.slice():[];var title=EDIT_ITEM?'✏️ '+('Edit')+': '+esc(EDIT_ITEM.name):'✏️ '+t('editItem');showModal(title,itemFormHTML(EDIT_ITEM));}
+function showEdit(variantId){EDIT_ITEM=DATA.items.find(function(i){return i.variant_id==variantId;})||DATA.items.find(function(i){return i.id==variantId;});F_PHOTO='';F_STORAGE_PHOTO='';F_SHARE={url:'',price:''};FORM_TAGS=(EDIT_ITEM&&EDIT_ITEM.tags)?EDIT_ITEM.tags.slice():[];var title=EDIT_ITEM?'✏️ '+('Edit')+': '+esc(EDIT_ITEM.name):'✏️ '+t('editItem');showModal(title,itemFormHTML(EDIT_ITEM));}
 function onPhoto(e){
   var f=e.target.files[0];if(!f)return;
   var p=document.getElementById('fph');if(p)p.innerHTML='<div class="prev" style="display:flex;align-items:center;justify-content:center;color:var(--ink2)">⏳</div>';
@@ -4168,7 +4202,9 @@ function collectItemForm(name){
     ed:(document.getElementById('fed').value||'').trim(),
     rm:rm,
     img:F_PHOTO||null,
-    sp:F_STORAGE_PHOTO||null
+    sp:F_STORAGE_PHOTO||null,
+    supUrl:F_SHARE.url||null,
+    priceNote:F_SHARE.price?('Harga ±'+F_SHARE.price+' ('+today().slice(0,7)+')'):null
   };
 }
 // 沿用同名主檔：不建新 items，只幫目標倉庫開一筆庫存（名稱/照片全倉一致，庫存獨立）
@@ -4188,7 +4224,7 @@ async function savePendingVariant(){
 async function savePendingNew(){
   if(!PENDING_ITEM)return;var p=PENDING_ITEM;PENDING_ITEM=null;
   try{
-    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null});
+    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null,supplier_url:p.supUrl||null,description:p.priceNote||null});
     if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
     var vins=await sbInsertSafe('item_variants',{item_id:ins.data[0].id,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
     if(vins.error)throw vins.error;
@@ -4263,7 +4299,11 @@ async function saveItem(){
   if(!noAlert){rm=rm.replace(/#noalert/g,'').trim();}
   var img=F_PHOTO||(EDIT_ITEM&&EDIT_ITEM.image_url)||null;
   var sp=F_STORAGE_PHOTO||(EDIT_ITEM&&EDIT_ITEM.storage_photo_url)||null;
-  F_PHOTO='';F_STORAGE_PHOTO='';
+  // Link & harga hasil tempel-share (F_SHARE) hanya dipakai saat TAMBAH baru —
+  // form edit tidak menampilkan kotak tempel (link diedit via ✏️ Link Beli).
+  var supUrl=F_SHARE.url||null;
+  var priceNote=F_SHARE.price?('Harga ±'+F_SHARE.price+' ('+today().slice(0,7)+')'):null;
+  F_PHOTO='';F_STORAGE_PHOTO='';F_SHARE={url:'',price:''};
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
@@ -4273,7 +4313,7 @@ async function saveItem(){
       if(u2.error)throw u2.error;
     }else{
       // 新增：targetWh 已在函式開頭解析（倉庫優先流程），這裡直接用
-      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null});
+      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null,supplier_url:supUrl,description:priceNote});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
