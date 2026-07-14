@@ -1467,13 +1467,13 @@ function renderAll(){
   if(tabMore)tabMore.style.display=moreEntries().length?'':'none';
   // 只重繪「目前所在的分頁」，其他分頁等切過去時才建（lazy）。
   // 之前每次 loadAll 都整頁砍掉+固定重繪 home，切分頁就得從零重蓋 → 卡頓主因之一
-  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','qc','admin','lainnya'];
+  var SEC_IDS=['home','ambil','masuk','produksi','shipment','permintaan','riwayat','analisa','qc','referensi','admin','lainnya'];
   if(SEC_IDS.indexOf(ACTIVE_TAB)<0)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='ambil'&&!canAmbil())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='masuk'&&!canMasuk())ACTIVE_TAB='home';
   if(ACTIVE_TAB==='produksi'&&!canProduksi()&&!IS_OFFICE)ACTIVE_TAB='home';
   if(ACTIVE_TAB==='shipment'&&!canKirim())ACTIVE_TAB='home';
-  if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'))ACTIVE_TAB='home';
+  if(!IS_ADMIN&&(ACTIVE_TAB==='riwayat'||ACTIVE_TAB==='admin'||ACTIVE_TAB==='referensi'))ACTIVE_TAB='home';
   if(!IS_SUPER&&ACTIVE_TAB==='analisa')ACTIVE_TAB='home';
   if(!IS_ADMIN&&ACTIVE_TAB==='qc')ACTIVE_TAB='home';
   // 分頁骨架只在第一次建立。存檔/編輯/切倉後重繪時，若骨架已存在就「不砍 #mc」——
@@ -1503,6 +1503,7 @@ function renderAll(){
   else if(ACTIVE_TAB==='riwayat')renderRiwayat();
   else if(ACTIVE_TAB==='analisa')renderAnalisa();
   else if(ACTIVE_TAB==='qc')renderQC();
+  else if(ACTIVE_TAB==='referensi')renderReferensi();
   else if(ACTIVE_TAB==='admin')renderAdmin();
   else if(ACTIVE_TAB==='lainnya')renderLainnya();
   updateCartBar();
@@ -2623,6 +2624,7 @@ function moreEntries(){
   if(KIRIM_WH.indexOf(CURRENT_WAREHOUSE)>=0&&canKirim())e.push({id:'shipment',ic:'🚚',n:'Kirim',d:Z('Pengiriman ke customer')});
   if(IS_ADMIN)e.push({id:'riwayat',ic:'📊',n:t('hist'),d:Z('Riwayat keluar-masuk')});
   if(IS_ADMIN)e.push({id:'qc',ic:'✅',n:'QC',d:Z('Cek mutu & batch')});
+  if(IS_ADMIN)e.push({id:'referensi',ic:'📚',n:'Referensi',d:Z('Katalog supplier/produk incaran')});
   if(IS_SUPER)e.push({id:'analisa',ic:'📈',n:'Analisa',d:Z('Statistik & laporan')});
   if(IS_ADMIN)e.push({id:'admin',ic:'⚙️',n:t('adm'),d:Z('Barang, orang, pengaturan')});
   // Panduan situasional (panduan.html, satu domain) — semua peran bisa buka
@@ -2637,6 +2639,146 @@ function renderLainnya(){
       var act=x.href?'window.open(\''+esc(x.href)+'\',\'_blank\')':'goTab(\''+x.id+'\',null)';
       return '<button class="more-card" onclick="'+act+'"><span class="mi">'+x.ic+'</span><span class="mt">'+x.n+'</span><span class="md">'+x.d+'</span></button>';
     }).join('')+'</div>':'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+Z('Tidak ada menu tambahan untuk akun ini')+'</div>');
+}
+
+// ═══════════════════════════════════════════════════════════
+// REFERENSI — katalog supplier/produk incaran, TERPISAH dari inventory.
+// Sengaja punya tabel sendiri (product_refs, bukan items): ini cuma catatan
+// "barang bagus, mungkin nanti dibeli" — tidak ikut hitungan stok/low-stock/
+// CSV inventory. Cari lewat kata kunci nanti, bukan lewat menu Kelola Barang.
+// ═══════════════════════════════════════════════════════════
+var PRODREF={list:[],loaded:false};
+var PR_EDIT=null,PR_PHOTO='',PR_SHARE={url:'',price:''},PR_SEARCH='';
+function prodRefEnsure(cb){
+  if(PRODREF.loaded){cb&&cb();return;}
+  sb.from('product_refs').select('*').order('created_at',{ascending:false}).then(function(r){
+    if(r.error){
+      var el=document.getElementById('referensi');
+      if(el)el.innerHTML='<div class="st">📚 Referensi</div><div class="ab ab-d" style="margin:1rem">⚠ '+esc(friendlyErr(r.error))+'<br><br><span style="font-size:.8rem;color:var(--muted)">Jika tabel belum ada, jalankan migrations/MIGRATION_PRODUCT_REFS.sql di Supabase dulu.</span><br><br><button class="btn btn-p" onclick="renderReferensi()">🔄 Coba lagi</button></div>';
+      return;
+    }
+    PRODREF.list=r.data||[];PRODREF.loaded=true;cb&&cb();
+  });
+}
+function prReload(){PRODREF.loaded=false;prodRefEnsure(renderReferensi);}
+function prMatch(p,q){
+  if(!q)return true;
+  var hay=((p.name||'')+' '+(p.supplier_name||'')+' '+(p.note||'')).toLowerCase();
+  return hay.indexOf(q)>=0;
+}
+function prCardHTML(p){
+  return '<div class="card" style="display:flex;gap:.7rem;padding:.8rem" data-pr-id="'+p.id+'">'+
+    (p.image_url?'<img src="'+esc(p.image_url)+'" style="width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;cursor:pointer" onclick="showImg(\''+esc(p.image_url)+'\',\''+esc(p.name)+'\')">':'<div style="width:56px;height:56px;border-radius:8px;flex-shrink:0;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--muted)">📦</div>')+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-weight:800;font-size:.95rem;line-height:1.3">'+esc(p.name)+'</div>'+
+      (p.supplier_name?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.1rem">🏢 '+esc(p.supplier_name)+'</div>':'')+
+      (p.note?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.15rem;white-space:pre-wrap">'+esc(p.note)+'</div>':'')+
+      '<div style="display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap">'+
+        (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-s" style="font-size:.78rem;padding:.35rem .7rem;text-decoration:none">🔗 Buka Link</a>':'')+
+        '<button class="btn btn-s" style="font-size:.78rem;padding:.35rem .7rem" onclick="prShowEdit('+p.id+')">✏️ Edit</button>'+
+        '<button class="btn btn-d" style="font-size:.78rem;padding:.35rem .7rem" onclick="prDelete('+p.id+')">🗑️ Hapus</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+function renderReferensi(){
+  if(!IS_ADMIN){var el0=document.getElementById('referensi');if(el0)el0.innerHTML='<div class="st">📚 Referensi</div><div class="ab ab-d" style="margin:1rem">⚠ Hanya admin</div>';return;}
+  if(!PRODREF.loaded){
+    document.getElementById('referensi').innerHTML='<div class="st">📚 Referensi</div><div class="loading"><div class="spin"></div><p style="margin-top:.8rem;font-size:.88rem">Memuat...</p></div>';
+    prodRefEnsure(renderReferensi);
+    return;
+  }
+  var q=(PR_SEARCH||'').toLowerCase().trim();
+  var shown=PRODREF.list.filter(function(p){return prMatch(p,q);});
+  document.getElementById('referensi').innerHTML=
+    '<div class="st">📚 Referensi Supplier &amp; Produk</div>'+
+    '<div style="padding:.6rem .7rem 0;font-size:.8rem;color:var(--ink2)">Katalog barang/supplier incaran — tersimpan di sini walau belum dibeli, cari lewat kata kunci kapan saja.</div>'+
+    '<div style="padding:.6rem .7rem;display:flex;gap:.5rem">'+
+      '<input id="pr-search" type="text" placeholder="🔍 Cari nama, supplier, catatan..." value="'+esc(PR_SEARCH)+'" style="flex:1;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.92rem" oninput="prFilter(this.value)">'+
+    '</div>'+
+    '<div style="padding:0 .7rem"><button class="btn btn-p btn-full" onclick="prShowAdd()">➕ Tambah Referensi</button></div>'+
+    '<div id="pr-list" style="padding:.7rem;display:flex;flex-direction:column;gap:.6rem">'+
+      (shown.length?shown.map(prCardHTML).join(''):'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+(q?'Tidak ada yang cocok 🚫':'Belum ada referensi — tekan ➕ untuk mulai mencatat')+'</div>')+
+    '</div>';
+}
+function prFilter(v){PR_SEARCH=v||'';var host=document.getElementById('pr-list');if(!host)return;var q=PR_SEARCH.toLowerCase().trim();var shown=PRODREF.list.filter(function(p){return prMatch(p,q);});host.innerHTML=shown.length?shown.map(prCardHTML).join(''):'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+(q?'Tidak ada yang cocok 🚫':'Belum ada referensi — tekan ➕ untuk mulai mencatat')+'</div>';}
+function onPrPasteShare(el){
+  var p=parseShareText(el.value||'');
+  if(!p.url&&!p.name)return;
+  PR_SHARE={url:p.url,price:p.price};
+  var nm=document.getElementById('pr-name');
+  if(nm&&p.name)nm.value=p.name;
+  var lk=document.getElementById('pr-url');
+  if(lk&&p.url)lk.value=p.url;
+  var nt=document.getElementById('pr-note');
+  if(nt&&p.price&&!nt.value)nt.value='Harga ±'+p.price+' ('+today().slice(0,7)+')';
+  var info=document.getElementById('pr-share-info');
+  if(info)info.innerHTML='<div style="background:#ECFDF5;border:1px solid #86EFAC;border-radius:8px;padding:.5rem .7rem;font-size:.8rem;color:#065F46;margin-top:.4rem">✓ Nama, link'+(p.price?' &amp; harga':'')+' terisi — semua kolom di bawah masih bisa diedit bebas.</div>';
+}
+function onPrPhoto(e){
+  var f=e.target.files[0];if(!f)return;
+  var ph=document.getElementById('pr-fph');if(ph)ph.innerHTML='<div class="prev" style="display:flex;align-items:center;justify-content:center;color:var(--ink2)">⏳</div>';
+  uploadImage(f,'refs').then(function(d){
+    PR_PHOTO=d;
+    var ph2=document.getElementById('pr-fph');if(ph2)ph2.innerHTML='<img class="prev" src="'+d+'">';
+  });
+}
+function prFormHTML(item){
+  return (item?'':'<div class="ig" style="background:#FFF7ED;border:1.5px dashed #FDBA74;border-radius:10px;padding:.6rem .7rem"><label style="color:#9A3412">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="pr-share" oninput="onPrPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="pr-share-info"></div></div>')+
+    '<div class="ig"><label>Nama Produk *</label><input id="pr-name" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
+    '<div class="ig"><label>🏢 Supplier</label><input id="pr-sup" type="text" value="'+(item&&item.supplier_name?esc(item.supplier_name):'')+'" placeholder="opsional"></div>'+
+    '<div class="ig"><label>🔗 Link</label><input id="pr-url" type="url" value="'+(item&&item.url?esc(item.url):'')+'" placeholder="https://..."></div>'+
+    '<div class="ig"><label>Foto</label>'+
+      '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'pr-cam\').click()">📷 Kamera</button>'+
+        '<button type="button" class="btn btn-s" style="flex:1;font-size:.82rem" onclick="document.getElementById(\'pr-fi\').click()">🖼️ Album</button>'+
+      '</div>'+
+      '<input type="file" id="pr-cam" accept="image/*" capture="environment" style="display:none" onchange="onPrPhoto(event)">'+
+      '<input type="file" id="pr-fi" accept="image/*" style="display:none" onchange="onPrPhoto(event)">'+
+      '<div id="pr-fph">'+(item&&item.image_url?'<img class="prev" src="'+esc(item.image_url)+'">':'')+'</div>'+
+    '</div>'+
+    '<div class="ig"><label>📝 Catatan (harga, spek, kenapa bagus...)</label><textarea id="pr-note" style="min-height:70px;font-family:inherit">'+(item&&item.note?esc(item.note):'')+'</textarea></div>'+
+    '<button class="btn btn-p btn-full" onclick="savePr()">'+(item?'💾 Simpan Perubahan':'➕ Simpan Referensi')+'</button>';
+}
+function prShowAdd(){PR_EDIT=null;PR_PHOTO='';PR_SHARE={url:'',price:''};showModal('➕ Referensi Baru',prFormHTML(null));}
+function prShowEdit(id){
+  var item=PRODREF.list.find(function(p){return p.id==id;});if(!item)return;
+  PR_EDIT=item;PR_PHOTO='';PR_SHARE={url:'',price:''};
+  showModal('✏️ Edit Referensi',prFormHTML(item));
+}
+async function savePr(){
+  var name=(document.getElementById('pr-name').value||'').trim();
+  if(!name){toast('⚠ Isi nama produk dulu');return;}
+  var sup=(document.getElementById('pr-sup').value||'').trim();
+  var url=(document.getElementById('pr-url').value||'').trim();
+  var note=(document.getElementById('pr-note').value||'').trim();
+  var img=PR_PHOTO||(PR_EDIT&&PR_EDIT.image_url)||null;
+  var row={name:name,supplier_name:sup||null,url:url||null,note:note||null,image_url:img,updated_at:new Date().toISOString()};
+  try{
+    if(PR_EDIT){
+      var u=await sb.from('product_refs').update(row).eq('id',PR_EDIT.id);
+      if(u.error)throw u.error;
+    }else{
+      row.created_by=CURRENT_USER?CURRENT_USER.name:null;
+      var ins=await sb.from('product_refs').insert(row);
+      if(ins.error)throw ins.error;
+    }
+    toast('✓ Tersimpan');closeModal();
+    PR_EDIT=null;PR_PHOTO='';PR_SHARE={url:'',price:''};
+    prReload();
+  }catch(e){toast('⚠ '+friendlyErr(e));}
+}
+async function prDelete(id){
+  if(!confirm('Hapus referensi ini?'))return;
+  try{
+    var r=await sb.from('product_refs').delete().eq('id',id);
+    if(r.error)throw r.error;
+    toast('✓ Terhapus');
+    PRODREF.list=PRODREF.list.filter(function(p){return p.id!=id;});
+    var q=(PR_SEARCH||'').toLowerCase().trim();
+    var host=document.getElementById('pr-list');
+    if(host){var shown=PRODREF.list.filter(function(p){return prMatch(p,q);});host.innerHTML=shown.length?shown.map(prCardHTML).join(''):'<div style="text-align:center;color:var(--muted);padding:2rem;font-size:.9rem">'+(q?'Tidak ada yang cocok 🚫':'Belum ada referensi — tekan ➕ untuk mulai mencatat')+'</div>';}
+  }catch(e){toast('⚠ '+friendlyErr(e));}
 }
 
 // RIWAYAT
