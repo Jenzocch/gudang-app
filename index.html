@@ -3557,7 +3557,7 @@ async function togglePermCell(id,w,kind){
 // super 專用：臨時開放 Admin Office 看出貨數據的開關（存 app_config）
 function officeDeliveryToggleHTML(){
   var on=OFFICE_VIEW_DELIVERY;
-  return '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:#FFFBEB;border-color:#FDE68A">'+
+  return '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:.6rem">'+
     '<div style="min-width:0"><div style="font-weight:700;font-size:.88rem">🚚 Admin Office lihat pengiriman</div>'+
     '<div style="font-size:.74rem;color:var(--ink2);margin-top:.15rem">Buka sementara saat butuh bantuan cek/isi data pengiriman</div></div>'+
     '<button onclick="toggleOfficeDelivery(this)" style="flex-shrink:0;min-width:66px;min-height:34px;border-radius:999px;border:none;cursor:pointer;font-weight:800;font-size:.8rem;'+(on?'background:var(--ok);color:#fff':'background:var(--border);color:var(--ink2)')+'">'+(on?'ON':'OFF')+'</button>'+
