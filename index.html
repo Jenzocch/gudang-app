@@ -1914,11 +1914,11 @@ function renderFavStrip(itemIds){
   var box=document.getElementById('amb-fav');if(!box)return;
   var favs=itemIds.map(function(id){return itemById(id,CURRENT_WAREHOUSE);}).filter(function(i){return i&&i.qty>0;});
   if(!favs.length){box.innerHTML='';return;}
-  box.innerHTML='<div style="display:flex;gap:.4rem;padding:.45rem .7rem;overflow-x:auto;background:#FFFBEB;border-bottom:1px solid #FDE68A;align-items:center;-webkit-overflow-scrolling:touch">'+
-    '<span style="font-size:.72rem;font-weight:800;color:#B45309;flex-shrink:0">⭐ Sering:</span>'+
+  box.innerHTML='<div style="display:flex;gap:.4rem;padding:.45rem .7rem;overflow-x:auto;background:var(--light);border-bottom:1px solid var(--border);align-items:center;-webkit-overflow-scrolling:touch">'+
+    '<span style="font-size:.72rem;font-weight:800;color:var(--s);flex-shrink:0">⭐ Sering:</span>'+
     favs.map(function(i){
       var nm=i.name.length>14?i.name.slice(0,13)+'…':i.name;
-      return '<button onclick="cAdj(\''+esc(i.variant_id)+'\',1)" style="flex-shrink:0;padding:.3rem .6rem;border-radius:999px;border:1.5px solid #F59E0B;background:#fff;color:#92400E;font-size:.76rem;font-weight:700;cursor:pointer">'+esc(nm)+' +1</button>';
+      return '<button onclick="cAdj(\''+esc(i.variant_id)+'\',1)" style="flex-shrink:0;padding:.3rem .6rem;border-radius:999px;border:1.5px solid var(--p);background:#fff;color:var(--p);font-size:.76rem;font-weight:700;cursor:pointer">'+esc(nm)+' +1</button>';
     }).join('')+
   '</div>';
 }
@@ -2594,11 +2594,11 @@ function renderPermintaan(){
     '</div>'+
     '<div class="ig"><label>'+t('reqNote')+'</label><textarea id="rno" placeholder="Tempel link toko (Shopee/Tokopedia) di sini, atau catatan lain..." style="min-height:55px"></textarea></div>'+
     '<button class="btn btn-p btn-full" onclick="doReq()">'+t('sendReq')+'</button></div>'+
-    '<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid #F3F4F6;background:#F0F9FF;border-radius:10px 10px 0 0">'+
+    '<div style="padding:.4rem .7rem;margin:.7rem .7rem 0;border-bottom:1px solid var(--border);background:var(--light);border-radius:10px 10px 0 0">'+
     '<input id="req-search" type="text" placeholder="🔍 Cari permintaan..." style="width:100%;padding:.4rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;background:#fff" oninput="filterRequests()">'+
     '</div>'+
     '<div style="background:#fff;border-radius:0 0 10px 10px;margin:.7rem;margin-top:0;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden">'+
-    '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:#F0F9FF;border-bottom:1px solid var(--border)">📋 '+t('recentReq')+'</div>'+
+    '<div style="padding:.5rem .9rem;font-weight:700;font-size:.85rem;background:var(--light);border-bottom:1px solid var(--border)">📋 '+t('recentReq')+'</div>'+
     '<div id="req-list">'+h+'</div>'+
     '</div>';
 }
@@ -2671,10 +2671,10 @@ function prCardHTML(p){
       (p.supplier_name?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.1rem">🏢 '+esc(p.supplier_name)+'</div>':'')+
       (p.note?'<div style="font-size:.78rem;color:var(--ink2);margin-top:.15rem;white-space:pre-wrap">'+esc(p.note)+'</div>':'')+
       '<div style="display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap">'+
-        (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-s" style="font-size:.85rem;padding:.35rem .7rem;text-decoration:none">🔗 Buka Link</a>':'')+
-        '<button class="btn btn-ok" style="font-size:.85rem;padding:.35rem .7rem" onclick="prMakeItem('+p.id+')">📦 Jadikan Stok</button>'+
-        '<button class="btn btn-s" style="font-size:.85rem;padding:.35rem .7rem" onclick="prShowEdit('+p.id+')">✏️ Edit</button>'+
-        '<button class="btn btn-d" style="font-size:.85rem;padding:.35rem .7rem" onclick="prDelete('+p.id+')">🗑️ Hapus</button>'+
+        (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-s" style="font-size:.85rem;padding:.4rem .7rem;text-decoration:none">🔗 Buka Link</a>':'')+
+        '<button class="btn btn-ok" style="font-size:.85rem;padding:.4rem .7rem" onclick="prMakeItem('+p.id+')">📦 Jadikan Stok</button>'+
+        '<button class="btn btn-s" style="font-size:.85rem;padding:.4rem .7rem" onclick="prShowEdit('+p.id+')">✏️ Edit</button>'+
+        '<button class="btn btn-d" style="font-size:.85rem;padding:.4rem .7rem" onclick="prDelete('+p.id+')">🗑️ Hapus</button>'+
       '</div>'+
     '</div>'+
   '</div>';
@@ -2737,7 +2737,7 @@ function onPrPhoto(e){
   });
 }
 function prFormHTML(item){
-  return (item?'':'<div class="ig" style="background:#FFF7ED;border:1.5px dashed #FDBA74;border-radius:10px;padding:.6rem .7rem"><label style="color:#9A3412">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="pr-share" oninput="onPrPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="pr-share-info"></div></div>')+
+  return (item?'':'<div class="ig" style="background:var(--light);border:1.5px dashed var(--border-input);border-radius:10px;padding:.6rem .7rem"><label style="color:var(--ink2)">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="pr-share" oninput="onPrPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="pr-share-info"></div></div>')+
     '<div class="ig"><label>Nama Produk *</label><input id="pr-name" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
     '<div class="ig"><label>🏢 Supplier</label><input id="pr-sup" type="text" value="'+(item&&item.supplier_name?esc(item.supplier_name):'')+'" placeholder="opsional"></div>'+
     '<div class="ig"><label>🔗 Link</label><input id="pr-url" type="url" value="'+(item&&item.url?esc(item.url):'')+'" placeholder="https://..."></div>'+
@@ -2910,7 +2910,7 @@ function renderQC(){
   qcEnsure(function(){
     var after=function(){
       var el=document.getElementById('qc');if(!el)return;
-      el.innerHTML='<div style="position:sticky;top:0;z-index:6;background:#ECFDF5;padding:.55rem .7rem .45rem"><div style="font-weight:800;font-size:.95rem;color:#065F46">✅ QC / Kualiti — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div></div>'+
+      el.innerHTML='<div style="position:sticky;top:0;z-index:6;margin:.5rem .7rem 0;padding:.55rem .9rem;background:#ECFDF5;border-radius:12px;box-shadow:var(--sh-sm)"><div style="font-weight:800;font-size:.95rem;color:#065F46">✅ QC / Kualiti — '+(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+'</div></div>'+
         '<div class="tab-nav" id="qc-nav">'+
         '<button class="tsw'+(QC_SUBTAB==='periksa'?' act':'')+'" onclick="qcSub(this,\'periksa\')">🔍 Periksa</button>'+
         '<button class="tsw'+(QC_SUBTAB==='riwayat'?' act':'')+'" onclick="qcSub(this,\'riwayat\')">📊 Riwayat</button>'+
@@ -4195,7 +4195,7 @@ function itemFormHTML(item){
   // 編輯時提醒：名稱/照片/單位是全倉庫共用的主檔，改了會跟著全改；庫存/低標才是本倉獨立
   return banner+(item?'<div style="font-size:.75rem;color:var(--muted);margin:-.3rem 0 .7rem;text-align:center">ℹ️ Nama, foto & satuan dipakai bersama semua gudang — stok & batas min hanya gudang ini</div>':'')+
     (!item&&PR_PROMOTE?'<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:.5rem .7rem;font-size:.8rem;color:#1E40AF;margin-bottom:.7rem">🗂️ Dari Katalog Supplier — ini membuat <b>barang stok baru</b>; catatan katalog tetap tersimpan. Nama boleh dipendekkan, link & supplier ikut otomatis.</div>':'')+
-    ((item||PR_PROMOTE)?'':'<div class="ig" style="background:#FFF7ED;border:1.5px dashed #FDBA74;border-radius:10px;padding:.6rem .7rem"><label style="color:#9A3412">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="fshare" oninput="onPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="fshare-info"></div></div>')+
+    ((item||PR_PROMOTE)?'':'<div class="ig" style="background:var(--light);border:1.5px dashed var(--border-input);border-radius:10px;padding:.6rem .7rem"><label style="color:var(--ink2)">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="fshare" oninput="onPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="fshare-info"></div></div>')+
     '<div class="ig"><label>'+t('iName')+' *</label><input id="fn" type="text" value="'+(item?esc(item.name):(PR_PROMOTE?esc(PR_PROMOTE.name):''))+'" oninput="checkDuplicateItem()"><div id="fn-dup" style="font-size:.8rem;color:#D97706;margin-top:.3rem;font-weight:700;display:none"></div></div>'+
     '<div style="display:none" id="fn-dup-info"></div>'+
     '<div class="ig"><label>🏷️ Kode Barang</label><input id="fc" type="text" value="'+(item&&item.code?esc(item.code):'')+'" placeholder="cth: SJA-001 (opsional)"></div>'+
