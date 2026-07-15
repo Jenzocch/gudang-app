@@ -3192,7 +3192,7 @@ function renderAdminFull(){
   var bg=CURRENT_WAREHOUSE?(WH_COLORS[CURRENT_WAREHOUSE]||WH_FB_BG):'#EEF2FF';
   document.getElementById('admin').innerHTML=
     // 精簡成一行：倉庫名頂部已置中顯示，這裡不再重複大字，只留 Admin 身份提示
-    '<div style="margin:.5rem .7rem;padding:.4rem .7rem;border-left:4px solid '+col+';background:'+bg+';border-radius:0 8px 8px 0;font-size:.82rem;font-weight:700;color:'+col+'">⚙️ Admin Panel'+(IS_SUPER?'':(IS_OFFICE?' · 🏢 Admin Office':' · 👑 Admin Gudang'))+(!CURRENT_WAREHOUSE?' · Semua Gudang':'')+'</div>'+
+    '<div style="margin:.6rem .7rem .3rem;padding:.55rem .9rem;background:'+bg+';border-radius:12px;font-size:.83rem;font-weight:700;color:'+col+';box-shadow:var(--sh-sm)">⚙️ Admin Panel'+(IS_SUPER?'':(IS_OFFICE?' · 🏢 Admin Office':' · 👑 Admin Gudang'))+(!CURRENT_WAREHOUSE?' · Semua Gudang':'')+'</div>'+
     '<div class="tab-nav" id="atnav">'+
       '<button class="tsw'+(sub==='ait'?' act':'')+'" onclick="swATab(this,\'ait\')">📦 '+t('itemList')+'</button>'+
       (canPeople?'<button class="tsw'+(sub==='ape'?' act':'')+'" onclick="swATab(this,\'ape\')">👥 '+t('peopleList')+'</button>':'')+
@@ -3203,14 +3203,14 @@ function renderAdminFull(){
       // Semua Gudang 總覽：倉庫篩選放整頁最上面（Office 先點倉庫聚焦，之後的
       // 清單/搜尋/新增全都跟著這個倉走）
       (!CURRENT_WAREHOUSE?'<div id="ai-wh-chips" style="display:flex;gap:.4rem;padding:.55rem .7rem .2rem;overflow-x:auto;-webkit-overflow-scrolling:touch">'+aiWhChipsHTML()+'</div>':'')+
-      '<div style="padding:.4rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.3rem;align-items:center">'+
-        (IS_ADMIN?'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Tambah Barang</button>':'<button class="btn btn-p" style="padding:.35rem .7rem;font-size:.82rem" disabled>➕ Tambah Barang</button>')+
-        '<button class="btn btn-warn" style="padding:.35rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Cek Stok</button>'+
-        '<button id="ai-view-list" class="btn btn-s" style="width:40px;padding:.4rem;opacity:1;font-size:.85rem" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
-        '<button id="ai-view-grid" class="btn btn-s" style="width:40px;padding:.4rem;opacity:.5;font-size:.85rem" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
+      '<div style="padding:.55rem .7rem;display:grid;grid-template-columns:1fr 1fr auto auto;gap:.45rem;align-items:center">'+
+        (IS_ADMIN?'<button class="btn btn-p" style="padding:.4rem .7rem;font-size:.82rem" onclick="showAddItem()">➕ Tambah Barang</button>':'<button class="btn btn-p" style="padding:.4rem .7rem;font-size:.82rem" disabled>➕ Tambah Barang</button>')+
+        '<button class="btn btn-warn" style="padding:.4rem .7rem;font-size:.82rem" onclick="openStocktake(\'admin\')">🔢 Cek Stok</button>'+
+        '<button id="ai-view-list" style="width:40px;height:40px;padding:0;font-size:.9rem;border-radius:9px;cursor:pointer;flex-shrink:0;'+(VIEW_AI==='grid'?'border:1px solid var(--border);background:#fff;color:var(--muted)':'border:1px solid var(--p);background:var(--p);color:#fff')+'" title="Daftar" onclick="if(VIEW_AI!==\'list\'){toggleAIView()}">📋</button>'+
+        '<button id="ai-view-grid" style="width:40px;height:40px;padding:0;font-size:.9rem;border-radius:9px;cursor:pointer;flex-shrink:0;'+(VIEW_AI==='grid'?'border:1px solid var(--p);background:var(--p);color:#fff':'border:1px solid var(--border);background:#fff;color:var(--muted)')+'" title="Kartu" onclick="if(VIEW_AI!==\'grid\'){toggleAIView()}">▦</button>'+
       '</div>'+
-      '<div style="padding:.5rem .7rem;background:#FFFBEB;border-top:1px solid #FDE68A;border-bottom:1px solid #FDE68A">'+
-        '<input id="ai-search-inp" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.65rem .8rem;border:2px solid #D97706;border-radius:8px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
+      '<div style="padding:.6rem .7rem;background:var(--light);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">'+
+        '<input id="ai-search-inp" type="text" placeholder="🔍 Cari barang..." style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-input);border-radius:10px;font-size:1rem;box-sizing:border-box;background:#fff" oninput="aiSearchItems()">'+
       '</div>'+
       '<div id="ai-catg-chips" style="display:flex;gap:.4rem;padding:.5rem .7rem;overflow-x:auto;background:#fff;border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch">'+aiCatgChipsHTML()+'</div>'+
       (IS_ADMIN?'':(CURRENT_USER&&!CURRENT_USER.isGuest?'<div style="padding:.5rem .7rem;background:#FEF2F2;border-radius:8px;color:var(--ink2);font-size:.85rem;margin:.5rem .7rem">⚠ Anda adalah '+('Staf')+'. Hanya admin yang bisa menambah/edit/hapus barang.</div>':''))+
@@ -3372,8 +3372,8 @@ function toggleAIView(){
 function updateAIViewBtns(){
   var lbtn=document.getElementById('ai-view-list');
   var gbtn=document.getElementById('ai-view-grid');
-  if(lbtn)lbtn.style.opacity=VIEW_AI==='list'?'1':'.5';
-  if(gbtn)gbtn.style.opacity=VIEW_AI==='grid'?'1':'.5';
+  if(lbtn)lbtn.style.cssText='width:40px;height:40px;padding:0;font-size:.9rem;border-radius:9px;cursor:pointer;flex-shrink:0;'+(VIEW_AI==='list'?'border:1px solid var(--p);background:var(--p);color:#fff':'border:1px solid var(--border);background:#fff;color:var(--muted)');
+  if(gbtn)gbtn.style.cssText='width:40px;height:40px;padding:0;font-size:.9rem;border-radius:9px;cursor:pointer;flex-shrink:0;'+(VIEW_AI==='grid'?'border:1px solid var(--p);background:var(--p);color:#fff':'border:1px solid var(--border);background:#fff;color:var(--muted)');
 }
 var AI_SEARCH_FILTER='';
 var AI_CATG=''; // Kelola Barang 的分類篩選（''=全部、'__none__'=無分類）
