@@ -2476,7 +2476,7 @@ function cartRowsMsk(){
       '<div class="amb-info"><div style="min-width:0">'+
       '<div class="amb-name" style="font-size:.9rem">'+esc(item.name)+'</div>'+
       '<div class="amb-stk">stok '+item.qty+' '+esc(item.unit)+'</div>'+
-      (hasLot?'<div style="font-size:.72rem;color:var(--p);margin-top:.1rem">📋 '+(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+ci.expiry_date:'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
+      (hasLot?'<div style="font-size:.72rem;color:var(--p);margin-top:.1rem">📋 '+esc(ci.lot_no||'')+(ci.expiry_date?' | Exp:'+esc(ci.expiry_date):'')+'</div>':'<div style="font-size:.72rem;color:#F59E0B">⚠ Belum ada info lot</div>')+
       '</div></div>'+
       '<div style="display:flex;align-items:center;gap:.25rem;flex-shrink:0">'+
       '<button onclick="showLotInfoModal(\''+esc(variantId)+'\')" style="background:'+(hasLot?'#ECFDF5':'#FEF9C3')+';border:1px solid '+(hasLot?'#A7F3D0':'#FDE047')+';border-radius:8px;padding:.25rem .45rem;cursor:pointer;font-size:.75rem;white-space:nowrap;min-height:40px">📋 Lot</button>'+
@@ -4474,6 +4474,14 @@ async function saveItem(){
   var whEl0=document.getElementById('f-warehouse');
   var targetWh=EDIT_ITEM?'':(CURRENT_WAREHOUSE||ADD_WH||(whEl0?whEl0.value:'')||'');
   if(!EDIT_ITEM&&!targetWh){toast('⚠ '+('Pilih gudang dulu'));return;}
+  // Edit ganti nama ke nama milik barang LAIN → dua master bernama sama, memecah invarian
+  // "nama sama = barang sama". Cegah kalau nama baru bentrok master lain (cek in-memory).
+  if(EDIT_ITEM){
+    var lowerE=name.toLowerCase();
+    if(lowerE!==(EDIT_ITEM.name||'').toLowerCase()&&DATA.items.find(function(i){return i.id!==EDIT_ITEM.id&&(i.name||'').toLowerCase()===lowerE;})){
+      toast('⚠ Nama "'+name+'" sudah dipakai barang lain');return;
+    }
+  }
   if(PHOTO_UPLOADING>0){toast('⚠ Tunggu foto selesai diupload dulu');return;}
   // 防連點：整段（含查重+insert）用同一顆按鈕上鎖，避免雙擊建出兩筆重複主檔
   var _sv=document.getElementById('f-save-btn');
@@ -4605,7 +4613,10 @@ async function delItem(variantId){
     if(error)throw error;
     // 連帶清掉該商品在此倉的批次，避免留下孤兒 item_batches
     if(item.id!=null&&item.warehouse_id){
-      try{await sb.from('item_batches').delete().eq('item_id',item.id).eq('warehouse_id',item.warehouse_id);}catch(e){}
+      // Supabase delete tidak throw — try/catch kosong dulu menelan error diam-diam; kalau
+      // gagal (RLS/offline) batch jadi yatim, dan bisa "hidup lagi" kalau barang ditambah ulang.
+      var bd=await sb.from('item_batches').delete().eq('item_id',item.id).eq('warehouse_id',item.warehouse_id);
+      if(bd.error)console.warn('[delItem] sisa batch tidak terhapus:',bd.error.message);
     }
     toast('✓ '+('Barang dihapus dari '+item.warehouse_id));
     // 就地移除：只拿掉這一列 DOM，畫面完全不重繪、不跳（保留分頁/搜尋/捲動位置）
@@ -4650,7 +4661,10 @@ async function saveTxEdit(id){
     var upd=await sb.from('transactions').update({person_name:newPn,item_name:newIn,qty:newQ,type:newT}).eq('id',id);
     if(upd.error)throw upd.error;
     var editEntry={transaction_id:id,edited_by:CURRENT_USER?CURRENT_USER.name:'Admin',old_values:oldVals,new_values:newVals,edited_at:new Date().toISOString()};
-    try{await sb.from('transaction_edits').insert(editEntry);}catch(e){}
+    // Supabase insert tidak throw — jejak audit yang gagal ditulis (tabel hilang/RLS) dulu
+    // hilang tanpa jejak; minimal beri warning di console supaya bisa dideteksi.
+    var ae=await sb.from('transaction_edits').insert(editEntry);
+    if(ae.error)console.warn('[saveTxEdit] jejak audit gagal ditulis:',ae.error.message);
     // 交易編輯只動 transactions 表（不連動庫存）— update lokal objeknya lalu ganti baris DOM
     // itu saja (bukan renderRiwayat() ulang), supaya pagination (rw-list) & posisi scroll
     // tidak ikut ke-reset.
@@ -4701,6 +4715,11 @@ function printQR(id){
   var qData=encodeURIComponent('gudang:'+item.id+':'+item.name);
   var qUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+qData;
   var w=window.open('','_blank','width=420,height=520');
+  // Popup diblokir → window.open null → w.document.write dulu lempar TypeError diam-diam (tak
+  // ada yang terjadi saat ditekan). Beri tahu user supaya izinkan popup.
+  if(!w){toast('⚠ Popup diblokir — izinkan popup untuk cetak QR');return;}
+  // CSS var(--p)/var(--ink2) tidak ada di dokumen popup baru ini (bukan halaman app), jadi
+  // tombol "Cetak" jadi teks putih di background kosong = tak kelihatan. Pakai warna literal.
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(item.name)+'</title>'+
     '<style>body{font-family:sans-serif;margin:0;padding:24px;text-align:center;background:#fff}'+
     '.label{border:2.5px solid #222;border-radius:10px;padding:20px 24px;display:inline-block}'+
@@ -4708,8 +4727,8 @@ function printQR(id){
     'h2{margin:0 0 14px;font-size:1.5rem;font-weight:800;line-height:1.3}'+
     '.qr{margin:14px 0}'+
     'img.qr{width:200px;height:200px}'+
-    '.info{font-size:.85rem;color:var(--ink2);margin-top:10px}'+
-    '.url{font-size:.78rem;color:var(--p);word-break:break-all;margin-top:8px}'+
+    '.info{font-size:.85rem;color:#475467;margin-top:10px}'+
+    '.url{font-size:.78rem;color:#4F46E5;word-break:break-all;margin-top:8px}'+
     '@media print{body{margin:0}button{display:none}}'+
     '</style></head><body>'+
     '<div class="label">'+
@@ -4719,7 +4738,7 @@ function printQR(id){
     '<div class="info">'+esc(String(item.qty))+' '+esc(item.unit||'')+' · min: '+esc(String(item.critical_qty))+'</div>'+
     (item.supplier_url?'<div class="url">🔗 '+esc(item.supplier_url)+'</div>':'')+
     '</div>'+
-    '<br><button onclick="window.print()" style="margin-top:14px;padding:10px 28px;background:var(--p);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">🖨️ '+('Cetak')+'</button>'+
+    '<br><button onclick="window.print()" style="margin-top:14px;padding:10px 28px;background:#4F46E5;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600">🖨️ '+('Cetak')+'</button>'+
     '</body></html>');
   w.document.close();
 }
@@ -5419,13 +5438,16 @@ function showItemBatches(itemId){
     if(a.expiry_date)return -1;if(b.expiry_date)return 1;
     return new Date(a.created_at)-new Date(b.created_at);
   });
-  var now=new Date();var d30=new Date(now.getTime()+30*86400000);
+  // Bandingkan sebagai tanggal LOKAL (string YYYY-MM-DD) — new Date('YYYY-MM-DD') di-parse
+  // sebagai UTC tengah malam, jadi dibanding waktu-lokal (WIB=UTC+7) status kadaluarsa
+  // meleset ~7 jam (flip jadi "expired" jam 07:00 di hari kadaluarsanya). Batas min lokal.
+  var today0=today();var d30s=ymd(new Date(Date.now()+30*86400000));
   var h='<div style="margin-bottom:.7rem"><button class="btn btn-p btn-full" onclick="showAddBatch(\''+esc(itemId)+'\')">➕ Tambah Batch / Lot</button></div>';
   if(!batches.length){h+='<div style="text-align:center;color:var(--muted);padding:1.2rem">Belum ada batch</div>';}
   else{
     h+=batches.map(function(b){
-      var isExp=b.expiry_date&&new Date(b.expiry_date)<now;
-      var isNear=b.expiry_date&&!isExp&&new Date(b.expiry_date)<d30;
+      var isExp=b.expiry_date&&b.expiry_date<today0;
+      var isNear=b.expiry_date&&!isExp&&b.expiry_date<=d30s;
       var bg=isExp?'#FEE2E2':isNear?'#FEF3C7':b.qc_status==='Fail'?'#FECACA':b.qc_status==='Hold'?'#FEF08A':'#F8FAFC';
       var ec=isExp?'#DC2626':isNear?'#D97706':'var(--ink2)';
       var qcKind={Pass:'ok',Fail:'bad',Hold:'hold',Pending:'wait'}[b.qc_status]||'off';
@@ -5839,7 +5861,7 @@ async function sjaEnsure(cb,silent){
       sb.from('sja_production').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(90),
       sb.from('sja_delivery').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(60),
       sb.from('sja_stock_summary').select('*'),
-      sb.from('sja_monthly_report').select('*').limit(600)
+      sb.from('sja_monthly_report').select('*').order('bulan',{ascending:false}).limit(6000)
     ]);
     for(var i=0;i<r.length;i++){if(r[i].error)throw new Error(r[i].error.message);}
     SJA={products:r[0].data||[],customers:r[1].data||[],production:r[2].data||[],delivery:r[3].data||[],stock:r[4].data||[],monthly:r[5].data||[]};
@@ -5857,7 +5879,7 @@ var SJA_Q={
   production:function(){return sb.from('sja_production').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(90);},
   delivery:function(){return sb.from('sja_delivery').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(60);},
   stock:function(){return sb.from('sja_stock_summary').select('*');},
-  monthly:function(){return sb.from('sja_monthly_report').select('*').limit(600);}
+  monthly:function(){return sb.from('sja_monthly_report').select('*').order('bulan',{ascending:false}).limit(6000);}
 };
 async function sjaRefresh(parts,cb){
   if(!SJA_LOADED){sjaEnsure(cb);return;}
