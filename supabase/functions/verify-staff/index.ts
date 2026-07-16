@@ -53,7 +53,11 @@ serve(async (req) => {
     if (!data || !data.length) return json({ ok: false, error: "not found" }, 404);
 
     const person = data[0] as Record<string, unknown>;
-    const expected = person.pin ? String(person.pin) : "1234";
+    // 沒設 PIN 的人不能登入——之前 fallback 到 "1234" 等於給每個 null-PIN 帳號一組公開密碼；
+    // 因為 people(id,name,is_admin) 對 anon 可讀，攻擊者能挑出「is_admin=true 又沒設 PIN」的
+    // 帳號直接用 1234 登入成 admin。現在強制先由管理員設定 PIN。
+    if (!person.pin) return json({ ok: false, error: "pin_belum_diatur" });
+    const expected = String(person.pin);
     if (!safeEqual(pin, expected)) return json({ ok: false });
 
     delete person.pin; // 永遠不回傳 pin
