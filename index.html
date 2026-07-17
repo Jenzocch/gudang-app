@@ -1797,11 +1797,13 @@ function showBrowserNotification(title,message){
   }
 }
 
-function sendTelegram(msg){
-  // 透過 Supabase Edge Function 發送；token 留在後端 secret，前端不再持有
+function sendTelegram(type,params){
+  // 送「類型 + 參數」，訊息文字由後端 notify-telegram 用固定模板組出來（前端不再送自由文字）。
+  // 因為 anon key 就在瀏覽器裡，任何前端持有的密鑰都擋不住偽造；改由伺服器端組訊息後，別人
+  // 頂多能觸發預定形狀、填自己的參數，無法冒名廣播假警示到員工群。前端只負責把資料丟過去。
   try{
     if(typeof sb==='undefined'||!sb||!sb.functions)return;
-    sb.functions.invoke('notify-telegram',{body:{msg:msg,parse_mode:'HTML'}}).catch(function(){});
+    sb.functions.invoke('notify-telegram',{body:{type:type,params:params||{}}}).catch(function(){});
   }catch(e){}
 }
 
@@ -1837,11 +1839,7 @@ function checkAndNotifyLow(items){
       var last=map[key]||0;
       if(now-last>=TG_INTERVAL){
         map[key]=now;changed=true;
-        var msg='🟠 Stok rendah: '+i.name+'\n'+
-          '📦 Sisa stok: '+i.qty+' '+i.unit+' (min: '+i.critical_qty+')\n'+
-          (i.supplier_url?'🔗 '+i.supplier_url+'\n':'')+
-          '🕐 '+new Date().toLocaleString('id-ID');
-        sendTelegram(msg);
+        sendTelegram('low_stock',{name:i.name,qty:i.qty,unit:i.unit,critical:i.critical_qty,supplier_url:i.supplier_url||''});
       }
     }else if(i.qty>i.critical_qty){
       if(map[key]){delete map[key];changed=true;}
@@ -2313,12 +2311,7 @@ async function executeAmbilCart(){
         var tgm=tgGetNotified();var lastN=tgm[variantId]||0;
         if(Date.now()-lastN>=TG_INTERVAL){
           tgm[variantId]=Date.now();tgSaveNotified(tgm);
-          var emoji=newQty<=0?'❌':'🟠';
-          sendTelegram(emoji+' Stok rendah: '+item.name+'\n'+
-            '👤 Diambil oleh: '+pname+' ('+qty+' '+item.unit+')\n'+
-            '📦 Sisa stok: '+newQty+' '+item.unit+' (min: '+item.critical_qty+')\n'+
-            (item.supplier_url?'🔗 '+item.supplier_url+'\n':'')+
-            '🕐 '+new Date().toLocaleString('id-ID'));
+          sendTelegram('low_stock',{name:item.name,qty:newQty,unit:item.unit,critical:item.critical_qty,supplier_url:item.supplier_url||'',taken_by:pname,taken_qty:qty,empty:newQty<=0});
         }
       }
       taken.push({variantId:variantId,itemId:item.id,name:item.name,qty:qty,unit:item.unit,batches:batchDed});
@@ -3073,12 +3066,7 @@ function qcSave(){
   op.then(function(r){if(r.error){toast('⚠ '+friendlyErr(r.error));return;}
     // 食安事件主動推播：QC 不合格（尤其 CCP）立刻通知 Telegram 管理群，不等人打開 App
     if(result==='fail'||ccpFail){
-      sendTelegram('🔴 <b>QC GAGAL'+(ccpFail?' — CCP!':'')+'</b> ('+esc(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE)+')\n'+
-        '📋 '+esc(ctx.label||String(ctx.refId))+'\n'+
-        '👤 '+esc(CURRENT_USER?CURRENT_USER.name:'-')+
-        (corr?'\n🛠 Koreksi: '+esc(corr):'')+
-        (note?'\n📝 '+esc(note):'')+
-        '\n🕐 '+new Date().toLocaleString('id-ID'));
+      sendTelegram('qc_fail',{warehouse:(WH_SHORT[CURRENT_WAREHOUSE]||CURRENT_WAREHOUSE),label:ctx.label||String(ctx.refId),inspector:CURRENT_USER?CURRENT_USER.name:'-',ccp:!!ccpFail,corrective:corr||'',note:note||''});
     }
     toast('✓ QC tersimpan');closeModal();qcRefresh(['checks'],qcBody);});
 }
