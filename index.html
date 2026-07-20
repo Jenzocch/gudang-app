@@ -406,9 +406,10 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
   <div class="low-box">
     <div class="low-title" id="low-title"></div>
     <div id="low-body" style="font-size:.88rem;color:var(--ink2);margin:.5rem 0 1rem"></div>
-    <div style="display:flex;gap:.6rem">
-      <button class="btn btn-s" style="flex:1" onclick="closeLow()">✕</button>
-      <button class="btn btn-warn" style="flex:2;display:none" id="low-link-btn" onclick="openLowLink()">🔗 Beli</button>
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+      <button class="btn btn-s" style="flex:1;min-width:80px" onclick="closeLow()">✕</button>
+      <button class="btn btn-warn" style="flex:2;min-width:140px;display:none" id="low-link-btn" onclick="openLowLink()">🔗 Beli</button>
+      <button class="btn btn-ok" style="flex:2;min-width:140px;display:none" id="low-wa-btn" onclick="openLowWa()">📱 WhatsApp</button>
     </div>
   </div>
 </div>
@@ -1235,7 +1236,7 @@ function flattenItems(ivData){
     return{
       id:v.item_id,variant_id:v.id,
       name:itm.name||'?',code:itm.code,spec:itm.spec,description:itm.description,
-      image_url:itm.image_url,supplier_name:itm.supplier_name,supplier_url:itm.supplier_url,
+      image_url:itm.image_url,supplier_name:itm.supplier_name,supplier_url:itm.supplier_url,supplier_whatsapp:itm.supplier_whatsapp,
       unit:itm.unit,storage_condition:itm.storage_condition,coa_url:itm.coa_url,tags:itm.tags,
       remark:itm.remark,production_date:itm.production_date,expiry_date:itm.expiry_date,
       qty:v.qty,critical_qty:v.critical_qty,storage_photo_url:v.storage_photo_url,warehouse_id:v.warehouse_id
@@ -1597,6 +1598,7 @@ function renderHome(){
             '<div style="font-size:.75rem;color:var(--danger);font-weight:700;margin-top:.05rem">'+i.qty+'/'+i.critical_qty+' '+esc(i.unit)+(i.tags||[]).map(function(tg){return'<span class="catg-badge">🏷️ '+esc(tg)+'</span>';}).join('')+'</div>'+
           '</div>'+
           (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="background:var(--warn);color:#fff;padding:.3rem .65rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:.2rem">🔗 '+('Beli')+'</a>':'')+
+          (i.supplier_whatsapp?'<a href="'+esc(waLink(i.supplier_whatsapp))+'" target="_blank" rel="noopener noreferrer" title="WhatsApp" style="background:var(--ok);color:#fff;padding:.3rem .5rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">📱</a>':'')+
         '</div>';
       };
       var catKeys=Object.keys(catGrp).sort();
@@ -2651,6 +2653,7 @@ function prCardHTML(p){
       '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.45rem;flex-wrap:wrap">'+
         '<button class="btn btn-ok" style="font-size:.85rem;padding:.4rem .7rem;flex-shrink:0" onclick="prMakeItem('+p.id+')">📦 Jadikan Stok</button>'+
         (p.url?'<a href="'+safeUrl(p.url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);font-size:.8rem;text-decoration:underline;padding:.4rem .2rem">🔗 Link</a>':'')+
+        (p.supplier_whatsapp?'<a href="'+esc(waLink(p.supplier_whatsapp))+'" target="_blank" rel="noopener noreferrer" style="color:var(--ok);font-size:.8rem;text-decoration:underline;padding:.4rem .2rem">📱 WA</a>':'')+
         '<span style="flex:1"></span>'+
         '<button class="ib" onclick="prShowEdit('+p.id+')" title="Edit">✏️</button>'+
         '<button class="ib" onclick="prDelete('+p.id+')" title="Hapus">🗑️</button>'+
@@ -2719,6 +2722,7 @@ function prFormHTML(item){
   return (item?'':'<div class="ig" style="background:var(--light);border:1.5px dashed var(--border-input);border-radius:10px;padding:.6rem .7rem"><label style="color:var(--ink2)">🛒 Tempel dari Shopee / Tokopedia (opsional)</label><textarea id="pr-share" oninput="onPrPasteShare(this)" placeholder="Tempel teks &quot;Bagikan&quot; dari aplikasi toko di sini — nama, link &amp; harga terisi otomatis" style="min-height:56px;font-family:inherit;font-size:.88rem"></textarea><div id="pr-share-info"></div></div>')+
     '<div class="ig"><label>Nama Produk *</label><input id="pr-name" type="text" value="'+(item?esc(item.name):'')+'"></div>'+
     '<div class="ig"><label>🏢 Supplier</label><input id="pr-sup" type="text" value="'+(item&&item.supplier_name?esc(item.supplier_name):'')+'" placeholder="opsional"></div>'+
+    '<div class="ig"><label>📱 WhatsApp Supplier</label><input id="pr-wa" type="tel" value="'+(item&&item.supplier_whatsapp?esc(item.supplier_whatsapp):'')+'" placeholder="08xxxxxxxxxx (opsional)"></div>'+
     '<div class="ig"><label>🔗 Link</label><input id="pr-url" type="url" value="'+(item&&item.url?esc(item.url):'')+'" placeholder="https://..."></div>'+
     '<div class="ig"><label>Foto</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
@@ -2743,10 +2747,11 @@ async function savePr(){
   if(!name){toast('⚠ Isi nama produk dulu');return;}
   var b=document.getElementById('pr-save-btn');if(b){b.disabled=true;b.textContent='⏳ Menyimpan...';}
   var sup=(document.getElementById('pr-sup').value||'').trim();
+  var wa=(document.getElementById('pr-wa').value||'').trim();
   var url=(document.getElementById('pr-url').value||'').trim();
   var note=(document.getElementById('pr-note').value||'').trim();
   var img=PR_PHOTO||(PR_EDIT&&PR_EDIT.image_url)||null;
-  var row={name:name,supplier_name:sup||null,url:url||null,note:note||null,image_url:img,updated_at:new Date().toISOString()};
+  var row={name:name,supplier_name:sup||null,supplier_whatsapp:wa||null,url:url||null,note:note||null,image_url:img,updated_at:new Date().toISOString()};
   try{
     if(PR_EDIT){
       var u=await sb.from('product_refs').update(row).eq('id',PR_EDIT.id);
@@ -3321,7 +3326,10 @@ function aiItemHTML(i){
         '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:.25rem;margin-top:.35rem">'+
           (i.tags||[]).map(function(tg){return'<span class="catg-badge" style="cursor:pointer" onclick="quickAssignTag(\''+esc(i.id)+'\')" title="Ubah tag">🏷️ '+esc(tg)+'</span>';}).join('')+
           '<button onclick="quickAssignTag(\''+esc(i.id)+'\')" style="background:none;border:1px dashed #CBD5E1;border-radius:10px;cursor:pointer;font-size:.7rem;color:var(--muted);padding:.05rem .4rem">+ tag</button>'+
-          (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" class="ai-link" style="margin-left:.2rem">🔗 Beli</a><button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--muted);padding:.3rem .4rem">✏️</button>'
+          ((i.supplier_url||i.supplier_whatsapp)?
+            (i.supplier_url?'<a href="'+safeUrl(i.supplier_url)+'" target="_blank" rel="noopener noreferrer" class="ai-link" style="margin-left:.2rem">🔗 Beli</a>':'')+
+            (i.supplier_whatsapp?'<a href="'+esc(waLink(i.supplier_whatsapp))+'" target="_blank" rel="noopener noreferrer" class="ai-link" style="margin-left:.2rem">📱 WA</a>':'')+
+            '<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--muted);padding:.3rem .4rem">✏️</button>'
             :'<button onclick="editSupUrl(\''+esc(i.id)+'\')" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--muted);padding:.05rem 0">＋link</button>')+
           (i.storage_photo_url?'<button onclick="showImg(\''+jsq(i.storage_photo_url)+'\',\''+jsq(i.name)+' - Tempat Simpan\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.85rem;padding:0 .2rem;color:var(--p)" title="Tempat Simpan">📍</button>':'')+
           // Hardware 專屬：一顆 🔍 開線上比價面板（Shopee/Tokopedia/BigGo + 自家基準價）
@@ -4551,22 +4559,24 @@ async function saveItem(){
 }
 function editSupUrl(id){
   var item=DATA.items.find(function(i){return i.id==id;});if(!item)return;
-  showModal('🔗 '+('Link Beli — ')+esc(item.name),
+  showModal('🔗 '+('Info Supplier — ')+esc(item.name),
     '<div class="ig"><label>URL</label><input id="sup-url-inp" type="url" placeholder="https://..." value="'+(item.supplier_url?esc(item.supplier_url):'')+'"></div>'+
+    '<div class="ig"><label>📱 WhatsApp</label><input id="sup-wa-inp" type="tel" placeholder="08xxxxxxxxxx" value="'+(item.supplier_whatsapp?esc(item.supplier_whatsapp):'')+'"></div>'+
     '<div style="display:flex;gap:.5rem;margin-top:.5rem">'+
     '<button class="btn btn-p" style="flex:2" onclick="saveSupUrl('+id+')">✓ '+('Simpan')+'</button>'+
-    (item.supplier_url?'<button class="btn btn-d" style="flex:1" onclick="saveSupUrl('+id+',true)">🗑️</button>':'')+
+    ((item.supplier_url||item.supplier_whatsapp)?'<button class="btn btn-d" style="flex:1" onclick="saveSupUrl('+id+',true)">🗑️</button>':'')+
     '</div>'
   );
   setTimeout(function(){var el=document.getElementById('sup-url-inp');if(el)el.focus();},100);
 }
 async function saveSupUrl(id,clear){
   var url=clear?'':(document.getElementById('sup-url-inp').value||'').trim();
+  var wa=clear?'':(document.getElementById('sup-wa-inp').value||'').trim();
   try{
-    var {error}=await sb.from('items').update({supplier_url:url||null}).eq('id',id);
+    var {error}=await sb.from('items').update({supplier_url:url||null,supplier_whatsapp:wa||null}).eq('id',id);
     if(error)throw error;
     var item=DATA.items.find(function(i){return i.id==id;});
-    if(item)item.supplier_url=url||null;
+    if(item){item.supplier_url=url||null;item.supplier_whatsapp=wa||null;}
     toast(t('saveOk'));closeModal();
     var tc=document.getElementById('ait-content');
     if(tc)tc.innerHTML='<div class="ai-list'+(VIEW_AI==='grid'?' grid':'')+'">'+aiListHTML()+'</div>';
@@ -5080,17 +5090,24 @@ function showLow(item,need){
       '<div style="margin-top:.4rem"><strong style="color:var(--danger)">Stok minimum</strong>: '+item.critical_qty+' '+esc(item.unit)+'</div>'+
       (need?'<div style="margin-top:.4rem"><strong style="color:#D97706">Perlu disiapkan</strong>: minimal '+need+' '+esc(item.unit)+'</div>':'')+
     '</div>'+
-    (item.supplier_url?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem"><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+safeUrl(item.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'');
+    ((item.supplier_url||item.supplier_whatsapp)?'<div style="background:#E0F2FE;border-left:4px solid var(--p);padding:.8rem;border-radius:8px;margin-bottom:1rem;font-size:.88rem">'+
+      (item.supplier_url?'<div><strong style="color:#0369A1">Link beli</strong>:<br><a href="'+safeUrl(item.supplier_url)+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline;word-break:break-all">'+esc(item.supplier_url)+'</a></div>':'')+
+      (item.supplier_url&&item.supplier_whatsapp?'<div style="margin-top:.5rem"></div>':'')+
+      (item.supplier_whatsapp?'<div><strong style="color:#0369A1">WhatsApp</strong>:<br><a href="'+esc(waLink(item.supplier_whatsapp))+'" target="_blank" rel="noopener noreferrer" style="color:var(--p);text-decoration:underline">'+esc(item.supplier_whatsapp)+'</a></div>':'')+
+    '</div>':'');
   document.getElementById('low-title').innerHTML='⚠️ '+t('lowTitle');
   document.getElementById('low-body').innerHTML=msg;
   var lb=document.getElementById('low-link-btn');
   lb.textContent=('🔗 Beli Sekarang');
   lb.style.display=item.supplier_url?'':'none';
+  var wb=document.getElementById('low-wa-btn');
+  wb.style.display=item.supplier_whatsapp?'':'none';
   document.getElementById('low-ov').classList.add('open');
   armHist();
 }
 function closeLow(){document.getElementById('low-ov').classList.remove('open');}
 function openLowLink(){if(LOW_ITEM&&LOW_ITEM.supplier_url&&/^https?:\/\//i.test(LOW_ITEM.supplier_url))window.open(LOW_ITEM.supplier_url,'_blank');}
+function openLowWa(){if(LOW_ITEM&&LOW_ITEM.supplier_whatsapp){var l=waLink(LOW_ITEM.supplier_whatsapp);if(l)window.open(l,'_blank');}}
 
 // UI
 // 這些分頁沒有自己的底部按鈕，從 Lainnya 選單進入；停留其中時高亮 Lainnya
@@ -5592,6 +5609,7 @@ function preloadAllWarehouses(){
             image_url:itm.image_url,
             supplier_name:itm.supplier_name,
             supplier_url:itm.supplier_url,
+            supplier_whatsapp:itm.supplier_whatsapp,
             unit:itm.unit,
             storage_condition:itm.storage_condition,
             coa_url:itm.coa_url,
@@ -5715,6 +5733,9 @@ function jsq(v){return esc(String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'
 // 只允許 http/https 連結；擋掉 javascript:/data: 等會在點擊時執行的 scheme。
 // 因為 supplier_url/coa_url 是自由文字、又能經 API 寫入，必須先過白名單再放進 href。
 function safeUrl(u){u=(u==null?'':String(u)).trim();return /^https?:\/\//i.test(u)?esc(u):'#';}
+// 供應商 WhatsApp 號碼：只留數字，開頭 0 換成 62（印尼國碼，wa.me 深連結要求純數字、不能有 +/空白）。
+function waDigits(v){var d=String(v==null?'':v).replace(/\D/g,'');if(!d)return'';if(d.charAt(0)==='0')d='62'+d.slice(1);return d;}
+function waLink(v){var d=waDigits(v);return d?'https://wa.me/'+d:'';}
 // 全站統一狀態徽章：圖示+顏色+文字三件組（色弱/強光下仍可辨識）
 function stBadge(kind,label){
   var m={
