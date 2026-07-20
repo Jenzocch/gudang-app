@@ -68,6 +68,15 @@ serve(async (req) => {
 
     const admin = createClient(url, serviceKey);
 
+    // Admin Office 不能碰「既有的 admin 帳號」——不能改其 PIN/資料、也不能刪除。
+    // 只擋 patch 內的 is_admin 欄位還不夠：office 仍可重設某 super-admin 的 pin 再登入提權，
+    // 或直接刪掉 super-admin 帳號把真管理員鎖在外。這裡在後端強制查目標列的身分。
+    async function targetIsAdmin(id: unknown): Promise<{ admin: boolean; err?: string }> {
+      const r = await admin.from("people").select("is_admin").eq("id", id).limit(1);
+      if (r.error) return { admin: false, err: r.error.message };
+      return { admin: !!(r.data && r.data[0] && r.data[0].is_admin) };
+    }
+
     if (action === "insert") {
       const row = pick((body && body.row) || {});
       if (blocksAdmin) row.is_admin = false; // office 只能建一般員工
@@ -91,6 +100,11 @@ serve(async (req) => {
       if (blocksAdmin && "is_admin" in patch) {
         return json({ ok: false, error: "office tidak boleh ubah status admin" }, 403);
       }
+      if (blocksAdmin) {
+        const t = await targetIsAdmin(id);
+        if (t.err) return json({ ok: false, error: t.err }, 500);
+        if (t.admin) return json({ ok: false, error: "office tidak boleh ubah akun admin" }, 403);
+      }
       if (Object.keys(patch).length === 0) {
         return json({ ok: false, error: "tidak ada perubahan" }, 400);
       }
@@ -103,6 +117,11 @@ serve(async (req) => {
       const id = body && body.id;
       if (id === undefined || id === null || id === "") {
         return json({ ok: false, error: "id kosong" }, 400);
+      }
+      if (blocksAdmin) {
+        const t = await targetIsAdmin(id);
+        if (t.err) return json({ ok: false, error: t.err }, 500);
+        if (t.admin) return json({ ok: false, error: "office tidak boleh hapus akun admin" }, 403);
       }
       const { error } = await admin.from("people").delete().eq("id", id);
       if (error) return json({ ok: false, error: error.message }, 500);
