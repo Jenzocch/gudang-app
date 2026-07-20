@@ -418,16 +418,30 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{min-height:44px}
 <script>
 // Service Worker 注册和更新检测
 if('serviceWorker' in navigator){
+  // 更新協定：新版先 waiting → 提示使用者 → 使用者按「Perbarui」→ 送 SKIP_WAITING → 接管後
+  // 只 reload 一次。首次安裝與自發更新都不會重載，避免作業中被打斷。
+  var swReloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){
+    // 只有使用者剛剛接受過更新才重載；首次安裝（controller 從無到有）不重載。
+    if(!swReloading)return;
+    swReloading=false;
+    window.location.reload();
+  });
   navigator.serviceWorker.register('/sw.js').then(function(reg){
+    function promptUpdate(sw){
+      // 只有「已經有舊版在控制中」才提示——首次安裝不打擾。
+      if(!sw||!navigator.serviceWorker.controller)return;
+      showToast('🔄 Ada versi baru','Perbarui',function(){
+        swReloading=true;
+        sw.postMessage({type:'SKIP_WAITING'});
+      });
+    }
+    if(reg.waiting)promptUpdate(reg.waiting); // 開頁時就已有等待中的新版
     reg.addEventListener('updatefound',function(){
       var newSW=reg.installing;
+      if(!newSW)return;
       newSW.addEventListener('statechange',function(){
-        if(newSW.state==='activated'){
-          showToast('🔄 Ada versi baru','Perbarui',function(){
-            newSW.postMessage({type:'SKIP_WAITING'});
-            setTimeout(function(){window.location.reload();},100);
-          });
-        }
+        if(newSW.state==='installed')promptUpdate(newSW); // 安裝完成、進入 waiting 時提示
       });
     });
     setInterval(function(){reg.update();},60000);
