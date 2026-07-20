@@ -130,14 +130,24 @@ textarea{resize:vertical;min-height:75px}
 .sr:last-child{border:none}
 .sl{color:var(--ink2);font-size:.9rem}
 .sv{font-weight:600;font-size:.95rem}
-.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:18px;z-index:500;white-space:normal;max-width:88vw;width:max-content;text-align:center;line-height:1.45;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s ease}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(16,24,40,.92);backdrop-filter:blur(8px);color:#fff;padding:.75rem 1.4rem;border-radius:18px;z-index:500;white-space:normal;max-width:88vw;width:max-content;text-align:center;line-height:1.45;font-size:.9rem;font-weight:500;box-shadow:var(--sh-lg);animation:toastIn .3s cubic-bezier(.23,1,.32,1)}
 .toast-err{background:rgba(153,27,27,.95)}
 .toast-ok{background:rgba(6,95,70,.95)}
+.toast.out{animation:toastOut .18s cubic-bezier(.23,1,.32,1) forwards}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(-50%) translateY(0)}to{opacity:0;transform:translateX(-50%) translateY(16px)}}
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-end;justify-content:center}
 .modal-ov.open{display:flex}
-.modal{background:#fff;border-radius:22px 22px 0 0;padding:1.4rem;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;animation:mIn .25s ease;box-shadow:var(--sh-lg)}
+.modal-ov.closing{transition:background .18s cubic-bezier(.23,1,.32,1);background:rgba(0,0,0,0)}
+.modal-ov.closing .modal{transition:transform .18s cubic-bezier(.23,1,.32,1);transform:translateY(100%)}
+.modal{background:#fff;border-radius:22px 22px 0 0;padding:1.4rem;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;animation:mIn .25s cubic-bezier(.23,1,.32,1);box-shadow:var(--sh-lg)}
 @keyframes mIn{from{transform:translateY(100%)}to{transform:none}}
+@media (prefers-reduced-motion: reduce){
+  .toast,.modal{animation:none}
+  .toast.out{animation:none;transition:opacity .15s ease;opacity:0}
+  .modal-ov.closing,.modal-ov.closing .modal{transition:opacity .15s ease;transform:none}
+  .modal-ov.closing{opacity:0}
+}
 .modal-title{font-size:1.05rem;font-weight:700;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
 .mcl{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:8px}.mcl:active{background:var(--light)}
 .tab-nav{display:flex;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:10;overflow-x:auto}
@@ -4103,7 +4113,13 @@ function showModal(title,body){
   ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
   armHist();
 }
-function closeModal(){stopQrCamera();var o=document.getElementById('m-ov');if(o)o.remove();}
+function closeModal(){
+  stopQrCamera();
+  var o=document.getElementById('m-ov');if(!o)return;
+  o.removeAttribute('id'); // 讓下一個 modal 立刻能用 m-ov id，不用等這層淡出完
+  o.classList.add('closing');
+  setTimeout(function(){if(o.parentNode)o.parentNode.removeChild(o);},180);
+}
 // ── Android 返回鍵：有彈窗先關彈窗，不要直接退出 App ──
 // 開任何覆蓋層時押一層 history state（最多一層，不堆疊）；
 // 按返回 → popstate → 關最上層覆蓋層；底下還有覆蓋層就再押一層。
@@ -5769,15 +5785,24 @@ function toast(msg,dur){
   var t=document.createElement('div');
   t.className='toast'+(isErr?' toast-err':isOk?' toast-ok':'');
   t.textContent=msg;document.body.appendChild(t);
-  setTimeout(function(){t.remove();},dur||(isErr?6000:2800)); // 錯誤停久一點，來得及讀
+  setTimeout(function(){
+    t.classList.add('out');
+    setTimeout(function(){t.remove();},180);
+  },dur||(isErr?6000:2800)); // 錯誤停久一點，來得及讀
 }
 // Tappable toast with an action (dipakai pemberitahuan update Service Worker)
 function showToast(msg,actionLabel,cb){
   var el=document.createElement('div');el.className='toast';el.style.cursor='pointer';
   el.innerHTML=esc(msg)+(actionLabel?' <span style="text-decoration:underline;font-weight:700;margin-left:.4rem">'+esc(actionLabel)+'</span>':'');
-  el.onclick=function(){if(cb)cb();el.remove();};
+  var dismissed=false;
+  function dismiss(){
+    if(dismissed)return;dismissed=true;
+    el.classList.add('out');
+    setTimeout(function(){el.remove();},180);
+  }
+  el.onclick=function(){if(cb)cb();dismiss();};
   document.body.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.remove();},8000);
+  setTimeout(dismiss,8000);
 }
 // ═══════════════════════════════════════════════════════════
 // PRODUKSI & PENGIRIMAN — 每家公司有自己的生產模組
