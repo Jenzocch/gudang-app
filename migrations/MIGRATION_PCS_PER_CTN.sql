@@ -5,3 +5,8 @@
 -- 在 Supabase Dashboard → SQL Editor 執行一次。IF NOT EXISTS 寫法，可安全重複執行。
 
 ALTER TABLE public.items ADD COLUMN IF NOT EXISTS pcs_per_ctn numeric;
+
+-- 補值：MIGRATION_SEED_DIN_MATERIALS.sql（PR #31）建檔時這個欄位還不存在，
+-- 但來源資料裡 ctn-din5／BAG5 這兩項本來就有寫明箱裝比例，順便補進去。
+UPDATE public.items SET pcs_per_ctn = 12   WHERE code = 'ctn-din5' AND pcs_per_ctn IS NULL;
+UPDATE public.items SET pcs_per_ctn = 2000 WHERE code = 'BAG5'     AND pcs_per_ctn IS NULL;
