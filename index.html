@@ -1235,7 +1235,7 @@ function flattenItems(ivData){
     var itm=v.items||{};
     return{
       id:v.item_id,variant_id:v.id,
-      name:itm.name||'?',code:itm.code,spec:itm.spec,description:itm.description,
+      name:itm.name||'?',code:itm.code,spec:itm.spec,pcs_per_ctn:itm.pcs_per_ctn,description:itm.description,
       image_url:itm.image_url,supplier_name:itm.supplier_name,supplier_url:itm.supplier_url,supplier_whatsapp:itm.supplier_whatsapp,
       unit:itm.unit,storage_condition:itm.storage_condition,coa_url:itm.coa_url,tags:itm.tags,
       remark:itm.remark,production_date:itm.production_date,expiry_date:itm.expiry_date,
@@ -2386,6 +2386,7 @@ function maskRowHTML(i){
     '<div class="amb-info">'+th+'<div style="min-width:0">'+
     '<div class="amb-name">'+esc(i.name)+(i.storage_photo_url?'<button onclick="event.stopPropagation();showImg(\''+jsq(i.storage_photo_url)+'\',\''+jsq(i.name)+' - '+('Tempat Simpan')+'\',\'📍\')" style="background:none;border:none;cursor:pointer;font-size:.8rem;color:var(--p);padding:0;margin-left:.3rem" title="'+('Tempat Simpan')+'">📍</button>':'')+' </div>'+
     stokLineHTML(i)+
+    (i.pcs_per_ctn?'<div style="font-size:.72rem;color:var(--ink2);margin-top:.15rem;display:flex;align-items:center;gap:.3rem">📦 <input type="number" inputmode="numeric" min="0" placeholder="box" onclick="event.stopPropagation()" onchange="mskBoxFill(\''+esc(i.variant_id)+'\',this)" style="width:44px;font-size:.85rem;text-align:center;border:1.5px solid var(--border);border-radius:6px;padding:.15rem 0"> box × '+esc(String(i.pcs_per_ctn))+' = isi pcs otomatis</div>':'')+
     '</div></div>'+
     '<div class="qc" style="width:160px;flex-shrink:0">'+
     '<button class="qb" onclick="cAdjM(\''+esc(i.variant_id)+'\',-1)">−</button>'+
@@ -2488,6 +2489,15 @@ function cSetM(variantId,inp){
   var cur=CART_M[variantId]?CART_M[variantId].qty:0;
   var nv=Math.max(0,parseFloat(inp.value)||0);
   applyCartM(variantId,nv,cur===0&&nv>0);
+}
+// Isi "box" → kalikan pcs_per_ctn, tulis ke input qty pcs lalu commit lewat cSetM (jalur yang sama
+// dengan ketik manual) — supaya cart/total/tombol semua ikut update tanpa duplikasi logic.
+function mskBoxFill(variantId,boxInput){
+  var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+  var ppc=(item&&item.pcs_per_ctn)||0;if(ppc<=0)return;
+  var target=document.getElementById('mq-'+variantId);if(!target)return;
+  target.value=(parseFloat(boxInput.value)||0)*ppc;
+  cSetM(variantId,target);
 }
 function onMskPersonChange(){
   var sel=document.getElementById('msk-p');
@@ -3956,6 +3966,7 @@ function stkItemRow(i){
     '<div style="flex:1;min-width:0">'+
       '<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(i.name)+'</div>'+
       (i.code?'<div style="font-size:.7rem;color:var(--s);font-weight:700">🏷️ '+esc(i.code)+'</div>':'')+
+      (i.pcs_per_ctn?'<div style="font-size:.7rem;color:var(--ink2);margin-top:.1rem;display:flex;align-items:center;gap:.25rem">📦 <input type="number" min="0" placeholder="box" onchange="stkBoxFill(\''+esc(i.variant_id)+'\',this)" style="width:38px;font-size:.75rem;text-align:center;border:1px solid var(--border);border-radius:5px;padding:.1rem 0"> ×'+esc(String(i.pcs_per_ctn))+'</div>':'')+
     '</div>'+
     '<div style="display:flex;align-items:center;gap:.35rem;flex-shrink:0">'+
       '<span style="font-size:.75rem;color:var(--muted)" id="stk-orig-'+esc(i.variant_id)+'">'+('Sebelum')+':'+i.qty+'</span>'+
@@ -4027,6 +4038,13 @@ function onStkChange(variantId,inp){
   var n=Object.keys(STOCKTAKE).length;
   var btn=document.getElementById('stk-save-btn');
   if(btn){btn.disabled=n===0;btn.textContent=n?'✓ '+('Simpan ('+n+' perubahan)'):('✓ Simpan (belum ada perubahan)');}
+}
+function stkBoxFill(variantId,boxInput){
+  var item=DATA.items.find(function(i){return i.variant_id==variantId;});
+  var ppc=(item&&item.pcs_per_ctn)||0;if(ppc<=0)return;
+  var target=document.getElementById('sq-'+variantId);if(!target)return;
+  target.value=(parseFloat(boxInput.value)||0)*ppc;
+  onStkChange(variantId,target);
 }
 async function saveStocktake(){
   if(!canOpname()){toast('⚠ Tidak ada akses Opname');return;}
@@ -4193,6 +4211,7 @@ function itemFormHTML(item){
       '<div class="ig"><label>'+t('unit')+'</label><input id="fu" type="text" value="'+(item?esc(item.unit):'pcs')+'"></div>'+
     '</div>'+
     '<div class="ig"><label>📐 Spesifikasi / Kemasan</label><input id="f-spec" type="text" value="'+(item&&item.spec?esc(item.spec):'')+'" placeholder="cth: 1 sak = 50 kg · 1 box = 100 pcs"></div>'+
+    '<div class="ig"><label>📦 Isi per Box/CTN <span style="font-weight:400;color:var(--muted)">(opsional — aktifkan kalkulator box saat Masuk/Opname)</span></label><input id="f-ctn" type="number" min="0" value="'+(item&&item.pcs_per_ctn?item.pcs_per_ctn:'')+'" placeholder="cth: 12"></div>'+
     '<div class="ig"><label>'+t('minQ')+'</label><input id="fm" type="number" value="'+(item?item.critical_qty:10)+'" min="0"></div>'+
     '<div class="ig"><label>'+('Foto Barang')+'</label>'+
       '<div style="display:flex;gap:.5rem;margin-bottom:.4rem">'+
@@ -4404,6 +4423,7 @@ function collectItemForm(name){
     name:name,
     code:(document.getElementById('fc')?document.getElementById('fc').value:'').trim(),
     spec:(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim(),
+    ctn:(document.getElementById('f-ctn')&&document.getElementById('f-ctn').value!==''?(Number(document.getElementById('f-ctn').value)||null):null),
     qty:Math.max(0,parseInt(document.getElementById('fq').value)||0),
     unit:(document.getElementById('fu').value||'pcs').trim(),
     min:Math.max(0,parseInt(document.getElementById('fm').value)||10),
@@ -4438,7 +4458,7 @@ async function savePendingVariant(){
 async function savePendingNew(){
   if(!PENDING_ITEM)return;var p=PENDING_ITEM;PENDING_ITEM=null;
   try{
-    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null,supplier_url:p.supUrl||null,supplier_name:p.supName||null,description:p.priceNote||null});
+    var ins=await sbInsertSafe('items',{name:p.name,code:p.code||null,spec:p.spec||null,pcs_per_ctn:p.ctn||null,image_url:p.img,unit:p.unit,production_date:p.pd||null,expiry_date:p.ed||null,remark:p.rm||null,supplier_url:p.supUrl||null,supplier_name:p.supName||null,description:p.priceNote||null});
     if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
     var vins=await sbInsertSafe('item_variants',{item_id:ins.data[0].id,warehouse_id:p.warehouse,qty:p.qty,critical_qty:p.min,storage_photo_url:p.sp});
     if(vins.error)throw vins.error;
@@ -4515,6 +4535,8 @@ async function saveItem(){
   }
   var code=(document.getElementById('fc')?document.getElementById('fc').value:'').trim();
   var spec=(document.getElementById('f-spec')?document.getElementById('f-spec').value:'').trim();
+  var ctnEl=document.getElementById('f-ctn');
+  var pcsPerCtn=ctnEl&&ctnEl.value!==''?(Number(ctnEl.value)||null):null;
   var qty=Math.max(0,parseInt(document.getElementById('fq').value)||0);
   var unit=(document.getElementById('fu').value||'pcs').trim();
   var min=Math.max(0,parseInt(document.getElementById('fm').value)||10);
@@ -4535,7 +4557,7 @@ async function saveItem(){
   try{
     if(EDIT_ITEM){
       // 編輯：改 items 表（共享信息）+ item_variants 表（倉庫特定）
-      var u1=await sbUpdateSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
+      var u1=await sbUpdateSafe('items',{name:name,code:code||null,spec:spec||null,pcs_per_ctn:pcsPerCtn,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null},'id',EDIT_ITEM.id);
       if(u1.error)throw u1.error;
       // qty cuma dikirim kalau memang diubah di form — kalau admin tidak sentuh field qty,
       // jangan timpa stok yang mungkin sudah berubah (ambil/masuk staf lain) sejak form dibuka.
@@ -4545,7 +4567,7 @@ async function saveItem(){
       if(u2.error)throw u2.error;
     }else{
       // 新增：targetWh 已在函式開頭解析（倉庫優先流程），這裡直接用
-      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null,supplier_url:supUrl,supplier_name:supName,description:priceNote});
+      var ins=await sbInsertSafe('items',{name:name,code:code||null,spec:spec||null,pcs_per_ctn:pcsPerCtn,image_url:img,unit:unit,production_date:pd||null,expiry_date:ed||null,remark:rm||null,supplier_url:supUrl,supplier_name:supName,description:priceNote});
       if(ins.error||!ins.data||!ins.data[0])throw ins.error||new Error('Gagal tambah barang');
       var itemId=ins.data[0].id;
       var vins=await sbInsertSafe('item_variants',{item_id:itemId,warehouse_id:targetWh,qty:qty,critical_qty:min,storage_photo_url:sp});
@@ -5605,6 +5627,7 @@ function preloadAllWarehouses(){
             name:itm.name||'?',
             code:itm.code,
             spec:itm.spec,
+            pcs_per_ctn:itm.pcs_per_ctn,
             description:itm.description,
             image_url:itm.image_url,
             supplier_name:itm.supplier_name,
