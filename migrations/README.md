@@ -29,4 +29,5 @@
 | `MIGRATION_PRODUCT_REFS.sql` | 新增 `product_refs` 表——供應商/產品知識庫（不綁倉庫、不算庫存），供「🗂️ Katalog Supplier」分頁關鍵字搜尋用 | ✅ 已執行（正式庫） |
 | `MIGRATION_STOCK_KEEP_INACTIVE.sql` | 重建 `din_stock_summary`/`sja_stock_summary` 視圖：保留「停產(is_active=false)但庫存≠0」的產品並回傳 `is_active`，讓停產餘貨仍可見、可出清（不再隱形） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（前端已相容，未套用前行為同現況） |
 | `MIGRATION_SUPPLIER_WHATSAPP.sql` | `items`/`product_refs` 各加 `supplier_whatsapp` 欄位，供應商連結旁多存一組 WhatsApp 號碼 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（未套用前該欄位存不進去，前端會靜默失敗） |
-| `MIGRATION_SEED_DIN_MATERIALS.sql` | 一次性資料建檔：DENIKIN 倉包裝材料 12 項＋食品原料 9 項（含分類標籤），初始庫存 0、最低警戒線 10，待現場實際收貨/盤點填入真實數量 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（純資料 seed，可安全重複執行） |
+| `MIGRATION_SEED_DIN_MATERIALS.sql` | 一次性資料建檔：DENIKIN 倉包裝材料 12 項＋食品原料 9 項（含分類標籤），初始庫存 0、最低警戒線 10，待現場實際收貨/盤點填入真實數量 | ✅ 已合併（PR #31），需在 Supabase SQL Editor 執行一次（純資料 seed，可安全重複執行） |
+| `MIGRATION_PCS_PER_CTN.sql` | items 加 `pcs_per_ctn` 欄位（1 箱＝幾 pcs），讓 Masuk / Opname 表單可填「箱數」自動算出總 pcs，跟 SJA 生產模組既有機制相同、套用到一般庫存品項；順便補 DIN 的 `ctn-din5`/`BAG5` 兩項箱裝比例值 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次，**須排在 `MIGRATION_SEED_DIN_MATERIALS.sql` 之後**（未套用前該欄位存不進去，前端會靜默失敗） |
