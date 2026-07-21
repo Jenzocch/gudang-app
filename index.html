@@ -1674,19 +1674,21 @@ function renderHome(){
     },50);
   }
 
-  // Stock warning notification
-  var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0&&!(i.remark&&i.remark.includes('#noalert'));});
-  var newLow=false;
-  lowItems.forEach(function(i){
-    if(!NOTIFIED_LOW_ITEMS[i.id]){
-      NOTIFIED_LOW_ITEMS[i.id]=true;
-      newLow=true;
-      showBrowserNotification('⚠ Stok Rendah',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
-    }
-  });
-  // 一批只響一聲。以前在迴圈裡每個品項各放一個振盪器、同一瞬間疊加
-  // （8 個低庫存＝8 倍音量），這就是「警告音太大聲」的元凶
-  if(newLow)playNotificationSound();
+  // Stock warning notification（HARDWARE 倉只通知 Admin，見 lowAlertAllowed）
+  if(lowAlertAllowed()){
+    var lowItems=DATA.items.filter(function(i){return i.qty<=i.critical_qty&&i.critical_qty>0&&!(i.remark&&i.remark.includes('#noalert'));});
+    var newLow=false;
+    lowItems.forEach(function(i){
+      if(!NOTIFIED_LOW_ITEMS[i.id]){
+        NOTIFIED_LOW_ITEMS[i.id]=true;
+        newLow=true;
+        showBrowserNotification('⚠ Stok Rendah',i.name+': '+i.qty+'/'+i.critical_qty+' '+i.unit);
+      }
+    });
+    // 一批只響一聲。以前在迴圈裡每個品項各放一個振盪器、同一瞬間疊加
+    // （8 個低庫存＝8 倍音量），這就是「警告音太大聲」的元凶
+    if(newLow)playNotificationSound();
+  }
   checkAndNotifyLow(DATA.items);
 }
 function toggleLowSection(){
@@ -5115,9 +5117,13 @@ async function confirmApproveReqBuy(id){
   }catch(e){toast('⚠ '+friendlyErr(e));var _b2=document.getElementById('arq-confirm-btn');if(_b2){_b2.disabled=false;_b2.textContent='✓ Masuk ke Stok';}}
 }
 
+// HARDWARE（五金原料）倉的低庫存「主動警示」只給 Admin：叫貨是 Admin 的事，
+// 一般員工看到彈窗也做不了什麼，只是被打斷。首頁 Perlu Beli 清單不受影響（被動顯示）。
+function lowAlertAllowed(){return CURRENT_WAREHOUSE!=='HARDWARE'||IS_ADMIN;}
 // LOW STOCK — 依 ALERT_CFG 決定要不要彈窗（off=不彈 / daily=每天一次 / always=每次）
 function checkLowStock(){
   if(ALERT_CFG.mode==='off')return;
+  if(!lowAlertAllowed())return;
   if(document.getElementById('m-ov'))return; // 有 modal 開著時不要疊上去打斷使用者，下次 loadAll 再檢查
   // 暫停日期：該日期(不含)之前都安靜，到期自動恢復，不用再回來改設定
   if(ALERT_CFG.snooze&&today()<ALERT_CFG.snooze)return;
