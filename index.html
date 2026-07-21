@@ -789,7 +789,7 @@ function staffLoginFail(){
 }
 function staffLogout(){
   if(!confirm('Keluar?'))return;
-  clearSessions();CURRENT_USER=null;IS_ADMIN=false;IS_SUPER=false;AI_WH='';PRODREF={list:[],loaded:false};
+  clearSessions();CURRENT_USER=null;IS_ADMIN=false;IS_SUPER=false;AI_WH='';PRODREF={list:[],loaded:false};QUICK_GRAB_FROM=null;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   // reset tampilan tab
   var tabMasuk=tbBtn('masuk');
@@ -1158,7 +1158,7 @@ function saveWhCache(wid){
 }
 // 重繪不彈走：記住主捲動容器的位置與各分頁搜尋框的字，renderAll 拆掉重建後原地還原。
 // 只涵蓋「分頁層級」的搜尋框；modal 內的輸入不在此列（modal 被重繪就是要重開）。
-var KEEP_INPUT_IDS=['ai-search-inp','asrch','msrch','req-search','low-search','stock-search'];
+var KEEP_INPUT_IDS=['ai-search-inp','asrch','msrch','req-search','low-search','stock-search','gs-inp'];
 function snapshotView(){
   var c=document.querySelector('.content');
   var s={scroll:c?c.scrollTop:0,inputs:{}};
@@ -1547,6 +1547,17 @@ function renderHome(){
     if(CURRENT_USER&&CURRENT_USER.name){
       h+='<div style="margin:.85rem .8rem .15rem;font-weight:700;font-size:.95rem;color:var(--ink2)">Halo, '+esc(CURRENT_USER.name)+' 👋 <span style="font-weight:500;color:var(--muted)">'+Z('Mau apa hari ini?')+'</span></div>';
     }
+    // 🔍 全域庫存搜尋：不用展開區塊、不用切倉，打字直接查自己有權限的所有倉庫
+    h+='<div style="margin:.5rem .7rem .1rem"><input id="gs-inp" type="text" inputmode="search" placeholder="🔍 '+Z('Cek stok — semua gudang')+'" oninput="gsSearch()"></div>'+
+       '<div id="gs-res" style="display:none;margin:.3rem .7rem .2rem;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);max-height:320px;overflow-y:auto"></div>';
+    // 多倉使用者：一鍵去別倉拿東西（quickGrab 會留浮動按鈕一鍵回原倉）
+    var gwWhs=(IS_ADMIN?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[])).filter(function(w){return w!==CURRENT_WAREHOUSE&&(IS_SUPER||pWhPerm(CURRENT_USER,w,'ambil'));});
+    if(gwWhs.length){
+      h+='<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.45rem .7rem .1rem">'+gwWhs.map(function(w){
+        var col=WH_TEXT[w]||WH_FB_TEXT;
+        return '<button onclick="quickGrab(\''+w+'\')" style="border:1.5px solid '+col+';background:#fff;color:'+col+';border-radius:999px;padding:.42rem .85rem;font-size:.8rem;font-weight:800;cursor:pointer;font-family:inherit">🧰 Ambil dari '+esc(WH_SHORT[w]||w)+'</button>';
+      }).join('')+'</div>';
+    }
     h+='<div style="margin:.55rem .7rem .3rem">';
     if(canAmbil())h+='<button class="task-btn task-red" onclick="goTab(\'ambil\',null)"><span class="tk-ic">↑</span><span>'+t('take')+'<small>'+Z('Keluar gudang · scan atau cari barang')+'</small></span></button>';
     if(canMasuk())h+='<button class="task-btn task-green" onclick="goTab(\'masuk\',null)"><span class="tk-ic">↓</span><span>'+t('receive')+'<small>'+Z('Barang datang, masuk stok')+'</small></span></button>';
@@ -1584,6 +1595,9 @@ function renderHome(){
       h+='<div style="padding:.2rem .7rem"><button onclick="var lc=document.getElementById(\'low-content\');if(lc&&lc.style.display===\'none\')toggleLowSection();var hs=document.getElementById(\'home-sections\');if(hs)hs.scrollIntoView({behavior:\'smooth\'})" style="width:100%;border:1.5px solid #F5C97B;background:#FEF6E9;color:#8C4A06;border-radius:12px;padding:.6rem .8rem;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;font-family:inherit">⚠️ '+lowItems.length+' '+Z('barang hampir habis')+' ›</button></div>';
     }
 
+    // 展開狀態記在 localStorage：展開過的人（尤其常查庫存的 admin）切倉/隔天回來不用重新展開
+    var lowOpen=false,stockOpen=false;
+    try{lowOpen=localStorage.getItem('sec_open_low')==='1';stockOpen=localStorage.getItem('sec_open_stock')==='1';}catch(e){}
     h+='<div id="home-sections">';
     if(lowItems.length){
       h+='<div class="home-sec low">'+
@@ -1591,11 +1605,11 @@ function renderHome(){
       '<span class="home-sec-title">🛒 '+Z('Perlu Beli')+' ('+lowItems.length+')</span>'+
       '<div style="display:flex;gap:.4rem;align-items:center">'+
       '<button onclick="copyBuyList();event.stopPropagation()" style="background:var(--danger);color:#fff;border:none;padding:.25rem .55rem;border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:700">📋 '+Z('Salin')+'</button>'+
-      '<span id="low-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
+      '<span id="low-toggle" class="home-sec-toggle" style="transform:rotate('+(lowOpen?'0deg':'-90deg')+')">▼</span>'+
       '</div>'+
       '</div>'+
-      '<div id="low-srch-wrap" class="home-sec-srch" style="display:none"><input id="low-search" type="text" placeholder="🔍 '+Z('Cari barang perlu beli...')+'" oninput="filterLowItems()"></div>'+
-      '<div id="low-content" style="display:none">';
+      '<div id="low-srch-wrap" class="home-sec-srch" style="display:'+(lowOpen?'block':'none')+'"><input id="low-search" type="text" placeholder="🔍 '+Z('Cari barang perlu beli...')+'" oninput="filterLowItems()"></div>'+
+      '<div id="low-content" style="display:'+(lowOpen?'block':'none')+'">';
       var catGrp={};var noCat=[];
       // 每個商品只歸到第一個標籤，避免多標籤商品在清單重複出現
       lowItems.forEach(function(i){var tt=i.tags||[];if(tt.length){var tg=tt[0];if(!catGrp[tg])catGrp[tg]=[];catGrp[tg].push(i);}else{noCat.push(i);}});
@@ -1630,10 +1644,10 @@ function renderHome(){
     h+='<div id="stock-list" class="home-sec stock">'+
     '<div class="home-sec-hd" onclick="toggleStockSection()">'+
     '<span class="home-sec-title">📦 '+Z('Status Stok')+' ('+sorted.length+')</span>'+
-    '<span id="stock-toggle" class="home-sec-toggle" style="transform:rotate(-90deg)">▼</span>'+
+    '<span id="stock-toggle" class="home-sec-toggle" style="transform:rotate('+(stockOpen?'0deg':'-90deg')+')">▼</span>'+
     '</div>'+
-    '<div id="stock-srch-wrap" class="home-sec-srch" style="display:none"><input id="stock-search" type="text" placeholder="🔍 '+Z('Cari semua barang...')+'" oninput="filterStockItems()"></div>'+
-    '<div id="stock-content" style="display:none">';
+    '<div id="stock-srch-wrap" class="home-sec-srch" style="display:'+(stockOpen?'block':'none')+'"><input id="stock-search" type="text" placeholder="🔍 '+Z('Cari semua barang...')+'" oninput="filterStockItems()"></div>'+
+    '<div id="stock-content" style="display:'+(stockOpen?'block':'none')+'">';
     // 先渲染前20個（快速顯示）
     var renderStockItems=function(startIdx,endIdx,cb){
       var frag='';
@@ -1702,6 +1716,7 @@ function toggleLowSection(){
     // supaya tidak ada dua kotak "tak tahu lagi cari apa" nongol di layar sebelum diketik.
     if(srch)srch.style.display=isOpen?'none':'block';
     if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+    try{localStorage.setItem('sec_open_low',isOpen?'0':'1');}catch(e){} // 記住展開狀態，重繪/切倉不重置
   }
 }
 function toggleStockSection(){
@@ -1713,7 +1728,84 @@ function toggleStockSection(){
     content.style.display=isOpen?'none':'block';
     if(srch)srch.style.display=isOpen?'none':'block';
     if(toggle)toggle.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+    try{localStorage.setItem('sec_open_stock',isOpen?'0':'1');}catch(e){} // 記住展開狀態
   }
+}
+// ── 🔍 首頁全域庫存搜尋：目前倉用即時 DATA，其他倉用 preloadAllWarehouses 的快取 ──
+function gsItems(){
+  if(!CURRENT_WAREHOUSE)return DATA.items; // Semua Gudang 視圖本身已含全部倉庫
+  var whs=IS_ADMIN?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
+  var out=DATA.items.slice();
+  whs.forEach(function(w){
+    if(w===CURRENT_WAREHOUSE)return;
+    try{var fc=JSON.parse(localStorage.getItem('wh_cache_'+w)||'null');if(fc&&fc.items)out=out.concat(fc.items);}catch(e){}
+  });
+  return out;
+}
+var GS_TIMER=null;
+function gsSearch(){clearTimeout(GS_TIMER);GS_TIMER=setTimeout(gsRun,140);}
+function gsRun(){
+  var inp=document.getElementById('gs-inp'),res=document.getElementById('gs-res');
+  if(!inp||!res)return;
+  var q=(inp.value||'').toLowerCase().trim();
+  if(!q){res.style.display='none';res.innerHTML='';return;}
+  // items.id 是全倉共用主檔 → 同品項的各倉庫存聚成同一列
+  var seen={},order=[];
+  gsItems().forEach(function(i){
+    if(((i.name||'')+' '+(i.code||'')).toLowerCase().indexOf(q)<0)return;
+    var k=String(i.id||i.name||'');
+    if(!seen[k]){seen[k]={name:i.name,code:i.code,unit:i.unit,rows:[]};order.push(k);}
+    seen[k].rows.push(i);
+  });
+  if(!order.length){res.innerHTML='<div style="padding:.7rem .9rem;color:var(--muted);font-size:.85rem">'+Z('Tidak ditemukan')+'</div>';res.style.display='block';return;}
+  var html=order.slice(0,30).map(function(k){
+    var it=seen[k];
+    var chips=it.rows.map(function(r){
+      var col=WH_TEXT[r.warehouse_id]||WH_FB_TEXT;
+      var qcol=r.qty<=0?'#DC2626':(r.critical_qty>0&&r.qty<=r.critical_qty?'#D97706':'inherit');
+      return '<span style="display:inline-flex;align-items:center;gap:.25rem;border:1px solid '+col+'33;background:'+(WH_COLORS[r.warehouse_id]||WH_FB_BG)+'55;border-radius:8px;padding:.12rem .5rem;font-size:.78rem;font-weight:700;color:'+col+'">'+esc(WH_SHORT[r.warehouse_id]||r.warehouse_id||'')+' <b style="color:'+qcol+'">'+r.qty+'</b>'+esc(boxFmt(r.qty,r.pcs_per_ctn))+(r.unit?' <span style="font-weight:500;font-size:.7rem">'+esc(r.unit)+'</span>':'')+'</span>';
+    }).join('');
+    return '<div style="padding:.55rem .8rem;border-bottom:1px solid #F3F4F6">'+
+      '<div style="font-weight:600;font-size:.88rem">'+esc(it.name||'')+(it.code?' <span style="font-size:.66rem;font-weight:800;color:var(--s);background:#EEF2FF;border:1px solid #E0E7FF;border-radius:5px;padding:0 .3rem">'+esc(it.code)+'</span>':'')+'</div>'+
+      '<div style="margin-top:.3rem;display:flex;gap:.3rem;flex-wrap:wrap">'+chips+'</div>'+
+    '</div>';
+  }).join('');
+  if(order.length>30)html+='<div style="padding:.5rem .9rem;color:var(--muted);font-size:.78rem">+'+(order.length-30)+' '+Z('lainnya — perjelas kata kunci')+'</div>';
+  res.innerHTML=html;
+  res.style.display='block';
+}
+// ── 🧰 跨倉快拿：一鍵去別倉的 Ambil，浮動按鈕一鍵回原倉 ──
+var QUICK_GRAB_FROM=null;
+function quickGrab(wid){
+  var from=CURRENT_WAREHOUSE,prevTab=ACTIVE_TAB;
+  ACTIVE_TAB='ambil'; // 先定好目標分頁：快取秒切直接落在 Ambil，沒快取載入完也會落在 Ambil
+  switchWarehouse(wid);
+  if(CURRENT_WAREHOUSE!==wid){ACTIVE_TAB=prevTab;return;} // 有未送出的購物車、使用者取消切倉
+  QUICK_GRAB_FROM=from;
+  updateReturnChip();
+}
+function quickGrabReturn(){
+  var w=QUICK_GRAB_FROM;
+  if(!w||w===CURRENT_WAREHOUSE){QUICK_GRAB_FROM=null;updateReturnChip();return;}
+  var prevTab=ACTIVE_TAB;
+  ACTIVE_TAB='home';
+  switchWarehouse(w);
+  if(CURRENT_WAREHOUSE!==w){ACTIVE_TAB=prevTab;return;} // 取消切倉就保持原狀，按鈕留著
+  QUICK_GRAB_FROM=null;
+  updateReturnChip();
+}
+function updateReturnChip(){
+  var c=document.getElementById('ret-chip');
+  var show=QUICK_GRAB_FROM&&QUICK_GRAB_FROM!==CURRENT_WAREHOUSE;
+  if(!show){if(c)c.remove();return;}
+  if(!c){
+    c=document.createElement('button');
+    c.id='ret-chip';
+    c.style.cssText='position:fixed;right:12px;bottom:132px;z-index:150;border:none;border-radius:999px;padding:.6rem 1rem;font-size:.86rem;font-weight:800;font-family:inherit;color:#fff;background:rgba(16,24,40,.92);box-shadow:var(--sh-lg);cursor:pointer';
+    c.onclick=quickGrabReturn;
+    document.body.appendChild(c);
+  }
+  c.textContent='↩ Kembali ke '+(WH_SHORT[QUICK_GRAB_FROM]||QUICK_GRAB_FROM);
 }
 function filterLowItems(){
   var inp=document.getElementById('low-search');if(!inp)return;
@@ -4845,6 +4937,7 @@ function switchWarehouse(wid){
 // 頂部中央倉庫指示：顯示目前倉庫；有 2 個以上權限時可點開下拉切換
 function updateWhChips(){
   document.body.classList.remove('has-chips');
+  updateReturnChip(); // 跨倉快拿的「回原倉」浮動按鈕跟著倉庫/登入狀態同步（登入/登出/切倉都會經過這裡，放在 early-return 之前）
   var btn=document.getElementById('hdr-wh-btn');if(!btn)return;
   if(!CURRENT_USER){btn.style.display='none';closeWhPop();return;}
   var whs=IS_ADMIN?WAREHOUSES:((CURRENT_USER&&CURRENT_USER.warehouses)||[]);
@@ -4878,7 +4971,7 @@ function toggleWhPop(ev){
 }
 function closeWhPop(){var pop=document.getElementById('wh-pop');if(pop)pop.classList.remove('open');document.removeEventListener('click',closeWhPopOnce);}
 function closeWhPopOnce(e){var pop=document.getElementById('wh-pop');if(pop&&!pop.contains(e.target)&&e.target.id!=='hdr-wh-btn')closeWhPop();}
-function pickWarehouse(w){closeWhPop();switchWarehouse(w);}
+function pickWarehouse(w){closeWhPop();QUICK_GRAB_FROM=null;switchWarehouse(w);updateReturnChip();} // 手動選倉＝使用者自己接手，快拿的「回原倉」按鈕收掉
 async function delPerson(id){
   var person=DATA.people.find(function(p){return p.id==id;});
   if(!person)return;
@@ -4892,7 +4985,7 @@ async function delPerson(id){
 function logoutAdmin(){
   // Admin gudang (staff) keluar penuh ke layar login; super admin kembali ke layar PIN
   if(!IS_SUPER){staffLogout();return;}
-  clearSessions();IS_ADMIN=false;IS_SUPER=false;CURRENT_USER=null;AI_WH='';PRODREF={list:[],loaded:false};
+  clearSessions();IS_ADMIN=false;IS_SUPER=false;CURRENT_USER=null;AI_WH='';PRODREF={list:[],loaded:false};QUICK_GRAB_FROM=null;
   var btn=document.getElementById('hdr-user-btn');if(btn)btn.style.display='none';
   renderAll(); // 重新計算底部分頁可見性，避免登出後 session 半殘仍可操作
 }
