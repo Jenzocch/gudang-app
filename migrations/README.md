@@ -28,8 +28,8 @@
 | `MIGRATION_STORAGE_LOCKDOWN.sql` | 撤掉 Storage `item-photos` bucket 的 anon DELETE/UPDATE 政策（原本任何人都能刪改別人上傳的商品照片） | ✅ 已執行（正式庫） |
 | `MIGRATION_PRODUCT_REFS.sql` | 新增 `product_refs` 表——供應商/產品知識庫（不綁倉庫、不算庫存），供「🗂️ Katalog Supplier」分頁關鍵字搜尋用 | ✅ 已執行（正式庫） |
 | `MIGRATION_STOCK_KEEP_INACTIVE.sql` | 重建 `din_stock_summary`/`sja_stock_summary` 視圖：保留「停產(is_active=false)但庫存≠0」的產品並回傳 `is_active`，讓停產餘貨仍可見、可出清（不再隱形） | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（前端已相容，未套用前行為同現況） |
-| `MIGRATION_SUPPLIER_WHATSAPP.sql` | `items`/`product_refs` 各加 `supplier_whatsapp` 欄位，供應商連結旁多存一組 WhatsApp 號碼 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次（未套用前該欄位存不進去，前端會靜默失敗） |
-| `MIGRATION_ITEMS_REMARK.sql` | items 補建 `remark`（備註）欄位——品項表單「📝 Catatan」和低庫存「🔕 不要提醒」都早就假設這欄存在，但從沒建過，一直被 `sbInsertSafe`/`sbUpdateSafe` 靜默丟棄 | 🆕 2026-07 新增 — **急件，需在 Supabase SQL Editor 立刻執行一次**，且須排在 `MIGRATION_SEED_DIN_MATERIALS.sql` 之前（否則 seed 會報 `column "remark" does not exist`） |
-| `MIGRATION_SEED_DIN_MATERIALS.sql` | 一次性資料建檔：DENIKIN 倉包裝材料 12 項＋食品原料 9 項（含分類標籤），初始庫存 0、最低警戒線 10，待現場實際收貨/盤點填入真實數量 | ✅ 已合併（PR #31），需在 Supabase SQL Editor 執行一次（純資料 seed，可安全重複執行），**須排在 `MIGRATION_ITEMS_REMARK.sql` 之後** |
-| `MIGRATION_PCS_PER_CTN.sql` | items 加 `pcs_per_ctn` 欄位（1 箱＝幾 pcs），讓 Masuk / Opname 表單可填「箱數」自動算出總 pcs，跟 SJA 生產模組既有機制相同、套用到一般庫存品項；順便補 DIN 的 `ctn-din5`/`BAG5` 兩項箱裝比例值 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次，**須排在 `MIGRATION_SEED_DIN_MATERIALS.sql` 之後**（未套用前該欄位存不進去，前端會靜默失敗） |
-| `MIGRATION_QC_FINISHED_GOODS.sql` | `din_production`/`sja_production` 加成品批 QC 欄位（qc_status/qc_date/qc_inspection_no/qc_judged_by/qc_note），FQMS 成品檢驗回寫＋出貨畫面 Hold 攔截用 | 🆕 2026-07 新增 — 需在 Supabase SQL Editor 執行一次，並重新部署 `qc-lookup`/`qc-status` 兩支 Edge Function（`supabase functions deploy qc-lookup qc-status`）。前端已降級相容，未跑 migration 前 FIFO/出貨照常運作（全部視為未檢驗） |
+| `MIGRATION_SUPPLIER_WHATSAPP.sql` | `items`/`product_refs` 各加 `supplier_whatsapp` 欄位，供應商連結旁多存一組 WhatsApp 號碼 | ✅ 已執行（正式庫，2026-07-21 使用者確認） |
+| `MIGRATION_ITEMS_REMARK.sql` | items 補建 `remark`（備註）欄位——品項表單「📝 Catatan」和低庫存「🔕 不要提醒」都早就假設這欄存在，但從沒建過，一直被 `sbInsertSafe`/`sbUpdateSafe` 靜默丟棄 | ✅ 已執行（正式庫，2026-07-21 使用者確認） |
+| `MIGRATION_SEED_DIN_MATERIALS.sql` | 一次性資料建檔：DENIKIN 倉包裝材料 12 項＋食品原料 9 項（含分類標籤），初始庫存 0、最低警戒線 10，待現場實際收貨/盤點填入真實數量 | ✅ 已執行（正式庫，2026-07-21 使用者確認） |
+| `MIGRATION_PCS_PER_CTN.sql` | items 加 `pcs_per_ctn` 欄位（1 箱＝幾 pcs），讓 Masuk / Opname 表單可填「箱數」自動算出總 pcs，跟 SJA 生產模組既有機制相同、套用到一般庫存品項；順便補 DIN 的 `ctn-din5`/`BAG5` 兩項箱裝比例值 | ✅ 已執行（正式庫，2026-07-21 使用者確認） |
+| `MIGRATION_QC_FINISHED_GOODS.sql` | `din_production`/`sja_production` 加成品批 QC 欄位（qc_status/qc_date/qc_inspection_no/qc_judged_by/qc_note），FQMS 成品檢驗回寫＋出貨畫面 Hold 攔截用 | ✅ SQL 已執行（正式庫，2026-07-21 使用者確認）；Edge Function 部署：`supabase functions deploy qc-lookup qc-status`（見 PR #40） |
